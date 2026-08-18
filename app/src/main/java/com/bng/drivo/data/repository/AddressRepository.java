@@ -1,14 +1,18 @@
 package com.bng.drivo.data.repository;
 
 import com.bng.drivo.data.model.SavedAddress;
+import com.bng.drivo.data.remote.ApiCallback;
 
 import java.util.List;
 
 public interface AddressRepository {
 
-    List<SavedAddress> getAll();
+    /** GET /favorites */
+    void getAll(ApiCallback<List<SavedAddress>> callback);
 
-    void save(SavedAddress address);
+    /** POST /favorites — el contrato no tiene endpoint de edición, solo alta y borrado. */
+    void create(String label, String addressText, double lat, double lng, ApiCallback<SavedAddress> callback);
 
-    void delete(String id);
+    /** DELETE /favorites/{id} */
+    void delete(String id, ApiCallback<Void> callback);
 }

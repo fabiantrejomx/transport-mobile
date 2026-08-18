@@ -63,8 +63,11 @@ public class CompleteProfileActivity extends AuthenticatedActivity {
             @Override
             public void onError(ApiException error) {
                 btnSave.setEnabled(true);
-                Toast.makeText(CompleteProfileActivity.this, R.string.complete_profile_save_error,
-                        Toast.LENGTH_SHORT).show();
+                String detail = error.getMessage();
+                String message = detail != null && !detail.isEmpty()
+                        ? getString(R.string.complete_profile_save_error) + " (" + error.getCode() + ": " + detail + ")"
+                        : getString(R.string.complete_profile_save_error);
+                Toast.makeText(CompleteProfileActivity.this, message, Toast.LENGTH_LONG).show();
             }
         });
     }

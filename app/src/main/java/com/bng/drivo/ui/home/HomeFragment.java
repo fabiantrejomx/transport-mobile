@@ -4,7 +4,9 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +15,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
@@ -68,11 +71,25 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         setUpDestinationCard(view);
 
-        if (!hasLocationPermission()) {
+        if (hasLocationPermission()) {
+            // Ya resuelto de una sesión anterior: no hay diálogo de por medio, es seguro
+            // encadenar el permiso de notificaciones de inmediato.
+            requestNotificationPermission();
+        } else {
             permissionLauncher.launch(new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION
             });
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Cubre volver de Ajustes tras otorgar el permiso manualmente: onViewCreated ya no
+        // vuelve a correr (el patrón show/hide de HomeActivity no recrea este Fragment).
+        if (hasLocationPermission() && googleMap != null && !googleMap.isMyLocationEnabled()) {
+            showMyLocation();
         }
     }
 
@@ -94,7 +111,37 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (granted) {
             showMyLocation();
         } else if (getView() != null) {
-            Snackbar.make(getView(), R.string.home_permission_rationale, Snackbar.LENGTH_LONG).show();
+            showPermissionDeniedSnackbar();
+        }
+        // Se encadena aquí (y no antes) para que nunca haya dos requestPermissions() pendientes
+        // a la vez — ver el comentario en HomeActivity.requestNotificationPermissionAndRegisterToken().
+        requestNotificationPermission();
+    }
+
+    private void showPermissionDeniedSnackbar() {
+        Snackbar snackbar = Snackbar.make(getView(), R.string.home_permission_rationale, Snackbar.LENGTH_LONG);
+        boolean canAskAgain = ActivityCompat.shouldShowRequestPermissionRationale(
+                requireActivity(), Manifest.permission.ACCESS_FINE_LOCATION);
+        if (canAskAgain) {
+            snackbar.setAction(R.string.home_permission_retry, v -> permissionLauncher.launch(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            }));
+        } else {
+            snackbar.setAction(R.string.home_permission_open_settings, v -> openAppSettings());
+        }
+        snackbar.show();
+    }
+
+    private void openAppSettings() {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", requireContext().getPackageName(), null));
+        startActivity(intent);
+    }
+
+    private void requestNotificationPermission() {
+        if (getActivity() instanceof HomeActivity) {
+            ((HomeActivity) requireActivity()).requestNotificationPermissionAndRegisterToken();
         }
     }
 

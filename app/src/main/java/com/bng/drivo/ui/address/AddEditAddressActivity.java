@@ -13,8 +13,10 @@ import androidx.core.content.ContextCompat;
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.AddressLabel;
 import com.bng.drivo.data.model.SavedAddress;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AddressRepository;
-import com.bng.drivo.data.repository.MockAddressRepository;
+import com.bng.drivo.data.repository.RestAddressRepository;
 import com.bng.drivo.service.PlacesAutocompleteService;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.util.GeocoderHelper;
@@ -35,6 +37,10 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 public class AddEditAddressActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
     public static final String EXTRA_ADDRESS_ID = "extra_address_id";
+    public static final String EXTRA_ADDRESS_LABEL = "extra_address_label";
+    public static final String EXTRA_ADDRESS_TEXT = "extra_address_text";
+    public static final String EXTRA_ADDRESS_LAT = "extra_address_lat";
+    public static final String EXTRA_ADDRESS_LNG = "extra_address_lng";
 
     private static final LatLng DEFAULT_POSITION = new LatLng(19.4326, -99.1332);
 
@@ -42,7 +48,9 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
     private ChipGroup chipGroupLabel;
     private EditText inputAddress;
     private GoogleMap googleMap;
-    private SavedAddress editingAddress;
+
+    /** No nulo solo cuando se llegó desde la lista para editar una dirección existente. */
+    private String editingAddressId;
 
     private final PlacesAutocompleteService placesAutocompleteService = new PlacesAutocompleteService(this);
 
@@ -51,27 +59,24 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_edit_address);
 
-        addressRepository = new MockAddressRepository(this);
+        addressRepository = new RestAddressRepository(this);
 
-        String addressId = getIntent().getStringExtra(EXTRA_ADDRESS_ID);
-        if (addressId != null) {
-            editingAddress = findAddressById(addressId);
-        }
+        editingAddressId = getIntent().getStringExtra(EXTRA_ADDRESS_ID);
+        boolean isEditing = editingAddressId != null;
+        String initialLabel = getIntent().getStringExtra(EXTRA_ADDRESS_LABEL);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
-        toolbar.setTitle(editingAddress != null
-                ? R.string.address_edit_title_edit
-                : R.string.address_edit_title_new);
+        toolbar.setTitle(isEditing ? R.string.address_edit_title_edit : R.string.address_edit_title_new);
 
         chipGroupLabel = findViewById(R.id.chip_group_label);
         inputAddress = findViewById(R.id.input_address);
 
-        Chip initialChip = chipForLabel(editingAddress != null ? editingAddress.getLabel() : AddressLabel.OTRO);
+        Chip initialChip = chipForLabel(AddressLabel.fromText(this, initialLabel));
         initialChip.setChecked(true);
 
-        if (editingAddress != null) {
-            inputAddress.setText(editingAddress.getAddress());
+        if (isEditing) {
+            inputAddress.setText(getIntent().getStringExtra(EXTRA_ADDRESS_TEXT));
         }
 
         findViewById(R.id.text_search_address).setOnClickListener(v ->
@@ -80,7 +85,7 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
         findViewById(R.id.btn_save_address).setOnClickListener(v -> saveAddress());
 
         android.widget.Button btnDelete = findViewById(R.id.btn_delete_address);
-        if (editingAddress != null) {
+        if (isEditing) {
             btnDelete.setVisibility(android.view.View.VISIBLE);
             btnDelete.setOnClickListener(v -> confirmDelete());
         }
@@ -98,9 +103,11 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
         MapStyler.apply(this, googleMap);
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
 
-        if (editingAddress != null) {
-            LatLng target = new LatLng(editingAddress.getLat(), editingAddress.getLng());
-            googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.fromLatLngZoom(target, 16f)));
+        if (editingAddressId != null) {
+            double lat = getIntent().getDoubleExtra(EXTRA_ADDRESS_LAT, DEFAULT_POSITION.latitude);
+            double lng = getIntent().getDoubleExtra(EXTRA_ADDRESS_LNG, DEFAULT_POSITION.longitude);
+            googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(
+                    CameraPosition.fromLatLngZoom(new LatLng(lat, lng), 16f)));
         } else {
             googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(
                     CameraPosition.fromLatLngZoom(DEFAULT_POSITION, 15f)));
@@ -157,28 +164,66 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
             return;
         }
         LatLng target = googleMap.getCameraPosition().target;
-        AddressLabel label = labelForCheckedChip();
+        String label = getString(labelForCheckedChip().getDisplayNameRes());
 
-        SavedAddress toSave = editingAddress != null
-                ? editingAddress
-                : new SavedAddress(label, addressText, target.latitude, target.longitude);
-        toSave.setLabel(label);
-        toSave.setAddress(addressText);
-        toSave.setLat(target.latitude);
-        toSave.setLng(target.longitude);
+        setSavingEnabled(false);
+        if (editingAddressId != null) {
+            // El contrato no tiene PATCH /favorites/{id}: "editar" es borrar y volver a crear.
+            addressRepository.delete(editingAddressId, new ApiCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    createAddress(label, addressText, target);
+                }
 
-        addressRepository.save(toSave);
-        finish();
+                @Override
+                public void onError(ApiException error) {
+                    setSavingEnabled(true);
+                    Toast.makeText(AddEditAddressActivity.this, R.string.address_edit_save_error, Toast.LENGTH_SHORT)
+                            .show();
+                }
+            });
+        } else {
+            createAddress(label, addressText, target);
+        }
+    }
+
+    private void createAddress(String label, String addressText, LatLng target) {
+        addressRepository.create(label, addressText, target.latitude, target.longitude, new ApiCallback<SavedAddress>() {
+            @Override
+            public void onSuccess(SavedAddress result) {
+                finish();
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                setSavingEnabled(true);
+                Toast.makeText(AddEditAddressActivity.this, R.string.address_edit_save_error, Toast.LENGTH_SHORT)
+                        .show();
+            }
+        });
+    }
+
+    private void setSavingEnabled(boolean enabled) {
+        findViewById(R.id.btn_save_address).setEnabled(enabled);
     }
 
     private void confirmDelete() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.address_list_delete_title)
                 .setMessage(R.string.address_list_delete_message)
-                .setPositiveButton(R.string.address_list_delete_positive, (dialog, which) -> {
-                    addressRepository.delete(editingAddress.getId());
-                    finish();
-                })
+                .setPositiveButton(R.string.address_list_delete_positive, (dialog, which) ->
+                        addressRepository.delete(editingAddressId, new ApiCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                finish();
+                            }
+
+                            @Override
+                            public void onError(ApiException error) {
+                                Toast.makeText(AddEditAddressActivity.this, R.string.address_edit_delete_error,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        }))
                 .setNegativeButton(R.string.address_list_delete_negative, null)
                 .show();
     }
@@ -202,14 +247,5 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
             return AddressLabel.TRABAJO;
         }
         return AddressLabel.OTRO;
-    }
-
-    private SavedAddress findAddressById(String id) {
-        for (SavedAddress address : addressRepository.getAll()) {
-            if (address.getId().equals(id)) {
-                return address;
-            }
-        }
-        return null;
     }
 }

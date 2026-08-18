@@ -47,8 +47,6 @@ public class HomeActivity extends AuthenticatedActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
-        requestNotificationPermissionAndRegisterToken();
-
         FragmentManager fragmentManager = getSupportFragmentManager();
 
         if (savedInstanceState != null) {
@@ -117,10 +115,16 @@ public class HomeActivity extends AuthenticatedActivity {
     }
 
     /**
-     * Sin este permiso (Android 13+) FCM sigue entregando data messages, pero el sistema no
+     * La llama HomeFragment una vez que su propio flujo de permiso de ubicación termina
+     * (otorgado, negado o ya resuelto de antes) — nunca desde onCreate() directamente. Android
+     * solo permite un diálogo de permiso pendiente a la vez: si dos ActivityResultLauncher
+     * lanzan un requestPermissions() casi simultáneo, el segundo se descarta en silencio.
+     * Encadenar aquí evita esa carrera.
+     *
+     * <p>Sin este permiso (Android 13+) FCM sigue entregando data messages, pero el sistema no
      * pinta la notificación — igual registramos el token, la app solo pierde la alerta visual.
      */
-    private void requestNotificationPermissionAndRegisterToken() {
+    void requestNotificationPermissionAndRegisterToken() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {

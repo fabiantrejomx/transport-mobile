@@ -6,13 +6,17 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.AddressLabel;
 import com.bng.drivo.data.model.SavedAddress;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AddressRepository;
-import com.bng.drivo.data.repository.MockAddressRepository;
+import com.bng.drivo.data.repository.RestAddressRepository;
 import com.bng.drivo.util.ColorUtils;
 import com.google.android.material.appbar.MaterialToolbar;
 
@@ -29,7 +33,7 @@ public class AddressListActivity extends AuthenticatedActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_address_list);
 
-        addressRepository = new MockAddressRepository(this);
+        addressRepository = new RestAddressRepository(this);
         container = findViewById(R.id.container_addresses);
         emptyState = findViewById(R.id.text_empty);
 
@@ -47,8 +51,22 @@ public class AddressListActivity extends AuthenticatedActivity {
     }
 
     private void renderAddresses() {
+        addressRepository.getAll(new ApiCallback<List<SavedAddress>>() {
+            @Override
+            public void onSuccess(List<SavedAddress> addresses) {
+                bindAddresses(addresses);
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                bindAddresses(java.util.Collections.emptyList());
+                Toast.makeText(AddressListActivity.this, R.string.address_list_load_error, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void bindAddresses(List<SavedAddress> addresses) {
         container.removeAllViews();
-        List<SavedAddress> addresses = addressRepository.getAll();
 
         container.setVisibility(addresses.isEmpty() ? View.GONE : View.VISIBLE);
         emptyState.setVisibility(addresses.isEmpty() ? View.VISIBLE : View.GONE);
@@ -56,15 +74,20 @@ public class AddressListActivity extends AuthenticatedActivity {
         LayoutInflater inflater = LayoutInflater.from(this);
         for (int i = 0; i < addresses.size(); i++) {
             SavedAddress address = addresses.get(i);
+            AddressLabel icon = AddressLabel.fromText(this, address.getLabel());
             View row = inflater.inflate(R.layout.item_saved_address, container, false);
 
-            ((TextView) row.findViewById(R.id.text_address_emoji)).setText(address.getLabel().getEmoji());
-            ((TextView) row.findViewById(R.id.text_address_label)).setText(address.getLabel().getDisplayNameRes());
+            ((TextView) row.findViewById(R.id.text_address_emoji)).setText(icon.getEmoji());
+            ((TextView) row.findViewById(R.id.text_address_label)).setText(address.getLabel());
             ((TextView) row.findViewById(R.id.text_address_line)).setText(address.getAddress());
 
             row.setOnClickListener(v -> {
                 Intent intent = new Intent(this, AddEditAddressActivity.class);
                 intent.putExtra(AddEditAddressActivity.EXTRA_ADDRESS_ID, address.getId());
+                intent.putExtra(AddEditAddressActivity.EXTRA_ADDRESS_LABEL, address.getLabel());
+                intent.putExtra(AddEditAddressActivity.EXTRA_ADDRESS_TEXT, address.getAddress());
+                intent.putExtra(AddEditAddressActivity.EXTRA_ADDRESS_LAT, address.getLat());
+                intent.putExtra(AddEditAddressActivity.EXTRA_ADDRESS_LNG, address.getLng());
                 startActivity(intent);
             });
 

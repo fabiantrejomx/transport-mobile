@@ -47,7 +47,11 @@ public final class ApiClient {
             clientBuilder.addInterceptor(loggingInterceptor);
         }
 
-        Gson gson = new GsonBuilder().create();
+        // serializeNulls(): campos nullable (ej. email en PATCH /me) van explícitos como
+        // "campo": null en vez de omitirse. Gson por defecto omite los null, lo cual es
+        // ambiguo para el servidor entre "no toques este campo" y "bórralo" — el contrato
+        // marca varios campos nullable/opcionales y así evita esa ambigüedad.
+        Gson gson = new GsonBuilder().serializeNulls().create();
 
         return new Retrofit.Builder()
                 .baseUrl(readBaseUrl(context.getApplicationContext()))

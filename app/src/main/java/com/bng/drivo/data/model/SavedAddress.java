@@ -1,20 +1,19 @@
 package com.bng.drivo.data.model;
 
-import java.util.UUID;
-
+/**
+ * {@code label} es texto libre tal como lo define el contrato de {@code /favorites}
+ * (ej. "Casa", "Trabajo") — no hay enum en el servidor. {@link AddressLabel} se usa solo del
+ * lado del cliente para elegir un ícono a partir de este texto.
+ */
 public class SavedAddress {
 
     private final String id;
-    private AddressLabel label;
+    private String label;
     private String address;
     private double lat;
     private double lng;
 
-    public SavedAddress(AddressLabel label, String address, double lat, double lng) {
-        this(UUID.randomUUID().toString(), label, address, lat, lng);
-    }
-
-    public SavedAddress(String id, AddressLabel label, String address, double lat, double lng) {
+    public SavedAddress(String id, String label, String address, double lat, double lng) {
         this.id = id;
         this.label = label;
         this.address = address;
@@ -26,11 +25,11 @@ public class SavedAddress {
         return id;
     }
 
-    public AddressLabel getLabel() {
+    public String getLabel() {
         return label;
     }
 
-    public void setLabel(AddressLabel label) {
+    public void setLabel(String label) {
         this.label = label;
     }
 

@@ -44,6 +44,8 @@
     <string name="home_destination_placeholder">¿A dónde vamos?</string>
     <string name="home_request_trip">Pedir un viaje</string>
     <string name="home_permission_rationale">Se necesita el permiso de ubicación para mostrar tu posición en el mapa.</string>
+    <string name="home_permission_retry">Reintentar</string>
+    <string name="home_permission_open_settings">Abrir ajustes</string>
 
     <!-- Bottom nav -->
     <string name="nav_inicio">Inicio</string>
@@ -92,6 +94,9 @@
     <string name="address_edit_save">Guardar</string>
     <string name="address_edit_delete">Eliminar dirección</string>
     <string name="address_edit_empty_error">Ingresa una dirección</string>
+    <string name="address_list_load_error">No se pudieron cargar tus direcciones</string>
+    <string name="address_edit_save_error">No se pudo guardar la dirección. Intenta de nuevo.</string>
+    <string name="address_edit_delete_error">No se pudo eliminar la dirección. Intenta de nuevo.</string>
 
     <!-- Elige tu destino -->
     <string name="set_destino_title">Elige tu destino</string>

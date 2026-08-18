@@ -18,9 +18,12 @@ import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.core.content.ContextCompat;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.AddressLabel;
 import com.bng.drivo.data.model.SavedAddress;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AddressRepository;
-import com.bng.drivo.data.repository.MockAddressRepository;
+import com.bng.drivo.data.repository.RestAddressRepository;
 import com.bng.drivo.ui.price.ConfirmPriceActivity;
 import com.bng.drivo.util.ColorUtils;
 import com.bng.drivo.service.PlacesAutocompleteService;
@@ -59,7 +62,7 @@ public class SetDestinationActivity extends AuthenticatedActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_set_destino);
 
-        addressRepository = new MockAddressRepository(this);
+        addressRepository = new RestAddressRepository(this);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         loadLastKnownOrigin();
 
@@ -89,20 +92,34 @@ public class SetDestinationActivity extends AuthenticatedActivity {
     }
 
     private void loadSavedAddresses() {
+        addressRepository.getAll(new ApiCallback<List<SavedAddress>>() {
+            @Override
+            public void onSuccess(List<SavedAddress> addresses) {
+                bindSavedAddresses(addresses);
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                bindSavedAddresses(java.util.Collections.emptyList());
+            }
+        });
+    }
+
+    private void bindSavedAddresses(List<SavedAddress> addresses) {
         LinearLayout container = findViewById(R.id.container_saved_addresses);
         container.removeAllViews();
 
-        List<SavedAddress> addresses = addressRepository.getAll();
         findViewById(R.id.text_saved_addresses_label).setVisibility(
                 addresses.isEmpty() ? View.GONE : View.VISIBLE);
 
         LayoutInflater inflater = LayoutInflater.from(this);
         for (int i = 0; i < addresses.size(); i++) {
             SavedAddress address = addresses.get(i);
+            AddressLabel icon = AddressLabel.fromText(this, address.getLabel());
             View row = inflater.inflate(R.layout.item_saved_address, container, false);
 
-            ((TextView) row.findViewById(R.id.text_address_emoji)).setText(address.getLabel().getEmoji());
-            ((TextView) row.findViewById(R.id.text_address_label)).setText(address.getLabel().getDisplayNameRes());
+            ((TextView) row.findViewById(R.id.text_address_emoji)).setText(icon.getEmoji());
+            ((TextView) row.findViewById(R.id.text_address_label)).setText(address.getLabel());
             ((TextView) row.findViewById(R.id.text_address_line)).setText(address.getAddress());
 
             row.setOnClickListener(v -> {

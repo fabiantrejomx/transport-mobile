@@ -1,16 +1,27 @@
 package com.bng.drivo.ui.home;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
+import com.bng.drivo.data.repository.DeviceRepository;
+import com.bng.drivo.data.repository.RestDeviceRepository;
 import com.bng.drivo.ui.profile.PerfilFragment;
 import com.bng.drivo.ui.trips.ViajesFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 /**
  * Host de las 3 pestañas del pasajero (Inicio / Viajes / Perfil), con la barra de
@@ -28,10 +39,15 @@ public class HomeActivity extends AuthenticatedActivity {
     private Fragment perfilFragment;
     private Fragment activeFragment;
 
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> registerFcmToken());
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
+
+        requestNotificationPermissionAndRegisterToken();
 
         FragmentManager fragmentManager = getSupportFragmentManager();
 
@@ -98,5 +114,36 @@ public class HomeActivity extends AuthenticatedActivity {
                 .show(target)
                 .commit();
         activeFragment = target;
+    }
+
+    /**
+     * Sin este permiso (Android 13+) FCM sigue entregando data messages, pero el sistema no
+     * pinta la notificación — igual registramos el token, la app solo pierde la alerta visual.
+     */
+    private void requestNotificationPermissionAndRegisterToken() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            return;
+        }
+        registerFcmToken();
+    }
+
+    private void registerFcmToken() {
+        FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
+            DeviceRepository deviceRepository = new RestDeviceRepository(this);
+            deviceRepository.registerDevice(token, new ApiCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    // no-op
+                }
+
+                @Override
+                public void onError(ApiException error) {
+                    // Se reintenta en el siguiente arranque de HomeActivity.
+                }
+            });
+        });
     }
 }

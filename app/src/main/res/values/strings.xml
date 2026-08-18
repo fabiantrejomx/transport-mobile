@@ -27,6 +27,18 @@
     <string name="complete_profile_invalid_email_error">Ese correo no es válido</string>
     <string name="complete_profile_save_error">No se pudo guardar tu perfil. Intenta de nuevo.</string>
 
+    <!-- Notificaciones (FCM) -->
+    <string name="notif_channel_rides_high">Solicitudes de viaje</string>
+    <string name="notif_channel_rides_normal">Actualizaciones de viaje</string>
+    <string name="notif_new_ride_title">Nueva solicitud de viaje</string>
+    <string name="notif_new_ride_body">Toca para ver los detalles</string>
+    <string name="notif_offer_accepted_title">Te aceptaron el viaje</string>
+    <string name="notif_offer_accepted_body">Ve por tu pasajero</string>
+    <string name="notif_ride_taken_title">Viaje ya tomado</string>
+    <string name="notif_ride_taken_body">Otro conductor se lo llevó</string>
+    <string name="notif_ride_status_title">Actualización de tu viaje</string>
+    <string name="notif_ride_status_body">Toca para ver el estado actual</string>
+
     <!-- Home -->
     <string name="home_origin_placeholder">Tu ubicación actual</string>
     <string name="home_destination_placeholder">¿A dónde vamos?</string>

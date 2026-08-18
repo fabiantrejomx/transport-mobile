@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.util.Log;
 
+import com.bng.drivo.util.NotificationChannels;
 import com.google.android.libraries.places.api.Places;
 
 public class DrivoApplication extends Application {
@@ -16,6 +17,7 @@ public class DrivoApplication extends Application {
     public void onCreate() {
         super.onCreate();
         initPlaces();
+        NotificationChannels.createAll(this);
     }
 
     private void initPlaces() {

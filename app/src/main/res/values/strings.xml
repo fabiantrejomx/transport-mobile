@@ -123,19 +123,27 @@
     <string name="confirm_price_payment_change">Cambiar ›</string>
     <string name="confirm_price_payment_coming_soon">Próximamente: otros métodos de pago</string>
     <string name="confirm_price_request_trip">Solicitar Viaje</string>
+    <string name="confirm_price_quote_error">No se pudo calcular la tarifa. Intenta de nuevo.</string>
+    <string name="confirm_price_request_error">No se pudo solicitar el viaje. Intenta de nuevo.</string>
 
     <!-- Buscando conductores -->
     <string name="searching_message">Buscando conductores…</string>
     <string name="searching_subtitle">Conductores disponibles cerca de ti</string>
     <string name="searching_offer_label">Oferta del conductor</string>
-    <string name="searching_select_driver">Seleccionar</string>
+    <string name="searching_reject_driver">Rechazar</string>
+    <string name="searching_accept_driver">Aceptar</string>
+    <string name="searching_counter">Conductor disponible (%1$d/%2$d)</string>
+    <string name="searching_accept_error">No se pudo confirmar con este conductor. Intenta de nuevo.</string>
+    <string name="searching_reject_error">No se pudo rechazar la oferta. Intenta de nuevo.</string>
 
     <!-- Viaje activo -->
     <string name="active_trip_price_label">Precio Acordado (Efectivo)</string>
     <string name="active_trip_sos">🛡️ S.O.S</string>
-    <string name="active_trip_sos_coming_soon">S.O.S. — próximamente</string>
+    <string name="active_trip_sos_sent">Alerta enviada. Comparte tu ubicación con alguien de confianza.</string>
+    <string name="active_trip_sos_error">No se pudo enviar la alerta. Intenta de nuevo o llama al 911.</string>
     <string name="active_trip_call_coming_soon">Llamar — próximamente</string>
     <string name="active_trip_message_coming_soon">Mensaje — próximamente</string>
+    <string name="active_trip_share_coming_soon">Compartir viaje — próximamente</string>
     <string name="active_trip_call_description">Llamar al conductor</string>
     <string name="active_trip_message_description">Enviar mensaje al conductor</string>
     <string name="active_trip_cancel_description">Cancelar viaje</string>
@@ -144,18 +152,15 @@
     <string name="active_trip_cancel_positive">Sí, cancelar</string>
     <string name="active_trip_cancel_negative">No</string>
     <string name="active_trip_cancelled_toast">Viaje cancelado</string>
-    <string name="active_trip_finish">Finalizar Viaje</string>
+    <string name="active_trip_cancel_error">No se pudo cancelar el viaje. Intenta de nuevo.</string>
+    <string name="active_trip_cancelled_by_driver_toast">El conductor canceló el viaje</string>
 
     <!-- Fases previas al viaje activo: conductor en camino / esperando -->
     <string name="active_trip_status_en_route_title">Tu conductor va en camino</string>
-    <string name="active_trip_status_en_route_subtitle">Llega en %1$d min</string>
+    <string name="active_trip_status_en_route_subtitle">Sigue su ubicación en el mapa</string>
     <string name="active_trip_status_waiting_title">Tu conductor te está esperando</string>
     <string name="active_trip_status_waiting_subtitle">En el punto de encuentro acordado</string>
-    <string name="active_trip_btn_leaving">Ya voy saliendo</string>
-    <string name="active_trip_grace_timer">Tu conductor te espera: %1$s</string>
 
     <!-- Compartir viaje -->
     <string name="active_trip_share_description">Compartir viaje</string>
-    <string name="active_trip_share_chooser_title">Compartir viaje con</string>
-    <string name="active_trip_share_text">Voy en un viaje de Drivo con %1$s. Sigue mi viaje en tiempo real aquí: %2$s</string>
 </resources>

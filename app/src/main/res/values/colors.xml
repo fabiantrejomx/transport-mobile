@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paleta de marca Drivo (modo claro) — ver CLAUDE.md -->
+    <color name="drivo_primary">#0F2C4C</color>
+    <color name="drivo_on_primary">#FFFFFF</color>
+    <color name="drivo_primary_container">#D5E3F7</color>
+    <color name="drivo_on_primary_container">#0F2C4C</color>
+
+    <color name="drivo_secondary">#B08D2B</color>
+    <color name="drivo_on_secondary">#FFFFFF</color>
+    <color name="drivo_secondary_container">#F3E4C0</color>
+    <color name="drivo_on_secondary_container">#4A3900</color>
+
+    <color name="drivo_background">#F6F8FA</color>
+    <color name="drivo_on_background">#14212E</color>
+    <color name="drivo_surface">#FFFFFF</color>
+    <color name="drivo_on_surface">#14212E</color>
+    <color name="drivo_surface_variant">#EEF2F6</color>
+    <color name="drivo_on_surface_variant">#55677A</color>
+    <color name="drivo_outline">#D6DEE6</color>
+
+    <color name="drivo_error">#B3261E</color>
+    <color name="drivo_on_error">#FFFFFF</color>
+
+    <!-- Color de confirmaciones / punto de origen en el mapa (fuera de los roles estándar de M3) -->
+    <color name="drivo_success">#2E7D5B</color>
+</resources>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Drivo" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/drivo_primary</item>
+        <item name="colorOnPrimary">@color/drivo_on_primary</item>
+        <item name="colorPrimaryContainer">@color/drivo_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/drivo_on_primary_container</item>
+
+        <item name="colorSecondary">@color/drivo_secondary</item>
+        <item name="colorOnSecondary">@color/drivo_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/drivo_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/drivo_on_secondary_container</item>
+
+        <item name="android:colorBackground">@color/drivo_background</item>
+        <item name="colorOnBackground">@color/drivo_on_background</item>
+        <item name="colorSurface">@color/drivo_surface</item>
+        <item name="colorOnSurface">@color/drivo_on_surface</item>
+        <item name="colorSurfaceVariant">@color/drivo_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/drivo_on_surface_variant</item>
+        <item name="colorOutline">@color/drivo_outline</item>
+
+        <item name="colorError">@color/drivo_error</item>
+        <item name="colorOnError">@color/drivo_on_error</item>
+    </style>
+</resources>

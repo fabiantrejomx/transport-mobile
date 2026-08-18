@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <fragment
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ImageButton
+        android:id="@+id/btn_cancel_trip"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorSurface"
+        android:contentDescription="@string/active_trip_cancel_description"
+        android:elevation="4dp"
+        android:padding="10dp"
+        android:src="@drawable/ic_close"
+        app:tint="?attr/colorOnSurface" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_grace_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="@color/drivo_secondary"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/text_grace_timer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:textColor="@color/drivo_on_secondary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            tools:text="Tu conductor te espera: 4:59" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="?attr/colorSurface">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/text_driver_avatar"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="?attr/colorPrimaryContainer"
+                    android:gravity="center"
+                    android:textColor="?attr/colorOnPrimaryContainer"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="JP" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/text_driver_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="Juan P." />
+
+                    <TextView
+                        android:id="@+id/text_driver_details"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="12sp"
+                        tools:text="Nissan Versa Blanco · YKV-889 · 2 min" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btn_call_driver"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="?attr/colorSurfaceVariant"
+                    android:contentDescription="@string/active_trip_call_description"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_call"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                <ImageButton
+                    android:id="@+id/btn_message_driver"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="?attr/colorSurfaceVariant"
+                    android:contentDescription="@string/active_trip_message_description"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_message"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                <ImageButton
+                    android:id="@+id/btn_share_trip"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="?attr/colorSurfaceVariant"
+                    android:contentDescription="@string/active_trip_share_description"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_share"
+                    android:visibility="gone"
+                    app:tint="?attr/colorOnSurfaceVariant"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <!-- Fases "conductor en camino" / "conductor esperando": sin precio ni S.O.S. todavía. -->
+            <LinearLayout
+                android:id="@+id/group_before_trip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/colorSurfaceVariant"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:id="@+id/text_trip_status_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        tools:text="@string/active_trip_status_en_route_title" />
+
+                    <TextView
+                        android:id="@+id/text_trip_status_subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="12sp"
+                        tools:text="@string/active_trip_status_waiting_subtitle" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_im_leaving"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/active_trip_btn_leaving"
+                    android:textAllCaps="false"
+                    android:visibility="gone"
+                    app:cornerRadius="10dp"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <!-- Fase "viaje en curso": precio acordado + S.O.S. + finalizar. -->
+            <LinearLayout
+                android:id="@+id/group_trip_in_progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/colorSurfaceVariant"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginTop="14dp"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.08"
+                        android:text="@string/active_trip_price_label"
+                        android:textAllCaps="true"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp" />
+
+                    <TextView
+                        android:id="@+id/text_trip_price"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        tools:text="$290.00" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_sos"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="@string/active_trip_sos"
+                        android:textAllCaps="false"
+                        android:textColor="@color/drivo_error"
+                        app:cornerRadius="10dp"
+                        app:strokeColor="@color/drivo_error" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_finish_trip"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1.4"
+                        android:text="@string/active_trip_finish"
+                        android:textAllCaps="false"
+                        app:cornerRadius="10dp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

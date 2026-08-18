@@ -1,0 +1,146 @@
+<resources>
+    <string name="app_name">Drivo</string>
+
+    <!-- Splash -->
+    <string name="splash_tagline">Tu viaje, a tu manera</string>
+
+    <!-- Login -->
+    <string name="auth_login_title">Iniciar sesión</string>
+    <string name="auth_login_email_hint">Correo electrónico</string>
+    <string name="auth_login_password_hint">Contraseña</string>
+    <string name="auth_login_button">Iniciar sesión</string>
+    <string name="auth_login_demo_hint">Modo demo: pasajero@drivo.mx / root</string>
+    <string name="auth_login_register_prompt">¿No tienes cuenta? </string>
+    <string name="auth_login_register_link">Regístrate</string>
+    <string name="auth_login_error">Correo o contraseña incorrectos</string>
+    <string name="auth_login_empty_error">Ingresa tu correo y contraseña</string>
+
+    <!-- Registro -->
+    <string name="auth_registro_title">Crear cuenta</string>
+    <string name="auth_registro_name_hint">Nombre completo</string>
+    <string name="auth_registro_email_hint">Correo electrónico</string>
+    <string name="auth_registro_phone_hint">Teléfono</string>
+    <string name="auth_registro_password_hint">Contraseña</string>
+    <string name="auth_registro_confirm_password_hint">Confirmar contraseña</string>
+    <string name="auth_registro_button">Crear cuenta</string>
+    <string name="auth_registro_login_prompt">¿Ya tienes cuenta? </string>
+    <string name="auth_registro_login_link">Inicia sesión</string>
+    <string name="auth_registro_error_fields">Completa todos los campos</string>
+    <string name="auth_registro_error_email">Ingresa un correo válido</string>
+    <string name="auth_registro_error_phone">Ingresa un teléfono válido</string>
+    <string name="auth_registro_error_password_match">Las contraseñas no coinciden</string>
+
+    <!-- Home -->
+    <string name="home_origin_placeholder">Tu ubicación actual</string>
+    <string name="home_destination_placeholder">¿A dónde vamos?</string>
+    <string name="home_request_trip">Pedir un viaje</string>
+    <string name="home_permission_rationale">Se necesita el permiso de ubicación para mostrar tu posición en el mapa.</string>
+
+    <!-- Bottom nav -->
+    <string name="nav_inicio">Inicio</string>
+    <string name="nav_viajes">Viajes</string>
+    <string name="nav_perfil">Perfil</string>
+    <string name="nav_section_coming_soon">Próximamente</string>
+
+    <!-- Etiquetas de dirección guardada (AddressLabel) -->
+    <string name="address_label_casa">Casa</string>
+    <string name="address_label_trabajo">Trabajo</string>
+    <string name="address_label_otro">Otro</string>
+
+    <!-- Recibo / Calificación -->
+    <string name="finished_trip_title">¡Llegaste a tu destino!</string>
+    <string name="finished_trip_with_driver">Viaje con %1$s</string>
+    <string name="finished_trip_total_label">Total pagado en efectivo</string>
+    <string name="finished_trip_rating_question">¿Cómo fue tu viaje?</string>
+    <string name="finished_trip_comment_hint">Deja un comentario (opcional)</string>
+    <string name="finished_trip_submit">Enviar y Volver a Inicio</string>
+
+    <!-- Viajes (historial) -->
+    <string name="viajes_title">Tus viajes</string>
+
+    <!-- Perfil -->
+    <string name="perfil_title">Perfil</string>
+    <string name="perfil_rating_subtitle">★%1$s · Pasajero</string>
+    <string name="perfil_addresses">Direcciones guardadas</string>
+    <string name="perfil_payment_methods">Métodos de pago</string>
+    <string name="perfil_notifications">Notificaciones</string>
+    <string name="perfil_appearance">Apariencia (claro/oscuro)</string>
+    <string name="perfil_logout">Cerrar sesión</string>
+
+    <!-- Direcciones guardadas -->
+    <string name="address_list_title">Direcciones guardadas</string>
+    <string name="address_list_add">+ Añadir dirección</string>
+    <string name="address_list_empty">Aún no tienes direcciones guardadas</string>
+    <string name="address_list_delete_title">¿Eliminar dirección?</string>
+    <string name="address_list_delete_message">Esta acción no se puede deshacer.</string>
+    <string name="address_list_delete_positive">Eliminar</string>
+    <string name="address_list_delete_negative">Cancelar</string>
+    <string name="address_edit_title_new">Añadir dirección</string>
+    <string name="address_edit_title_edit">Editar dirección</string>
+    <string name="address_edit_address_hint">Dirección</string>
+    <string name="address_edit_search">🔍 Buscar dirección</string>
+    <string name="address_edit_save">Guardar</string>
+    <string name="address_edit_delete">Eliminar dirección</string>
+    <string name="address_edit_empty_error">Ingresa una dirección</string>
+
+    <!-- Elige tu destino -->
+    <string name="set_destino_title">Elige tu destino</string>
+    <string name="set_destino_destination_hint">Ej. Parque Los Fuertes</string>
+    <string name="set_destino_pick_on_map">Elegir en el mapa</string>
+    <string name="set_destino_empty_error">Ingresa o elige un destino</string>
+    <string name="set_destino_saved_addresses">Direcciones guardadas</string>
+    <string name="set_destino_home_address">Calle Reforma 22</string>
+    <string name="set_destino_work_address">Blvd. Cristóbal Colón 900</string>
+    <string name="set_destino_add_stop">Añadir parada</string>
+    <string name="set_destino_add_stop_coming_soon">Añadir parada — próximamente</string>
+    <string name="set_destino_confirm">Confirmar destino</string>
+
+    <!-- Elegir ubicación en el mapa -->
+    <string name="pick_location_title">Elige un punto en el mapa</string>
+    <string name="pick_location_confirm">Confirmar ubicación</string>
+    <string name="pick_location_pin_description">Punto seleccionado en el mapa</string>
+    <string name="pick_location_fallback_address">Ubicación seleccionada en el mapa</string>
+
+    <!-- Confirma tu viaje -->
+    <string name="confirm_price_title">Confirma tu viaje</string>
+    <string name="confirm_price_label">Tarifa Sugerida Drivo</string>
+    <string name="confirm_price_payment_cash">💵 Pago en Efectivo</string>
+    <string name="confirm_price_payment_change">Cambiar ›</string>
+    <string name="confirm_price_payment_coming_soon">Próximamente: otros métodos de pago</string>
+    <string name="confirm_price_request_trip">Solicitar Viaje</string>
+
+    <!-- Buscando conductores -->
+    <string name="searching_message">Buscando conductores…</string>
+    <string name="searching_subtitle">Conductores disponibles cerca de ti</string>
+    <string name="searching_offer_label">Oferta del conductor</string>
+    <string name="searching_select_driver">Seleccionar</string>
+
+    <!-- Viaje activo -->
+    <string name="active_trip_price_label">Precio Acordado (Efectivo)</string>
+    <string name="active_trip_sos">🛡️ S.O.S</string>
+    <string name="active_trip_sos_coming_soon">S.O.S. — próximamente</string>
+    <string name="active_trip_call_coming_soon">Llamar — próximamente</string>
+    <string name="active_trip_message_coming_soon">Mensaje — próximamente</string>
+    <string name="active_trip_call_description">Llamar al conductor</string>
+    <string name="active_trip_message_description">Enviar mensaje al conductor</string>
+    <string name="active_trip_cancel_description">Cancelar viaje</string>
+    <string name="active_trip_cancel_title">¿Cancelar viaje?</string>
+    <string name="active_trip_cancel_message">Se cancelará la solicitud del viaje.</string>
+    <string name="active_trip_cancel_positive">Sí, cancelar</string>
+    <string name="active_trip_cancel_negative">No</string>
+    <string name="active_trip_cancelled_toast">Viaje cancelado</string>
+    <string name="active_trip_finish">Finalizar Viaje</string>
+
+    <!-- Fases previas al viaje activo: conductor en camino / esperando -->
+    <string name="active_trip_status_en_route_title">Tu conductor va en camino</string>
+    <string name="active_trip_status_en_route_subtitle">Llega en %1$d min</string>
+    <string name="active_trip_status_waiting_title">Tu conductor te está esperando</string>
+    <string name="active_trip_status_waiting_subtitle">En el punto de encuentro acordado</string>
+    <string name="active_trip_btn_leaving">Ya voy saliendo</string>
+    <string name="active_trip_grace_timer">Tu conductor te espera: %1$s</string>
+
+    <!-- Compartir viaje -->
+    <string name="active_trip_share_description">Compartir viaje</string>
+    <string name="active_trip_share_chooser_title">Compartir viaje con</string>
+    <string name="active_trip_share_text">Voy en un viaje de Drivo con %1$s. Sigue mi viaje en tiempo real aquí: %2$s</string>
+</resources>

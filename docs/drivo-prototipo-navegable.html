@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drivo — Prototipo navegable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #0F2C4C;
+    --primary-container: #D5E3F7;
+    --on-primary: #FFFFFF;
+    --secondary: #B08D2B;
+    --on-secondary: #FFFFFF;
+    --bg: #F6F8FA;
+    --surface: #FFFFFF;
+    --surface-alt: #EEF2F6;
+    --on-surface: #14212E;
+    --on-surface-muted: #55677A;
+    --outline: #D6DEE6;
+    --success: #2E7D5B;
+    --danger: #B3261E;
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    background: #EAEFF3;
+    color: var(--on-surface);
+    font-family: 'Roboto', sans-serif;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand svg { flex-shrink: 0; }
+  .brand span { font-weight: 900; font-size: 18px; color: var(--primary); }
+  .role-switch {
+    display: flex; background: var(--surface); border: 1px solid var(--outline);
+    border-radius: 999px; padding: 5px; gap: 4px;
+  }
+  .role-switch button {
+    border: none; background: transparent; padding: 8px 16px; border-radius: 999px;
+    font-weight: 500; font-size: 13px; cursor: pointer; color: var(--on-surface-muted);
+  }
+  .role-switch button.active { background: var(--primary); color: var(--on-primary); }
+
+  .stage {
+    display: flex; justify-content: center;
+  }
+  .phone {
+    background: #10161D; border-radius: 42px; padding: 12px;
+    box-shadow: 0 30px 60px -24px rgba(15,44,76,.45);
+  }
+  .screen-frame {
+    width: 360px; height: 720px; background: var(--bg);
+    border-radius: 32px; overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+  }
+  .status-bar {
+    display: flex; justify-content: space-between; font-size: 11px;
+    padding: 12px 20px 2px; color: var(--on-surface-muted);
+    font-family: 'Roboto Condensed', sans-serif; flex-shrink: 0;
+  }
+  .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .content::-webkit-scrollbar { display: none; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 18px 14px; flex-shrink: 0;
+  }
+  .topbar .back {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--surface);
+    border: 1px solid var(--outline); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 15px; color: var(--on-surface);
+  }
+  .topbar h2 { font-size: 16px; font-weight: 700; margin: 0; }
+
+  .pad { padding: 0 18px 18px; }
+
+  .btn {
+    display: block; width: 100%; text-align: center; padding: 14px;
+    border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+    border: none; cursor: pointer; font-family: 'Roboto', sans-serif;
+  }
+  .btn-primary { background: var(--primary); color: var(--on-primary); }
+  .btn-secondary { background: var(--secondary); color: var(--on-secondary); }
+  .btn-ghost { background: var(--surface); color: var(--on-surface); border: 1px solid var(--outline); }
+  .btn-outline-danger { background: transparent; color: var(--danger); border: 1px solid #E8B4AF; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--outline);
+    border-radius: var(--radius-md); padding: 16px;
+  }
+
+  .field {
+    display: flex; align-items: center; gap: 12px; background: var(--surface-alt);
+    border-radius: var(--radius-sm); padding: 13px 14px; margin-bottom: 10px; cursor: pointer;
+  }
+  .field .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .field.origin .dot { background: var(--success); }
+  .field.dest .dot { background: var(--secondary); }
+  .field input { border: none; background: transparent; outline: none; font-size: 14px; width: 100%; color: var(--on-surface); font-family: 'Roboto', sans-serif; }
+  .field input::placeholder { color: var(--on-surface-muted); }
+
+  .map-area { flex: 1; position: relative; background: var(--surface-alt); min-height: 220px; }
+  .map-area svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .center-msg { text-align: center; padding: 40px 24px; }
+  .center-msg .spin {
+    width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 20px;
+    border: 3px solid var(--outline); border-top-color: var(--secondary);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .center-msg h3 { margin: 0 0 6px; font-size: 16px; }
+  .center-msg p { margin: 0; font-size: 13px; color: var(--on-surface-muted); }
+
+  .driver-card {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  }
+  .avatar {
+    width: 46px; height: 46px; border-radius: 50%; background: var(--primary-container);
+    display: flex; align-items: center; justify-content: center; color: var(--primary); font-weight: 700; flex-shrink: 0;
+  }
+  .driver-card .name { font-weight: 700; font-size: 14px; }
+  .driver-card .sub { font-size: 12px; color: var(--on-surface-muted); }
+  .icon-row { display: flex; gap: 8px; margin-left: auto; }
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--surface-alt);
+    display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
+  }
+
+  .route-list { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+  .route-point { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .route-point .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .route-point.origin .dot { background: var(--success); }
+  .route-point.dest .dot { background: var(--secondary); }
+  .route-point .addr { color: var(--on-surface-muted); }
+
+  .price-box {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface-alt); border-radius: var(--radius-sm); padding: 14px 16px; margin: 14px 0;
+  }
+  .price-box .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--on-surface-muted); }
+  .price-box .amount { font-size: 22px; font-weight: 900; color: var(--primary); }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--outline);
+    background: var(--surface); font-size: 16px; cursor: pointer; color: var(--primary);
+  }
+
+  .offer-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .offer {
+    display: flex; align-items: center; gap: 10px; background: var(--surface);
+    border: 1px solid var(--outline); border-radius: var(--radius-sm); padding: 12px;
+  }
+  .offer .amount { font-weight: 800; color: var(--secondary); margin-left: auto; font-size: 15px; }
+
+  .list-row {
+    display: flex; align-items: center; gap: 12px; padding: 13px 0;
+    border-bottom: 1px solid var(--outline);
+  }
+  .list-row .ic { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--surface-alt); flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size: 14px; }
+  .list-row .t1 { font-size: 13px; font-weight: 600; }
+  .list-row .t2 { font-size: 12px; color: var(--on-surface-muted); }
+  .list-row .amt { margin-left: auto; font-weight: 700; font-size: 13px; }
+
+  .bottom-nav {
+    display: flex; justify-content: space-around; padding: 10px 6px 14px;
+    background: var(--surface); border-top: 1px solid var(--outline); flex-shrink: 0;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10px; color: var(--on-surface-muted); cursor: pointer; background: none; border: none; font-family: 'Roboto', sans-serif;
+  }
+  .nav-item.active { color: var(--primary); font-weight: 600; }
+  .nav-item .ic { font-size: 17px; }
+
+  .stars { display: flex; gap: 8px; justify-content: center; margin: 18px 0; }
+  .stars span { font-size: 30px; color: var(--outline); cursor: pointer; }
+  .stars span.on { color: var(--secondary); }
+
+  .switch-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; background: var(--surface); border-bottom: 1px solid var(--outline); flex-shrink: 0;
+  }
+  .switch-row .lbl { font-size: 14px; font-weight: 600; }
+  .switch {
+    width: 44px; height: 26px; border-radius: 999px; background: var(--outline);
+    position: relative; cursor: pointer; transition: background .2s;
+  }
+  .switch.on { background: var(--success); }
+  .switch .knob {
+    position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; transition: left .2s;
+  }
+  .switch.on .knob { left: 21px; }
+
+  .hint {
+    text-align: center; font-size: 12px; color: var(--on-surface-muted); margin-top: 18px;
+    font-family: 'Roboto Condensed', sans-serif; letter-spacing: .04em;
+  }
+
+  h1.wlc { font-size: 26px; font-weight: 900; margin: 0 0 6px; }
+  p.wlc-sub { font-size: 13px; color: var(--on-surface-muted); margin: 0 0 28px; }
+
+  @media (max-width: 420px) {
+    .screen-frame { width: 100%; height: 640px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 44 44" fill="none">
+        <rect width="44" height="44" rx="12" fill="#0F2C4C"/>
+        <path d="M12 28 L18 16 L22 24 L26 14 L32 28" stroke="#B08D2B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="18" cy="16" r="2" fill="#fff"/>
+        <circle cx="32" cy="28" r="2" fill="#fff"/>
+      </svg>
+      <span>Drivo — Prototipo navegable</span>
+    </div>
+    <div class="role-switch">
+      <button id="btn-pasajero" class="active">Pasajero</button>
+      <button id="btn-conductor">Conductor</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="screen-frame">
+        <div class="status-bar"><span>9:41</span><span>Drivo</span></div>
+        <div class="content" id="content"></div>
+      </div>
+    </div>
+  </div>
+  <p class="hint">Toca los botones y campos para navegar el flujo. Cambia entre Pasajero / Conductor arriba.</p>
+</div>
+
+<script>
+const state = {
+  role: 'pasajero',
+  pTab: 'inicio',
+  pStack: ['home'],
+  basePrice: 278,
+  price: 278,
+  radarStep: 'buscando',
+  radarTries: 1,
+  conductorOnline: false,
+  cTab: 'inicio',
+  cStack: ['home'],
+  driverOffer: 278,
+  tripPhase: 'enRuta',
+  rating: 0,
+};
+
+function mapSvg() {
+  return `<svg viewBox="0 0 320 260" preserveAspectRatio="xMidYMid slice">
+    <line x1="0" y1="50" x2="320" y2="35" stroke="#D6DEE6" stroke-width="3"/>
+    <line x1="0" y1="120" x2="320" y2="135" stroke="#D6DEE6" stroke-width="3"/>
+    <line x1="0" y1="200" x2="320" y2="185" stroke="#D6DEE6" stroke-width="3"/>
+    <line x1="70" y1="0" x2="50" y2="260" stroke="#D6DEE6" stroke-width="3"/>
+    <line x1="190" y1="0" x2="210" y2="260" stroke="#D6DEE6" stroke-width="3"/>
+    <line x1="260" y1="0" x2="275" y2="260" stroke="#D6DEE6" stroke-width="3"/>
+    <path d="M55 210 C 90 150, 140 160, 165 110 S 235 60, 250 35" stroke="#B08D2B" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="1 10"/>
+    <circle cx="55" cy="210" r="7" fill="#2E7D5B"/>
+    <circle cx="250" cy="35" r="7" fill="#B08D2B"/>
+  </svg>`;
+}
+
+function topbar(title, onBack) {
+  return `<div class="topbar">
+    ${onBack ? `<div class="back" onclick="${onBack}">‹</div>` : ''}
+    <h2>${title}</h2>
+  </div>`;
+}
+
+/* ---------- PASAJERO ---------- */
+function pHome() {
+  return `
+    <div class="map-area">${mapSvg()}</div>
+    <div class="pad" style="padding-top:14px;">
+      <div class="card">
+        <div class="field origin" onclick="pNav('setDestino')">
+          <span class="dot"></span><input placeholder="Tu ubicación actual" disabled>
+        </div>
+        <div class="field dest" onclick="pNav('setDestino')">
+          <span class="dot"></span><input placeholder="¿A dónde vamos?" disabled>
+        </div>
+      </div>
+      <div style="height:12px;"></div>
+      <button class="btn btn-primary" onclick="pNav('setDestino')">Pedir un viaje</button>
+    </div>
+  `;
+}
+
+function pSetDestino() {
+  return `
+    ${topbar('Elige tu destino', "pBack()")}
+    <div class="pad">
+      <div class="card">
+        <div class="field origin"><span class="dot"></span><input value="Av. Oriental 145, Orizaba" readonly></div>
+        <div class="field dest"><span class="dot"></span><input placeholder="Ej. Parque Los Fuertes" id="destInput"></div>
+      </div>
+      <p style="font-size:12px;color:var(--on-surface-muted);margin:14px 0 8px;">Direcciones guardadas</p>
+      <div class="list-row" onclick="pNav('confirmarPrecio')"><div class="ic">🏠</div><div><div class="t1">Casa</div><div class="t2">Calle Reforma 22</div></div></div>
+      <div class="list-row" onclick="pNav('confirmarPrecio')"><div class="ic">💼</div><div><div class="t1">Trabajo</div><div class="t2">Blvd. Cristóbal Colón 900</div></div></div>
+      <div class="list-row" style="cursor:pointer;color:var(--secondary);" onclick="alert('Añadir parada — placeholder de prototipo')"><div class="ic">➕</div><div class="t1" style="color:var(--secondary);">Añadir parada</div></div>
+      <div style="height:18px;"></div>
+      <button class="btn btn-primary" onclick="pNav('confirmarPrecio')">Confirmar destino</button>
+    </div>
+  `;
+}
+
+function pConfirmarPrecio() {
+  const min = Math.round(state.basePrice * 0.8);
+  const max = Math.round(state.basePrice * 1.4);
+  return `
+    ${topbar('Confirma tu viaje', "pBack()")}
+    <div class="pad">
+      <div class="card">
+        <div class="route-list">
+          <div class="route-point origin"><span class="dot"></span><span class="addr">Av. Oriental 145, Orizaba</span></div>
+          <div class="route-point dest"><span class="dot"></span><span class="addr">Parque Los Fuertes</span></div>
+        </div>
+        <div style="text-align:center;margin:16px 0 6px;">
+          <div class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--on-surface-muted);">Tarifa Sugerida Drivo</div>
+          <div class="amount" id="priceLabel" style="font-size:28px;">$${state.price}.00</div>
+        </div>
+        <input type="range" id="priceSlider" min="${min}" max="${max}" step="2" value="${state.price}" oninput="changePrice(this.value)" style="width:100%;accent-color:var(--secondary);margin:10px 0 4px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--on-surface-muted);">
+          <span>$${min} (80%)</span><span>$${max} (140%)</span>
+        </div>
+      </div>
+      <div style="height:14px;"></div>
+      <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:14px;">
+        <span style="font-size:13px;font-weight:600;">💵 Pago en Efectivo</span>
+        <span style="font-size:12px;color:var(--on-surface-muted);">Cambiar ›</span>
+      </div>
+      <button class="btn btn-secondary" onclick="pNav('radar')">Solicitar Viaje</button>
+    </div>
+  `;
+}
+
+function pRadar() {
+  if (state.radarStep === 'buscando') {
+    setTimeout(() => { if (state.role==='pasajero' && current()==='radar') { state.radarStep = 'oferta'; render(); } }, 1800);
+    return `
+      ${topbar('', "pBack()")}
+      <div class="center-msg">
+        <div class="spin"></div>
+        <h3>⏳ Buscando conductores…</h3>
+        <p>Conductor disponible (${state.radarTries}/3)</p>
+      </div>
+    `;
+  }
+  const offer = state.price + 12;
+  return `
+    ${topbar('', "pBack()")}
+    <div class="pad" style="padding-top:24px;">
+      <div class="card">
+        <div class="driver-card">
+          <div class="avatar">JP</div>
+          <div><div class="name">Juan P. · ★4.9</div><div class="sub">Nissan Versa Blanco · YKV-889 · 4 min</div></div>
+        </div>
+        <div style="text-align:center;background:var(--surface-alt);border-radius:var(--radius-sm);padding:14px;margin:14px 0;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--on-surface-muted);">Oferta del conductor</div>
+          <div class="amount" style="font-size:26px;">$${offer}.00</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="pRadarRechazar()">Rechazar</button>
+          <button class="btn btn-primary" style="flex:1.4;" onclick="pNav('viajeActivo')">ACEPTAR</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function pViajeActivo() {
+  return `
+    <div class="map-area">${mapSvg()}
+      <div style="position:absolute;left:14px;right:14px;bottom:14px;background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid var(--outline);box-shadow:0 16px 32px -12px rgba(15,44,76,.35);">
+        <div class="driver-card">
+          <div class="avatar">JP</div>
+          <div><div class="name">Juan P.</div><div class="sub">Nissan Versa Blanco · YKV-889 · 2 min</div></div>
+          <div class="icon-row">
+            <div class="icon-btn" onclick="alert('Llamar — placeholder de prototipo')">📞</div>
+            <div class="icon-btn" onclick="alert('Mensaje — placeholder de prototipo')">💬</div>
+            <div class="icon-btn" onclick="alert('Compartir viaje — placeholder de prototipo')">📤</div>
+          </div>
+        </div>
+        <div style="text-align:center;margin:10px 0;">
+          <div class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--on-surface-muted);">Precio Acordado (Efectivo)</div>
+          <div class="amount" style="font-size:22px;">$${state.price + 12}.00</div>
+        </div>
+        <div class="btn-row" style="display:flex;gap:8px;">
+          <button class="btn btn-outline-danger" style="flex:1;" onclick="alert('🛡️ S.O.S. — placeholder de prototipo')">🛡️ S.O.S</button>
+          <button class="btn btn-primary" style="flex:1.4;" onclick="pNav('finalizado')">Finalizar Viaje</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function pFinalizado() {
+  return `
+    ${topbar('¡Llegaste a tu destino!')}
+    <div class="pad" style="padding-top:14px;text-align:center;">
+      <div class="avatar" style="width:64px;height:64px;font-size:20px;margin:0 auto 12px;">JP</div>
+      <p style="font-size:13px;color:var(--on-surface-muted);margin:0 0 4px;">Viaje con Juan P.</p>
+      <div class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--on-surface-muted);">Total pagado en efectivo</div>
+      <div class="amount" style="font-size:26px;margin-bottom:16px;">$${state.price + 12}.00</div>
+      <h1 class="wlc" style="font-size:16px;">¿Cómo fue tu viaje?</h1>
+      <div class="stars" id="stars">
+        ${[1,2,3,4,5].map(n => `<span data-n="${n}" onclick="setRating(${n})">★</span>`).join('')}
+      </div>
+      <textarea placeholder="Deja un comentario (opcional)" style="width:100%;min-height:60px;border-radius:var(--radius-sm);border:1px solid var(--outline);padding:10px 12px;font-family:'Roboto',sans-serif;font-size:13px;margin-bottom:14px;resize:none;"></textarea>
+      <button class="btn btn-primary" onclick="pReset()">Enviar y Volver a Inicio</button>
+    </div>
+  `;
+}
+
+function pViajes() {
+  return `
+    ${topbar('Tus viajes')}
+    <div class="pad">
+      <div class="list-row"><div class="ic">🚗</div><div><div class="t1">Parque Los Fuertes</div><div class="t2">Hoy, 10:32 am</div></div><div class="amt">$68</div></div>
+      <div class="list-row"><div class="ic">🚗</div><div><div class="t1">Terminal de autobuses</div><div class="t2">Ayer, 6:15 pm</div></div><div class="amt">$54</div></div>
+      <div class="list-row"><div class="ic">🚗</div><div><div class="t1">Plaza Cristal</div><div class="t2">Lun, 9:02 am</div></div><div class="amt">$41</div></div>
+    </div>
+  `;
+}
+
+function pPerfil() {
+  return `
+    ${topbar('Perfil')}
+    <div class="pad">
+      <div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div class="avatar" style="width:52px;height:52px;">AL</div>
+        <div><div class="name" style="font-weight:700;">Alfonso</div><div class="sub" style="font-size:12px;color:var(--on-surface-muted);">★4.9 · Pasajero</div></div>
+      </div>
+      <div class="list-row"><div class="ic">🏠</div><div class="t1">Direcciones guardadas</div></div>
+      <div class="list-row"><div class="ic">💳</div><div class="t1">Métodos de pago</div></div>
+      <div class="list-row"><div class="ic">🔔</div><div class="t1">Notificaciones</div></div>
+      <div class="list-row"><div class="ic">🌓</div><div class="t1">Apariencia (claro/oscuro)</div></div>
+    </div>
+  `;
+}
+
+const pScreens = { home: pHome, setDestino: pSetDestino, confirmarPrecio: pConfirmarPrecio, radar: pRadar, viajeActivo: pViajeActivo, finalizado: pFinalizado };
+
+function current() { return state.pStack[state.pStack.length - 1]; }
+function pNav(screen) {
+  if (screen === 'radar') { state.radarStep = 'buscando'; state.radarTries = 1; }
+  state.pStack.push(screen); render();
+}
+function pBack() { if (state.pStack.length > 1) state.pStack.pop(); render(); }
+function pReset() { state.pStack = ['home']; state.rating = 0; render(); }
+function pRadarRechazar() { state.radarTries = Math.min(3, state.radarTries + 1); state.radarStep = 'buscando'; render(); }
+function changePrice(v) { state.price = +v; document.getElementById('priceLabel').textContent = '$' + state.price + '.00'; }
+function setRating(n) { state.rating = n; document.querySelectorAll('#stars span').forEach(s => s.classList.toggle('on', +s.dataset.n <= n)); }
+
+/* ---------- CONDUCTOR ---------- */
+function cHome() {
+  return `
+    <div class="pad" style="padding-top:14px;">
+      <div class="card" style="text-align:center;margin-bottom:14px;">
+        <div class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--on-surface-muted);">Ganancias de hoy</div>
+        <div class="amount" style="font-size:26px;">$350.00 MXN</div>
+      </div>
+    </div>
+    <div class="map-area" style="flex:1;">${mapSvg()}
+      <div style="position:absolute;left:14px;right:14px;bottom:14px;background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid var(--outline);box-shadow:0 16px 32px -12px rgba(15,44,76,.35);text-align:center;">
+        <p style="margin:0 0 12px;font-size:13px;font-weight:600;">${state.conductorOnline ? 'Estás en línea · Recibiendo viajes…' : 'Estás desconectado · Buscando viajes…'}</p>
+        <button class="btn ${state.conductorOnline ? 'btn-outline-danger' : 'btn-primary'}" onclick="toggleOnline()">${state.conductorOnline ? 'DESCONECTARSE' : 'CONECTARSE'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function cSolicitud() {
+  return `
+    <div class="pad" style="padding-top:18px;">
+      <div class="card">
+        <div class="driver-card">
+          <div class="avatar">EG</div>
+          <div><div class="name">Esteban G.</div><div class="sub">★5.0 (Nuevo)</div></div>
+        </div>
+        <div class="price-box" style="margin:0 0 12px;">
+          <div><div class="label">Tarifa</div><div class="amount">$278.00</div></div>
+          <div style="font-size:12px;color:var(--on-surface-muted);">Efectivo</div>
+        </div>
+        <div class="route-list">
+          <div class="route-point origin"><span class="dot"></span><span class="addr">Mi ubicación · a 2.5 km (6 min) del pasajero</span></div>
+          <div class="route-point dest"><span class="dot"></span><span class="addr">Plaza Valle, Orizaba</span></div>
+        </div>
+        <p style="font-size:12px;color:var(--on-surface-muted);margin:8px 0 4px;">Viaje de 14 km</p>
+        <div style="margin:12px 0 4px;">
+          <p style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--on-surface-muted);margin:0 0 8px;">Tu contraoferta: <strong id="offerLabel" style="color:var(--on-surface);">$${state.driverOffer}</strong></p>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" style="flex:1;" onclick="bumpOffer(10)">+$10</button>
+            <button class="btn btn-ghost" style="flex:1;" onclick="bumpOffer(20)">+$20</button>
+            <button class="btn btn-ghost" style="flex:1;" onclick="bumpOffer(50)">+$50</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="cIgnorar()">Ignorar</button>
+          <button class="btn btn-primary" style="flex:1.6;" onclick="cAceptar()" id="acceptBtn">Aceptar por $${state.driverOffer}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function cViajeActivo() {
+  const enRuta = state.tripPhase === 'enRuta';
+  return `
+    <div class="map-area">${mapSvg()}
+      <div style="position:absolute;left:14px;right:14px;bottom:14px;background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid var(--outline);box-shadow:0 16px 32px -12px rgba(15,44,76,.35);">
+        <div class="driver-card">
+          <div class="avatar">EG</div>
+          <div><div class="name">${enRuta ? 'Recoger a Esteban G.' : 'En viaje con Esteban G.'}</div><div class="sub">${enRuta ? 'Plaza Valle, Orizaba (a 2.5 km)' : 'Parque Los Fuertes'}</div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin:12px 0;">
+          <div><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--on-surface-muted);">Tarifa acordada</div><div class="amount" style="font-size:18px;">$${state.driverOffer}.00</div></div>
+          ${enRuta ? `<div style="text-align:right;"><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--on-surface-muted);">Llegada en</div><div class="amount" style="font-size:18px;">6 min</div></div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="alert('Abrir Waze — placeholder de prototipo')">🧭 Navegar con Waze</button>
+        </div>
+        <div style="height:8px;"></div>
+        ${enRuta
+          ? `<button class="btn btn-primary" onclick="cLlegue()">LLEGUÉ AL PUNTO</button>`
+          : `<button class="btn btn-primary" onclick="cNav('finalizado')">Finalizar Viaje</button>`}
+      </div>
+    </div>
+  `;
+}
+
+function cFinalizado() {
+  return `
+    ${topbar('Viaje completado')}
+    <div class="pad" style="padding-top:20px;text-align:center;">
+      <div class="price-box" style="display:block;text-align:center;">
+        <div class="label">Ganaste</div>
+        <div class="amount">$${state.driverOffer}.00</div>
+      </div>
+      <button class="btn btn-primary" onclick="cReset()">Volver a conectarme</button>
+    </div>
+  `;
+}
+
+function cGanancias() {
+  return `
+    ${topbar('Tus ganancias')}
+    <div class="pad">
+      <div class="card" style="text-align:center;margin-bottom:16px;">
+        <div class="label" style="font-size:11px;color:var(--on-surface-muted);text-transform:uppercase;">Hoy</div>
+        <div class="amount" style="font-size:26px;">$350</div>
+      </div>
+      <div class="list-row"><div class="ic">🚗</div><div><div class="t1">Plaza Valle</div><div class="t2">10:32 am</div></div><div class="amt">$278</div></div>
+      <div class="list-row"><div class="ic">🚗</div><div><div class="t1">Terminal</div><div class="t2">9:10 am</div></div><div class="amt">$72</div></div>
+    </div>
+  `;
+}
+
+function cPerfil() {
+  return `
+    ${topbar('Perfil de conductor')}
+    <div class="pad">
+      <div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div class="avatar" style="width:52px;height:52px;">JP</div>
+        <div><div class="name" style="font-weight:700;">Juan P.</div><div class="sub" style="font-size:12px;color:var(--on-surface-muted);">★4.9 · Nissan Versa Blanco</div></div>
+      </div>
+      <div class="list-row"><div class="ic">📄</div><div class="t1">Documentos y verificación</div></div>
+      <div class="list-row"><div class="ic">🚙</div><div class="t1">Datos del vehículo</div></div>
+      <div class="list-row"><div class="ic">🔔</div><div class="t1">Notificaciones</div></div>
+    </div>
+  `;
+}
+
+const cScreens = { home: cHome, solicitud: cSolicitud, viajeActivo: cViajeActivo, finalizado: cFinalizado };
+
+function cCurrent() { return state.cStack[state.cStack.length - 1]; }
+function cNav(screen) { state.cStack.push(screen); render(); }
+function cBack() { if (state.cStack.length > 1) state.cStack.pop(); render(); }
+function cReset() { state.cStack = ['home']; state.tripPhase = 'enRuta'; state.driverOffer = 278; render(); }
+function toggleOnline() {
+  state.conductorOnline = !state.conductorOnline;
+  render();
+  if (state.conductorOnline) {
+    setTimeout(() => { if (state.role==='conductor' && state.conductorOnline && cCurrent()==='home') { cNav('solicitud'); } }, 1600);
+  }
+}
+function bumpOffer(n) { state.driverOffer += n; render(); }
+function cIgnorar() { state.cStack.pop(); state.driverOffer = 278; render(); }
+function cAceptar() { cNav('viajeActivo'); }
+function cLlegue() { state.tripPhase = 'enViaje'; render(); }
+
+/* ---------- NAV / RENDER ---------- */
+function pSwitchTab(tab) { state.pTab = tab; state.pStack = ['home']; render(); }
+function cSwitchTab(tab) { state.cTab = tab; state.cStack = ['home']; render(); }
+
+function render() {
+  const el = document.getElementById('content');
+  let body = '';
+  let showNav = true;
+
+  if (state.role === 'pasajero') {
+    if (state.pTab === 'inicio') {
+      body = pScreens[current()]();
+      showNav = current() === 'home';
+    } else if (state.pTab === 'viajes') { body = pViajes(); }
+    else if (state.pTab === 'perfil') { body = pPerfil(); }
+
+    el.innerHTML = body + (showNav || state.pTab !== 'inicio' ? `
+      <div class="bottom-nav">
+        <button class="nav-item ${state.pTab==='inicio'?'active':''}" onclick="pSwitchTab('inicio')"><span class="ic">🗺️</span>Inicio</button>
+        <button class="nav-item ${state.pTab==='viajes'?'active':''}" onclick="pSwitchTab('viajes')"><span class="ic">🧾</span>Viajes</button>
+        <button class="nav-item ${state.pTab==='perfil'?'active':''}" onclick="pSwitchTab('perfil')"><span class="ic">👤</span>Perfil</button>
+      </div>` : '');
+  } else {
+    if (state.cTab === 'inicio') {
+      body = cScreens[cCurrent()]();
+      showNav = cCurrent() === 'home';
+    } else if (state.cTab === 'ganancias') { body = cGanancias(); }
+    else if (state.cTab === 'perfil') { body = cPerfil(); }
+
+    el.innerHTML = body + (showNav || state.cTab !== 'inicio' ? `
+      <div class="bottom-nav">
+        <button class="nav-item ${state.cTab==='inicio'?'active':''}" onclick="cSwitchTab('inicio')"><span class="ic">🗺️</span>Inicio</button>
+        <button class="nav-item ${state.cTab==='ganancias'?'active':''}" onclick="cSwitchTab('ganancias')"><span class="ic">💰</span>Ganancias</button>
+        <button class="nav-item ${state.cTab==='perfil'?'active':''}" onclick="cSwitchTab('perfil')"><span class="ic">👤</span>Perfil</button>
+      </div>` : '');
+  }
+}
+
+document.getElementById('btn-pasajero').addEventListener('click', () => {
+  state.role = 'pasajero';
+  document.getElementById('btn-pasajero').classList.add('active');
+  document.getElementById('btn-conductor').classList.remove('active');
+  render();
+});
+document.getElementById('btn-conductor').addEventListener('click', () => {
+  state.role = 'conductor';
+  document.getElementById('btn-conductor').classList.add('active');
+  document.getElementById('btn-pasajero').classList.remove('active');
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

@@ -18,8 +18,4 @@ public final class ValidationHelper {
     public static boolean isValidPhone(String phone) {
         return isNotEmpty(phone) && phone.trim().length() >= 7;
     }
-
-    public static boolean passwordsMatch(String password, String confirmPassword) {
-        return password != null && password.equals(confirmPassword);
-    }
 }

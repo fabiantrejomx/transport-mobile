@@ -17,6 +17,16 @@
     <string name="auth_login_send_error">No se pudo enviar el código. Intenta de nuevo.</string>
     <string name="auth_login_verify_error">Código incorrecto o expirado</string>
 
+    <!-- Completar perfil -->
+    <string name="complete_profile_title">Completa tu perfil</string>
+    <string name="complete_profile_subtitle">Solo tu nombre es obligatorio. El correo es opcional.</string>
+    <string name="complete_profile_name_hint">Nombre completo</string>
+    <string name="complete_profile_email_hint">Correo (opcional)</string>
+    <string name="complete_profile_save_button">Continuar</string>
+    <string name="complete_profile_empty_name_error">Ingresa tu nombre</string>
+    <string name="complete_profile_invalid_email_error">Ese correo no es válido</string>
+    <string name="complete_profile_save_error">No se pudo guardar tu perfil. Intenta de nuevo.</string>
+
     <!-- Home -->
     <string name="home_origin_placeholder">Tu ubicación actual</string>
     <string name="home_destination_placeholder">¿A dónde vamos?</string>
@@ -47,7 +57,8 @@
 
     <!-- Perfil -->
     <string name="perfil_title">Perfil</string>
-    <string name="perfil_rating_subtitle">★%1$s · Pasajero</string>
+    <string name="perfil_rating_subtitle">Pasajero</string>
+    <string name="perfil_load_error">No se pudo cargar tu perfil</string>
     <string name="perfil_addresses">Direcciones guardadas</string>
     <string name="perfil_payment_methods">Métodos de pago</string>
     <string name="perfil_notifications">Notificaciones</string>

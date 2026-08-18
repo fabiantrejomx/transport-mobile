@@ -1,12 +1,16 @@
 package com.bng.drivo.data.repository;
 
 import com.bng.drivo.data.model.UserProfile;
+import com.bng.drivo.data.remote.ApiCallback;
 
 public interface UserRepository {
 
-    UserProfile getCurrentUser();
+    /** GET /me */
+    void getCurrentUser(ApiCallback<UserProfile> callback);
 
-    void saveCurrentUser(UserProfile profile);
+    /** POST /me — idempotente, crea o sincroniza el perfil tras el login. Sin body. */
+    void syncProfile(ApiCallback<UserProfile> callback);
 
-    void clearCurrentUser();
+    /** PATCH /me */
+    void updateProfile(String name, String email, ApiCallback<UserProfile> callback);
 }

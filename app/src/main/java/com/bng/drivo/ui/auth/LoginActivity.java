@@ -10,10 +10,15 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.UserProfile;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AuthRepository;
 import com.bng.drivo.data.repository.FirebaseAuthRepository;
 import com.bng.drivo.data.repository.OtpSendCallback;
 import com.bng.drivo.data.repository.OtpVerifyCallback;
+import com.bng.drivo.data.repository.RestUserRepository;
+import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.home.HomeActivity;
 import com.bng.drivo.util.ValidationHelper;
 
@@ -25,6 +30,7 @@ import com.bng.drivo.util.ValidationHelper;
 public class LoginActivity extends AppCompatActivity {
 
     private AuthRepository authRepository;
+    private UserRepository userRepository;
 
     private View groupPhone;
     private View groupCode;
@@ -42,6 +48,7 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         authRepository = new FirebaseAuthRepository();
+        userRepository = new RestUserRepository(this);
 
         groupPhone = findViewById(R.id.group_phone);
         groupCode = findViewById(R.id.group_code);
@@ -75,7 +82,7 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onAutoVerified() {
                 setSendingEnabled(true);
-                goToHome();
+                syncProfileAndContinue();
             }
 
             @Override
@@ -99,7 +106,7 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onSuccess() {
                 setVerifyingEnabled(true);
-                goToHome();
+                syncProfileAndContinue();
             }
 
             @Override
@@ -130,8 +137,40 @@ public class LoginActivity extends AppCompatActivity {
         btnVerifyCode.setEnabled(enabled);
     }
 
+    /**
+     * POST /me es idempotente: crea el perfil si es la primera vez que este número inicia
+     * sesión, o solo lo devuelve si ya existía. Si vuelve sin nombre, el perfil está incompleto
+     * y hay que pedirlo antes de entrar a Home.
+     */
+    private void syncProfileAndContinue() {
+        userRepository.syncProfile(new ApiCallback<UserProfile>() {
+            @Override
+            public void onSuccess(UserProfile profile) {
+                if (profile.isComplete()) {
+                    goToHome();
+                } else {
+                    goToCompleteProfile();
+                }
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                // Sin perfil no podemos saber si falta nombre; Home igual está protegido por
+                // AuthenticatedActivity y puede reintentar la sincronización más tarde.
+                goToHome();
+            }
+        });
+    }
+
     private void goToHome() {
         Intent intent = new Intent(this, HomeActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void goToCompleteProfile() {
+        Intent intent = new Intent(this, CompleteProfileActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

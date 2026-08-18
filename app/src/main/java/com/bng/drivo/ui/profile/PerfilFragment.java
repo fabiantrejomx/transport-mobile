@@ -14,9 +14,11 @@ import androidx.fragment.app.Fragment;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.UserProfile;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AuthRepository;
 import com.bng.drivo.data.repository.FirebaseAuthRepository;
-import com.bng.drivo.data.repository.MockUserRepository;
+import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.address.AddressListActivity;
 import com.bng.drivo.ui.auth.LoginActivity;
@@ -42,15 +44,24 @@ public class PerfilFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         authRepository = new FirebaseAuthRepository();
-        UserRepository userRepository = new MockUserRepository(requireContext());
-        UserProfile profile = userRepository.getCurrentUser();
+        UserRepository userRepository = new RestUserRepository(requireContext());
+        userRepository.getCurrentUser(new ApiCallback<UserProfile>() {
+            @Override
+            public void onSuccess(UserProfile profile) {
+                if (!isAdded()) {
+                    return;
+                }
+                bindProfile(view, profile);
+            }
 
-        if (profile != null) {
-            ((TextView) view.findViewById(R.id.text_avatar)).setText(profile.getInitials());
-            ((TextView) view.findViewById(R.id.text_name)).setText(profile.getName());
-            ((TextView) view.findViewById(R.id.text_rating))
-                    .setText(getString(R.string.perfil_rating_subtitle, profile.getRating()));
-        }
+            @Override
+            public void onError(ApiException error) {
+                if (!isAdded()) {
+                    return;
+                }
+                Toast.makeText(requireContext(), R.string.perfil_load_error, Toast.LENGTH_SHORT).show();
+            }
+        });
 
         view.findViewById(R.id.row_addresses).setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), AddressListActivity.class)));
@@ -62,6 +73,12 @@ public class PerfilFragment extends Fragment {
                 Toast.makeText(requireContext(), R.string.nav_section_coming_soon, Toast.LENGTH_SHORT).show());
 
         view.findViewById(R.id.btn_logout).setOnClickListener(v -> logout());
+    }
+
+    private void bindProfile(View view, UserProfile profile) {
+        ((TextView) view.findViewById(R.id.text_avatar)).setText(profile.getInitials());
+        ((TextView) view.findViewById(R.id.text_name)).setText(profile.getName());
+        ((TextView) view.findViewById(R.id.text_rating)).setText(R.string.perfil_rating_subtitle);
     }
 
     private void logout() {

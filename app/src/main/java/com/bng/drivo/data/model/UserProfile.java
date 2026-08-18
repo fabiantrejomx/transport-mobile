@@ -2,16 +2,22 @@ package com.bng.drivo.data.model;
 
 public class UserProfile {
 
+    private final String id;
     private String name;
     private String email;
-    private String phone;
-    private String rating;
+    private final String phone;
+    private String photoUrl;
 
-    public UserProfile(String name, String email, String phone, String rating) {
+    public UserProfile(String id, String name, String email, String phone, String photoUrl) {
+        this.id = id;
         this.name = name;
         this.email = email;
         this.phone = phone;
-        this.rating = rating;
+        this.photoUrl = photoUrl;
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getName() {
@@ -34,12 +40,16 @@ public class UserProfile {
         return phone;
     }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public String getPhotoUrl() {
+        return photoUrl;
     }
 
-    public String getRating() {
-        return rating;
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
+    }
+
+    public boolean isComplete() {
+        return name != null && !name.trim().isEmpty();
     }
 
     public String getInitials() {

@@ -22,6 +22,10 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
 
+        <meta-data
+            android:name="com.bng.drivo.TRANSPORT_API_BASE_URL"
+            android:value="${TRANSPORT_API_BASE_URL}" />
+
         <activity
             android:name=".ui.auth.SplashActivity"
             android:exported="true"
@@ -38,6 +42,12 @@
             android:name=".ui.auth.LoginActivity"
             android:exported="false"
             android:label="@string/auth_login_title"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
+            android:name=".ui.auth.CompleteProfileActivity"
+            android:exported="false"
+            android:label="@string/complete_profile_title"
             android:theme="@style/Theme.Drivo" />
 
         <activity

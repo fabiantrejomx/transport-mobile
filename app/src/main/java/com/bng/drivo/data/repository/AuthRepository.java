@@ -1,12 +1,14 @@
 package com.bng.drivo.data.repository;
 
+import android.app.Activity;
+
 public interface AuthRepository {
 
     boolean isLoggedIn();
 
-    boolean login(String email, String password);
+    void sendVerificationCode(Activity activity, String phoneNumber, OtpSendCallback callback);
 
-    boolean register(String name, String email, String phone, String password);
+    void verifyCode(String smsCode, OtpVerifyCallback callback);
 
     void logout();
 }

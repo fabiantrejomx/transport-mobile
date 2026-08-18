@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.core.content.ContextCompat;
 
 import com.bng.drivo.R;
@@ -28,7 +28,7 @@ import com.google.android.material.appbar.MaterialToolbar;
  * nativo de Android (best-effort, sin costo ni dependencia nueva) — ver
  * docs/drivo-analisis-inicial.md para la migración futura a Places API.
  */
-public class PickLocationOnMapActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class PickLocationOnMapActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
     public static final String EXTRA_ADDRESS = "extra_address";
     public static final String EXTRA_LAT = "extra_lat";

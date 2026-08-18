@@ -14,7 +14,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.core.content.ContextCompat;
 
 import com.bng.drivo.R;
@@ -37,7 +37,7 @@ import java.util.List;
  * overlay de autocompletado del Places SDK for Android (Places API (New) habilitada en
  * Cloud Console) en vez de un input de texto libre — ver docs/drivo-analisis-inicial.md.
  */
-public class SetDestinationActivity extends AppCompatActivity {
+public class SetDestinationActivity extends AuthenticatedActivity {
 
     // Ciudad de México — respaldo cuando no hay permiso/última ubicación conocida del origen.
     private static final LatLng DEFAULT_ORIGIN = new LatLng(19.4326, -99.1332);

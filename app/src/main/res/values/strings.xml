@@ -6,29 +6,16 @@
 
     <!-- Login -->
     <string name="auth_login_title">Iniciar sesión</string>
-    <string name="auth_login_email_hint">Correo electrónico</string>
-    <string name="auth_login_password_hint">Contraseña</string>
-    <string name="auth_login_button">Iniciar sesión</string>
-    <string name="auth_login_demo_hint">Modo demo: pasajero@drivo.mx / root</string>
-    <string name="auth_login_register_prompt">¿No tienes cuenta? </string>
-    <string name="auth_login_register_link">Regístrate</string>
-    <string name="auth_login_error">Correo o contraseña incorrectos</string>
-    <string name="auth_login_empty_error">Ingresa tu correo y contraseña</string>
-
-    <!-- Registro -->
-    <string name="auth_registro_title">Crear cuenta</string>
-    <string name="auth_registro_name_hint">Nombre completo</string>
-    <string name="auth_registro_email_hint">Correo electrónico</string>
-    <string name="auth_registro_phone_hint">Teléfono</string>
-    <string name="auth_registro_password_hint">Contraseña</string>
-    <string name="auth_registro_confirm_password_hint">Confirmar contraseña</string>
-    <string name="auth_registro_button">Crear cuenta</string>
-    <string name="auth_registro_login_prompt">¿Ya tienes cuenta? </string>
-    <string name="auth_registro_login_link">Inicia sesión</string>
-    <string name="auth_registro_error_fields">Completa todos los campos</string>
-    <string name="auth_registro_error_email">Ingresa un correo válido</string>
-    <string name="auth_registro_error_phone">Ingresa un teléfono válido</string>
-    <string name="auth_registro_error_password_match">Las contraseñas no coinciden</string>
+    <string name="auth_login_phone_hint">Número de teléfono (+52…)</string>
+    <string name="auth_login_send_code_button">Enviar código</string>
+    <string name="auth_login_code_hint">Código de verificación</string>
+    <string name="auth_login_verify_button">Verificar código</string>
+    <string name="auth_login_change_phone">Cambiar número</string>
+    <string name="auth_login_code_sent">Código enviado a %1$s</string>
+    <string name="auth_login_empty_phone_error">Ingresa tu número de teléfono</string>
+    <string name="auth_login_empty_code_error">Ingresa el código de verificación</string>
+    <string name="auth_login_send_error">No se pudo enviar el código. Intenta de nuevo.</string>
+    <string name="auth_login_verify_error">Código incorrecto o expirado</string>
 
     <!-- Home -->
     <string name="home_origin_placeholder">Tu ubicación actual</string>

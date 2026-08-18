@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.repository.AuthRepository;
-import com.bng.drivo.data.repository.MockAuthRepository;
+import com.bng.drivo.data.repository.FirebaseAuthRepository;
 import com.bng.drivo.ui.home.HomeActivity;
 
 public class SplashActivity extends AppCompatActivity {
@@ -24,7 +24,7 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        authRepository = new MockAuthRepository(this);
+        authRepository = new FirebaseAuthRepository();
 
         handler.postDelayed(this::goToNextScreen, SPLASH_DELAY_MS);
     }

@@ -11,7 +11,7 @@ import android.view.animation.LinearInterpolator;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
 import com.bng.drivo.ui.map.MapStyler;
@@ -45,7 +45,7 @@ import java.util.UUID;
  * 3) TRIP_IN_PROGRESS — arranca el trayecto hacia el destino (nueva ruta animada), con
  *    S.O.S., compartir viaje y cancelar con confirmación, más finalizar viaje manual.
  */
-public class ActiveTripActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class ActiveTripActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
     public static final String EXTRA_DRIVER_INITIALS = "extra_driver_initials";
     public static final String EXTRA_DRIVER_NAME = "extra_driver_name";

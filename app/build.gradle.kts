@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.secrets.gradle.plugin)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -61,4 +62,17 @@ dependencies {
     implementation(libs.places)
     implementation(libs.androidx.datastore.preferences)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // Firebase (Auth por teléfono, Firestore de solo lectura, Storage, FCM)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+    implementation(libs.firebase.messaging)
+
+    // Cliente HTTP hacia transport-api
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp)
+    debugImplementation(libs.okhttp.logging.interceptor)
 }

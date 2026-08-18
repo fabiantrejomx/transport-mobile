@@ -8,7 +8,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
 import com.bng.drivo.ui.price.ConfirmPriceActivity;
@@ -23,7 +23,7 @@ import java.util.Locale;
  * de conductores (datos de muestra) entre las que el pasajero elige, por indicación del
  * cliente. El matching real llegará con el backend/Firebase.
  */
-public class SearchingDriverActivity extends AppCompatActivity {
+public class SearchingDriverActivity extends AuthenticatedActivity {
 
     private static final long SEARCH_DELAY_MS = 1800L;
 

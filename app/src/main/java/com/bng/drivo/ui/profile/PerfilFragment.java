@@ -15,7 +15,7 @@ import androidx.fragment.app.Fragment;
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.repository.AuthRepository;
-import com.bng.drivo.data.repository.MockAuthRepository;
+import com.bng.drivo.data.repository.FirebaseAuthRepository;
 import com.bng.drivo.data.repository.MockUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.address.AddressListActivity;
@@ -41,7 +41,7 @@ public class PerfilFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        authRepository = new MockAuthRepository(requireContext());
+        authRepository = new FirebaseAuthRepository();
         UserRepository userRepository = new MockUserRepository(requireContext());
         UserProfile profile = userRepository.getCurrentUser();
 

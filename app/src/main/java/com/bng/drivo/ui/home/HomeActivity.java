@@ -2,7 +2,7 @@ package com.bng.drivo.ui.home;
 
 import android.os.Bundle;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
@@ -17,7 +17,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
  * navegación inferior siempre visible — patrón tipo WhatsApp: cambiar de pestaña solo
  * intercambia el contenido del contenedor, nunca oculta la barra ni apila una Activity nueva.
  */
-public class HomeActivity extends AppCompatActivity {
+public class HomeActivity extends AuthenticatedActivity {
 
     private static final String TAG_HOME = "tab_home";
     private static final String TAG_VIAJES = "tab_viajes";

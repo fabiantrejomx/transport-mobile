@@ -22,10 +22,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.bng.drivo" />
+                  <option name="mobileSdkAppId" value="1:78499889493:android:7e7df3e033a661dd2bafdc" />
+                  <option name="projectId" value="transport-mx" />
+                  <option name="projectNumber" value="78499889493" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

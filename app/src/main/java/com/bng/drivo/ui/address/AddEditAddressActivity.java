@@ -7,7 +7,7 @@ import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.core.content.ContextCompat;
 
 import com.bng.drivo.R;
@@ -32,7 +32,7 @@ import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-public class AddEditAddressActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class AddEditAddressActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
     public static final String EXTRA_ADDRESS_ID = "extra_address_id";
 

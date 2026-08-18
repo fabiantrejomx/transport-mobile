@@ -7,7 +7,7 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.SavedAddress;
@@ -18,7 +18,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.List;
 
-public class AddressListActivity extends AppCompatActivity {
+public class AddressListActivity extends AuthenticatedActivity {
 
     private AddressRepository addressRepository;
     private LinearLayout container;

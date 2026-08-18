@@ -5,7 +5,7 @@ import android.util.TypedValue;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
 import com.bng.drivo.util.ColorUtils;
@@ -20,7 +20,7 @@ import java.util.Locale;
  * en el prototipo — ActiveTripActivity ya se cerró al abrir esta pantalla, así que Home
  * queda como única actividad debajo en el back stack.
  */
-public class FinishedTripActivity extends AppCompatActivity {
+public class FinishedTripActivity extends AuthenticatedActivity {
 
     private static final int STAR_COUNT = 5;
 

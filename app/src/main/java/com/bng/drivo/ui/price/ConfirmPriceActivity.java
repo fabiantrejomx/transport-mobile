@@ -5,7 +5,7 @@ import android.os.Bundle;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
 import com.bng.drivo.ui.search.SearchingDriverActivity;
@@ -19,7 +19,7 @@ import java.util.Locale;
  * ajustable entre 80% y 140% de una tarifa base fija (el cálculo real con Routes API /
  * TRAFFIC_AWARE_OPTIMAL queda para cuando exista backend — ver docs/drivo-analisis-inicial.md).
  */
-public class ConfirmPriceActivity extends AppCompatActivity {
+public class ConfirmPriceActivity extends AuthenticatedActivity {
 
     public static final String EXTRA_ORIGIN = "extra_origin";
     public static final String EXTRA_DESTINATION = "extra_destination";

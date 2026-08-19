@@ -15,7 +15,8 @@ public final class ValidationHelper {
         return isNotEmpty(email) && Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches();
     }
 
-    public static boolean isValidPhone(String phone) {
-        return isNotEmpty(phone) && phone.trim().length() >= 7;
+    /** Por ahora solo se aceptan números mexicanos: 10 dígitos, sin el +52 (va fijo aparte). */
+    public static boolean isValidMexicanPhone(String tenDigits) {
+        return tenDigits != null && tenDigits.matches("\\d{10}");
     }
 }

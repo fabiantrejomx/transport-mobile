@@ -1,6 +1,8 @@
 package com.bng.drivo.data.model;
 
-/** Se amplía conforme cada sub-fase de "Fase 6" lo necesita; timestamps llegan en 6c. */
+/** Se amplía conforme cada sub-fase de "Fase 6" lo necesita. originText/destinationText/
+ * requestedAt solo los llena GET /rides/{id} — las demás llamadas (crear, aceptar, cancelar)
+ * los dejan null, ya conocen origen/destino por otro lado (extras de Intent). */
 public class Ride {
 
     private final String id;
@@ -12,9 +14,13 @@ public class Ride {
     private final String vehicleModel;
     private final String vehicleColor;
     private final String vehiclePlate;
+    private final String originText;
+    private final String destinationText;
+    private final String requestedAt;
 
     public Ride(String id, String status, Double agreedFare, String driverName, Double driverRating,
-                String vehicleBrand, String vehicleModel, String vehicleColor, String vehiclePlate) {
+                String vehicleBrand, String vehicleModel, String vehicleColor, String vehiclePlate,
+                String originText, String destinationText, String requestedAt) {
         this.id = id;
         this.status = status;
         this.agreedFare = agreedFare;
@@ -24,6 +30,9 @@ public class Ride {
         this.vehicleModel = vehicleModel;
         this.vehicleColor = vehicleColor;
         this.vehiclePlate = vehiclePlate;
+        this.originText = originText;
+        this.destinationText = destinationText;
+        this.requestedAt = requestedAt;
     }
 
     public String getId() {
@@ -60,5 +69,17 @@ public class Ride {
 
     public String getVehiclePlate() {
         return vehiclePlate;
+    }
+
+    public String getOriginText() {
+        return originText;
+    }
+
+    public String getDestinationText() {
+        return destinationText;
+    }
+
+    public String getRequestedAt() {
+        return requestedAt;
     }
 }

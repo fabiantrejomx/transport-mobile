@@ -39,6 +39,11 @@
         </activity>
 
         <activity
+            android:name=".ui.auth.RoleSelectionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
             android:name=".ui.auth.LoginActivity"
             android:exported="false"
             android:label="@string/auth_login_title"
@@ -57,6 +62,13 @@
             android:theme="@style/Theme.Drivo" />
 
         <activity
+            android:name=".ui.security.SeguridadActivity"
+            android:exported="false"
+            android:label="@string/security_title"
+            android:parentActivityName=".ui.home.HomeActivity"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
             android:name=".ui.address.AddressListActivity"
             android:exported="false"
             android:label="@string/address_list_title"
@@ -71,24 +83,17 @@
             android:theme="@style/Theme.Drivo" />
 
         <activity
-            android:name=".ui.destination.SetDestinationActivity"
-            android:exported="false"
-            android:label="@string/set_destino_title"
-            android:parentActivityName=".ui.home.HomeActivity"
-            android:theme="@style/Theme.Drivo" />
-
-        <activity
             android:name=".ui.destination.PickLocationOnMapActivity"
             android:exported="false"
             android:label="@string/pick_location_title"
-            android:parentActivityName=".ui.destination.SetDestinationActivity"
+            android:parentActivityName=".ui.home.HomeActivity"
             android:theme="@style/Theme.Drivo" />
 
         <activity
             android:name=".ui.price.ConfirmPriceActivity"
             android:exported="false"
             android:label="@string/confirm_price_title"
-            android:parentActivityName=".ui.destination.SetDestinationActivity"
+            android:parentActivityName=".ui.home.HomeActivity"
             android:theme="@style/Theme.Drivo" />
 
         <activity

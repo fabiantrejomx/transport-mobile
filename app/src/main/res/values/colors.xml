@@ -24,4 +24,7 @@
 
     <!-- Color de confirmaciones / punto de origen en el mapa (fuera de los roles estándar de M3) -->
     <color name="drivo_success">#2E7D5B</color>
+
+    <!-- Scrim tras texto sobre el mapa (ej. radar de búsqueda) — mismo tono que la superficie, semitransparente -->
+    <color name="drivo_scrim">#E6FFFFFF</color>
 </resources>

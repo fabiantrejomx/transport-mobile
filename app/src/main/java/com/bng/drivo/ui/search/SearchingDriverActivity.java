@@ -1,9 +1,13 @@
 package com.bng.drivo.ui.search;
 
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.animation.LinearInterpolator;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,9 +24,18 @@ import com.bng.drivo.data.repository.RealtimeSubscription;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
+import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.price.ConfirmPriceActivity;
 import com.bng.drivo.ui.trip.ActiveTripActivity;
-import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.List;
 import java.util.Locale;
@@ -32,14 +45,19 @@ import java.util.Locale;
  * vivo de rides/{id}/offers (ver openapi.yaml, "Canal en vivo"). Se muestra una sola tarjeta
  * a la vez — la de menor queue_position —, nunca una lista de ofertas simultáneas.
  */
-public class SearchingDriverActivity extends AuthenticatedActivity {
+public class SearchingDriverActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
     public static final String EXTRA_RIDE_ID = "extra_ride_id";
+
+    private static final long RADAR_PULSE_DURATION_MS = 1600L;
 
     private final RideRealtimeRepository realtimeRepository = new FirestoreRideRealtimeRepository();
     private TripRepository tripRepository;
     private RealtimeSubscription offersSubscription;
+    private ValueAnimator radarAnimator;
+    private CountDownTimer expiryTimer;
 
+    private GoogleMap googleMap;
     private String rideId;
     private String origin;
     private String destination;
@@ -70,8 +88,59 @@ public class SearchingDriverActivity extends AuthenticatedActivity {
             return;
         }
 
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        findViewById(R.id.btn_close).setOnClickListener(v -> finish());
+        startRadarPulse();
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
+    }
+
+    @Override
+    public void onMapReady(GoogleMap map) {
+        googleMap = map;
+        MapStyler.apply(this, googleMap);
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+        googleMap.getUiSettings().setAllGesturesEnabled(false);
+
+        LatLng originPoint = new LatLng(originLat, originLng);
+        LatLng destinationPoint = new LatLng(destinationLat, destinationLng);
+        googleMap.addMarker(new MarkerOptions().position(originPoint)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
+        googleMap.addMarker(new MarkerOptions().position(destinationPoint)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+
+        try {
+            LatLngBounds bounds = new LatLngBounds.Builder().include(originPoint).include(destinationPoint).build();
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 220));
+        } catch (IllegalStateException ignored) {
+            googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.fromLatLngZoom(originPoint, 14f)));
+        }
+    }
+
+    /** Animación puramente decorativa (dos anillos que laten) — no depende de ningún dato. */
+    private void startRadarPulse() {
+        View outer = findViewById(R.id.radar_ring_outer);
+        View inner = findViewById(R.id.radar_ring_inner);
+
+        radarAnimator = ValueAnimator.ofFloat(0f, 1f);
+        radarAnimator.setDuration(RADAR_PULSE_DURATION_MS);
+        radarAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        radarAnimator.setInterpolator(new LinearInterpolator());
+        radarAnimator.addUpdateListener(animation -> {
+            float fraction = (float) animation.getAnimatedValue();
+            float scale = 0.85f + fraction * 0.3f;
+            outer.setScaleX(scale);
+            outer.setScaleY(scale);
+            outer.setAlpha(0.2f * (1f - fraction));
+            float innerFraction = (fraction + 0.5f) % 1f;
+            float innerScale = 0.85f + innerFraction * 0.3f;
+            inner.setScaleX(innerScale);
+            inner.setScaleY(innerScale);
+            inner.setAlpha(0.3f * (1f - innerFraction));
+        });
+        radarAnimator.start();
     }
 
     @Override
@@ -89,6 +158,7 @@ public class SearchingDriverActivity extends AuthenticatedActivity {
             offersSubscription.stop();
             offersSubscription = null;
         }
+        cancelExpiryTimer();
     }
 
     private void onOffersChanged(List<Offer> offers) {
@@ -103,6 +173,7 @@ public class SearchingDriverActivity extends AuthenticatedActivity {
 
         android.widget.LinearLayout container = findViewById(R.id.container_drivers);
         container.removeAllViews();
+        cancelExpiryTimer();
         if (current != null) {
             container.addView(buildDriverCard(current));
         }
@@ -114,9 +185,7 @@ public class SearchingDriverActivity extends AuthenticatedActivity {
         String ratingText = offer.getDriverRating() != null
                 ? String.format(Locale.getDefault(), " · ★%.1f", offer.getDriverRating()) : "";
         String vehicleText = joinNonNull(" ", offer.getVehicleBrand(), offer.getVehicleModel(), offer.getVehicleColor());
-        String details = offer.getEtaMin() != null
-                ? String.format(Locale.getDefault(), "%s · %s · %d min", vehicleText, offer.getVehiclePlate(), offer.getEtaMin())
-                : String.format(Locale.getDefault(), "%s · %s", vehicleText, offer.getVehiclePlate());
+        String details = joinNonNull(" · ", vehicleText, offer.getVehiclePlate());
 
         ((TextView) card.findViewById(R.id.text_driver_counter))
                 .setText(getString(R.string.searching_counter, offer.getQueuePosition(), offer.getQueueTotal()));
@@ -126,10 +195,59 @@ public class SearchingDriverActivity extends AuthenticatedActivity {
         ((TextView) card.findViewById(R.id.text_driver_price))
                 .setText(String.format(Locale.getDefault(), "$%.2f", offer.getAmount()));
 
+        TextView textEta = card.findViewById(R.id.text_driver_eta);
+        if (offer.getEtaMin() != null) {
+            textEta.setText(getString(R.string.searching_eta_min, offer.getEtaMin()));
+            textEta.setVisibility(View.VISIBLE);
+        } else {
+            textEta.setVisibility(View.GONE);
+        }
+
+        startExpiryCountdown(card.findViewById(R.id.progress_offer_expiry), offer.getExpiresAtMillis());
+
         card.findViewById(R.id.btn_accept_driver).setOnClickListener(v -> acceptOffer(offer));
         card.findViewById(R.id.btn_reject_driver).setOnClickListener(v -> rejectOffer(offer));
 
         return card;
+    }
+
+    /** Cosmético: el contrato es explícito en que la verdad es expires_at en el servidor, esta
+     * barra solo comunica la urgencia — si nunca llega a 0 porque Firestore ya reemplazó la
+     * tarjeta antes, no pasa nada. */
+    private void startExpiryCountdown(ProgressBar progressBar, Long expiresAtMillis) {
+        cancelExpiryTimer();
+        if (expiresAtMillis == null) {
+            progressBar.setVisibility(View.GONE);
+            return;
+        }
+        long totalMs = expiresAtMillis - System.currentTimeMillis();
+        if (totalMs <= 0) {
+            progressBar.setProgress(0);
+            return;
+        }
+        progressBar.setVisibility(View.VISIBLE);
+        progressBar.setMax(1000);
+        progressBar.setProgress(1000);
+
+        expiryTimer = new CountDownTimer(totalMs, 100) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                progressBar.setProgress((int) (1000 * millisUntilFinished / totalMs));
+            }
+
+            @Override
+            public void onFinish() {
+                progressBar.setProgress(0);
+            }
+        };
+        expiryTimer.start();
+    }
+
+    private void cancelExpiryTimer() {
+        if (expiryTimer != null) {
+            expiryTimer.cancel();
+            expiryTimer = null;
+        }
     }
 
     private void acceptOffer(Offer offer) {
@@ -183,6 +301,7 @@ public class SearchingDriverActivity extends AuthenticatedActivity {
         findViewById(R.id.layout_searching).setVisibility(View.VISIBLE);
         findViewById(R.id.layout_results).setVisibility(View.GONE);
         ((android.widget.LinearLayout) findViewById(R.id.container_drivers)).removeAllViews();
+        cancelExpiryTimer();
     }
 
     private void goToActiveTrip(Ride ride) {
@@ -229,5 +348,13 @@ public class SearchingDriverActivity extends AuthenticatedActivity {
             }
         }
         return result.toString();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (radarAnimator != null) {
+            radarAnimator.cancel();
+        }
     }
 }

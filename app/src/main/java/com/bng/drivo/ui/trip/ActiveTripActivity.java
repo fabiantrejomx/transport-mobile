@@ -91,6 +91,8 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     private TextView textStatusTitle;
     private TextView textStatusSubtitle;
     private View btnShare;
+    private View btnCancelTrip;
+    private View btnSosBadge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,6 +125,8 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         textStatusTitle = findViewById(R.id.text_trip_status_title);
         textStatusSubtitle = findViewById(R.id.text_trip_status_subtitle);
         btnShare = findViewById(R.id.btn_share_trip);
+        btnCancelTrip = findViewById(R.id.btn_cancel_trip);
+        btnSosBadge = findViewById(R.id.btn_sos_badge);
 
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -130,8 +134,8 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
             mapFragment.getMapAsync(this);
         }
 
-        findViewById(R.id.btn_cancel_trip).setOnClickListener(v -> confirmCancelTrip());
-        findViewById(R.id.btn_sos).setOnClickListener(v -> sendSos());
+        btnCancelTrip.setOnClickListener(v -> confirmCancelTrip());
+        btnSosBadge.setOnClickListener(v -> sendSos());
         findViewById(R.id.btn_call_driver).setOnClickListener(v ->
                 Toast.makeText(this, R.string.active_trip_call_coming_soon, Toast.LENGTH_SHORT).show());
         findViewById(R.id.btn_message_driver).setOnClickListener(v ->
@@ -224,12 +228,24 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         groupTripInProgress.setVisibility(View.GONE);
         textStatusTitle.setText(titleRes);
         textStatusSubtitle.setText(subtitleRes);
+
+        // El contrato solo permite cancelar antes de IN_PROGRESS: "X" visible y tocable,
+        // S.O.S. todavía no (ver showTripInProgressUi()).
+        btnCancelTrip.setVisibility(View.VISIBLE);
+        btnCancelTrip.setEnabled(true);
+        btnSosBadge.setVisibility(View.GONE);
     }
 
     private void showTripInProgressUi() {
         groupBeforeTrip.setVisibility(View.GONE);
         groupTripInProgress.setVisibility(View.VISIBLE);
         btnShare.setVisibility(View.VISIBLE);
+
+        // Ya no se puede cancelar una vez IN_PROGRESS — se deshabilita, no solo se oculta, y
+        // el S.O.S. toma su lugar visual arriba-izquierda.
+        btnCancelTrip.setVisibility(View.GONE);
+        btnCancelTrip.setEnabled(false);
+        btnSosBadge.setVisibility(View.VISIBLE);
 
         if (destinationMarker == null && googleMap != null) {
             destinationMarker = googleMap.addMarker(new MarkerOptions()

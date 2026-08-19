@@ -23,4 +23,6 @@
     <color name="drivo_on_error">#601410</color>
 
     <color name="drivo_success">#6FD3A6</color>
+
+    <color name="drivo_scrim">#E6142130</color>
 </resources>

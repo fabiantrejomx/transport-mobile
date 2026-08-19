@@ -2,12 +2,19 @@ package com.bng.drivo.ui.trip;
 
 import android.os.Bundle;
 import android.util.TypedValue;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
+import com.bng.drivo.data.repository.RestTripRepository;
+import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.util.ColorUtils;
 
 import java.util.ArrayList;
@@ -26,11 +33,17 @@ public class FinishedTripActivity extends AuthenticatedActivity {
 
     private final List<TextView> starViews = new ArrayList<>();
     private int rating = 0;
+    private String rideId;
+    private TripRepository tripRepository;
+    private View btnSubmit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_finished_trip);
+
+        tripRepository = new RestTripRepository(this);
+        rideId = getIntent().getStringExtra(ActiveTripActivity.EXTRA_RIDE_ID);
 
         String initials = getIntent().getStringExtra(ActiveTripActivity.EXTRA_DRIVER_INITIALS);
         String name = getIntent().getStringExtra(ActiveTripActivity.EXTRA_DRIVER_NAME);
@@ -44,7 +57,35 @@ public class FinishedTripActivity extends AuthenticatedActivity {
 
         setUpStars();
 
-        findViewById(R.id.btn_submit).setOnClickListener(v -> finish());
+        btnSubmit = findViewById(R.id.btn_submit);
+        btnSubmit.setOnClickListener(v -> submitRating());
+    }
+
+    private void submitRating() {
+        if (rating == 0) {
+            Toast.makeText(this, R.string.finished_trip_rating_required_error, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (rideId == null) {
+            finish();
+            return;
+        }
+
+        String comment = ((EditText) findViewById(R.id.input_comment)).getText().toString().trim();
+        btnSubmit.setEnabled(false);
+        tripRepository.rateRide(rideId, rating, comment.isEmpty() ? null : comment, new ApiCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                finish();
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                btnSubmit.setEnabled(true);
+                Toast.makeText(FinishedTripActivity.this, R.string.finished_trip_rating_error, Toast.LENGTH_SHORT)
+                        .show();
+            }
+        });
     }
 
     private void setUpStars() {

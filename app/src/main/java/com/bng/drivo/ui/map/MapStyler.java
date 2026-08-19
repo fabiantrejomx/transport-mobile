@@ -15,16 +15,34 @@ import com.google.android.gms.maps.model.MapStyleOptions;
  */
 public final class MapStyler {
 
+    // El mapa aparece hasta en 4 pantallas por sesión; cachear evita re-parsear el mismo
+    // JSON de estilo cada vez que se abre una.
+    private static MapStyleOptions lightStyle;
+    private static MapStyleOptions darkStyle;
+
     private MapStyler() {
     }
 
     public static void apply(Context context, GoogleMap map) {
         boolean isDarkMode = (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
-        int styleRes = isDarkMode ? R.raw.map_style_dark : R.raw.map_style_light;
-        boolean applied = map.setMapStyle(MapStyleOptions.loadRawResourceStyle(context, styleRes));
+        boolean applied = map.setMapStyle(isDarkMode ? darkStyle(context) : lightStyle(context));
         if (!applied) {
             Log.e("MapStyler", "No se pudo aplicar el estilo del mapa");
         }
+    }
+
+    private static MapStyleOptions lightStyle(Context context) {
+        if (lightStyle == null) {
+            lightStyle = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_light);
+        }
+        return lightStyle;
+    }
+
+    private static MapStyleOptions darkStyle(Context context) {
+        if (darkStyle == null) {
+            darkStyle = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_dark);
+        }
+        return darkStyle;
     }
 }

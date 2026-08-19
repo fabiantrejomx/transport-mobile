@@ -1,6 +1,7 @@
 package com.bng.drivo.data.repository;
 
 import com.bng.drivo.data.model.Offer;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -44,11 +45,13 @@ public class FirestoreRideRealtimeRepository implements RideRealtimeRepository {
         Long etaMin = doc.getLong("eta_min");
         Long queuePosition = doc.getLong("queue_position");
         Long queueTotal = doc.getLong("queue_total");
+        Timestamp expiresAt = doc.getTimestamp("expires_at");
 
         return new Offer(doc.getId(), name, rating, brand, model, color, plate, amount,
                 etaMin != null ? etaMin.intValue() : null,
                 queuePosition != null ? queuePosition.intValue() : 1,
-                queueTotal != null ? queueTotal.intValue() : 1);
+                queueTotal != null ? queueTotal.intValue() : 1,
+                expiresAt != null ? expiresAt.toDate().getTime() : null);
     }
 
     private Double asDouble(Object value) {

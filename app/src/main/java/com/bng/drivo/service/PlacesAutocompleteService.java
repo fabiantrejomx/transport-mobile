@@ -6,9 +6,9 @@ import android.content.Intent;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCaller;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.libraries.places.api.model.Place;
 import com.google.android.libraries.places.widget.Autocomplete;
@@ -23,7 +23,7 @@ import java.util.List;
  * Envuelve el overlay de autocompletado prediseñado del Places SDK for Android
  * (Autocomplete.IntentBuilder) para no repetir el registro del ActivityResultLauncher
  * y el parseo del resultado en cada pantalla que necesita buscar una dirección
- * (SetDestinationActivity, AddEditAddressActivity).
+ * (HomeFragment, AddEditAddressActivity).
  *
  * Nota: Autocomplete/AutocompleteActivity está marcado @Deprecated en el SDK 5.x en favor
  * de PlaceAutocomplete (API Kotlin-first que sólo devuelve un placeId/AutocompletePrediction
@@ -49,10 +49,11 @@ public class PlacesAutocompleteService {
     private final ActivityResultLauncher<Intent> launcher;
     private ResultListener resultListener;
 
-    public PlacesAutocompleteService(AppCompatActivity activity) {
-        launcher = activity.registerForActivityResult(
+    /** {@code caller} es una Activity o un Fragment — ambos implementan ActivityResultCaller. */
+    public PlacesAutocompleteService(ActivityResultCaller caller) {
+        launcher = caller.registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
-                result -> handleResult(activity, result));
+                result -> handleResult(result));
     }
 
     public void launch(Context context, ResultListener listener) {
@@ -62,7 +63,7 @@ public class PlacesAutocompleteService {
         launcher.launch(intent);
     }
 
-    private void handleResult(Context context, ActivityResult result) {
+    private void handleResult(ActivityResult result) {
         if (resultListener == null) {
             return;
         }

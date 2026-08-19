@@ -45,6 +45,7 @@
                 app:boxCornerRadiusBottomStart="10dp"
                 app:boxCornerRadiusTopEnd="10dp"
                 app:boxCornerRadiusTopStart="10dp"
+                app:prefixText="@string/auth_login_phone_prefix"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -52,7 +53,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/auth_login_phone_hint"
-                    android:inputType="phone"
+                    android:inputType="number"
+                    android:maxLength="10"
                     android:maxLines="1" />
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -80,27 +82,46 @@
                 android:id="@+id/text_code_sent_to"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="16dp"
+                android:gravity="center"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp" />
 
-            <com.google.android.material.textfield.TextInputLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:boxCornerRadiusBottomEnd="10dp"
-                app:boxCornerRadiusBottomStart="10dp"
-                app:boxCornerRadiusTopEnd="10dp"
-                app:boxCornerRadiusTopStart="10dp"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                android:gravity="center"
+                android:orientation="horizontal">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/input_code"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="@string/auth_login_code_hint"
-                    android:inputType="number"
-                    android:maxLines="1" />
-            </com.google.android.material.textfield.TextInputLayout>
+                <EditText
+                    android:id="@+id/input_code_0"
+                    style="@style/Widget.Drivo.OtpDigit"
+                    android:layout_marginEnd="6dp" />
+
+                <EditText
+                    android:id="@+id/input_code_1"
+                    style="@style/Widget.Drivo.OtpDigit"
+                    android:layout_marginEnd="6dp" />
+
+                <EditText
+                    android:id="@+id/input_code_2"
+                    style="@style/Widget.Drivo.OtpDigit"
+                    android:layout_marginEnd="6dp" />
+
+                <EditText
+                    android:id="@+id/input_code_3"
+                    style="@style/Widget.Drivo.OtpDigit"
+                    android:layout_marginEnd="6dp" />
+
+                <EditText
+                    android:id="@+id/input_code_4"
+                    style="@style/Widget.Drivo.OtpDigit"
+                    android:layout_marginEnd="6dp" />
+
+                <EditText
+                    android:id="@+id/input_code_5"
+                    style="@style/Widget.Drivo.OtpDigit" />
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_verify_code"

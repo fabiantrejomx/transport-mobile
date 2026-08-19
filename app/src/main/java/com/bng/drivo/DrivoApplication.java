@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.util.Log;
 
 import com.bng.drivo.util.NotificationChannels;
+import com.bng.drivo.util.ThemePreferences;
+import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.libraries.places.api.Places;
 
 public class DrivoApplication extends Application {
@@ -16,8 +18,17 @@ public class DrivoApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        ThemePreferences.applyStoredMode(this);
         initPlaces();
+        initMapsRenderer();
         NotificationChannels.createAll(this);
+    }
+
+    /** Pide el renderer nuevo (más rápido) desde el arranque, antes de que cualquier
+     * pantalla infle un mapa — evita que la primera pantalla con mapa pague ese costo. */
+    private void initMapsRenderer() {
+        MapsInitializer.initialize(this, MapsInitializer.Renderer.LATEST, renderer ->
+                Log.i(TAG, "Maps renderer: " + renderer));
     }
 
     private void initPlaces() {

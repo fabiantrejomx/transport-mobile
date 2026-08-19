@@ -14,10 +14,11 @@ public class Offer {
     private final Integer etaMin;
     private final int queuePosition;
     private final int queueTotal;
+    private final Long expiresAtMillis;
 
     public Offer(String offerId, String driverName, Double driverRating, String vehicleBrand,
                  String vehicleModel, String vehicleColor, String vehiclePlate, double amount, Integer etaMin,
-                 int queuePosition, int queueTotal) {
+                 int queuePosition, int queueTotal, Long expiresAtMillis) {
         this.offerId = offerId;
         this.driverName = driverName;
         this.driverRating = driverRating;
@@ -29,6 +30,7 @@ public class Offer {
         this.etaMin = etaMin;
         this.queuePosition = queuePosition;
         this.queueTotal = queueTotal;
+        this.expiresAtMillis = expiresAtMillis;
     }
 
     public String getOfferId() {
@@ -73,5 +75,10 @@ public class Offer {
 
     public int getQueueTotal() {
         return queueTotal;
+    }
+
+    /** Solo cosmético (barra de cuenta regresiva) — la verdad la decide el servidor. */
+    public Long getExpiresAtMillis() {
+        return expiresAtMillis;
     }
 }

@@ -11,23 +11,44 @@ import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.Quote;
 import com.bng.drivo.data.model.Ride;
+import com.bng.drivo.data.model.Waypoint;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiErrorCode;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.TripRepository;
+import com.bng.drivo.service.PlacesAutocompleteService;
+import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.search.SearchingDriverActivity;
-import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Dash;
+import com.google.android.gms.maps.model.Gap;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PatternItem;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.material.slider.Slider;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 
 /**
- * "Confirma tu viaje": réplica de pConfirmarPrecio() del prototipo. La tarifa sugerida y la
- * banda de negociación (floor/ceiling) vienen siempre de POST /quotes — el cliente nunca
- * calcula distancia ni precio (ver docs/analisis-inicial.md y openapi.yaml).
+ * "Confirma tu viaje": mapa de fondo + tarjetas flotantes (origen/parada/destino arriba,
+ * tarifa/pago/solicitar abajo). La tarifa sugerida y la banda de negociación (floor/ceiling)
+ * vienen siempre de POST /quotes — el cliente nunca calcula distancia ni precio, y la línea
+ * entre puntos es solo una guía punteada recta, no una ruta real (ver openapi.yaml).
  */
-public class ConfirmPriceActivity extends AuthenticatedActivity {
+public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
     public static final String EXTRA_ORIGIN = "extra_origin";
     public static final String EXTRA_DESTINATION = "extra_destination";
@@ -38,6 +59,7 @@ public class ConfirmPriceActivity extends AuthenticatedActivity {
     public static final String EXTRA_DESTINATION_LNG = "extra_destination_lng";
 
     private TripRepository tripRepository;
+    private final PlacesAutocompleteService placesAutocompleteService = new PlacesAutocompleteService(this);
 
     private String origin;
     private String destination;
@@ -45,10 +67,14 @@ public class ConfirmPriceActivity extends AuthenticatedActivity {
     private double originLng;
     private double destinationLat;
     private double destinationLng;
+    private Waypoint stop;
 
+    private GoogleMap googleMap;
     private Quote currentQuote;
     private boolean requestingRide;
 
+    private TextView textAddStop;
+    private View btnRemoveStop;
     private TextView textPriceAmount;
     private TextView textPriceMin;
     private TextView textPriceMax;
@@ -70,12 +96,13 @@ public class ConfirmPriceActivity extends AuthenticatedActivity {
         destinationLat = getIntent().getDoubleExtra(EXTRA_DESTINATION_LAT, 0);
         destinationLng = getIntent().getDoubleExtra(EXTRA_DESTINATION_LNG, 0);
 
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
 
         ((TextView) findViewById(R.id.text_origin)).setText(origin);
         ((TextView) findViewById(R.id.text_destination)).setText(destination);
 
+        textAddStop = findViewById(R.id.text_add_stop);
+        btnRemoveStop = findViewById(R.id.btn_remove_stop);
         textPriceAmount = findViewById(R.id.text_price_amount);
         textPriceMin = findViewById(R.id.text_price_min);
         textPriceMax = findViewById(R.id.text_price_max);
@@ -87,10 +114,103 @@ public class ConfirmPriceActivity extends AuthenticatedActivity {
 
         findViewById(R.id.row_payment).setOnClickListener(v ->
                 Toast.makeText(this, R.string.confirm_price_payment_coming_soon, Toast.LENGTH_SHORT).show());
+        findViewById(R.id.row_add_stop).setOnClickListener(v -> onStopRowClicked());
+        btnRemoveStop.setOnClickListener(v -> removeStop());
 
         btnRequestTrip.setOnClickListener(v -> requestRide());
 
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
+
         loadQuote();
+    }
+
+    @Override
+    public void onMapReady(GoogleMap map) {
+        googleMap = map;
+        MapStyler.apply(this, googleMap);
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+        drawRouteGuide();
+    }
+
+    private void onStopRowClicked() {
+        if (stop != null) {
+            return;
+        }
+        placesAutocompleteService.launch(this, new PlacesAutocompleteService.ResultListener() {
+            @Override
+            public void onPlaceSelected(String address, double lat, double lng) {
+                stop = new Waypoint(lat, lng, address);
+                bindStopRow();
+                drawRouteGuide();
+                loadQuote();
+            }
+        });
+    }
+
+    private void removeStop() {
+        stop = null;
+        bindStopRow();
+        drawRouteGuide();
+        loadQuote();
+    }
+
+    private void bindStopRow() {
+        if (stop != null) {
+            textAddStop.setText(stop.getText());
+            textAddStop.setTextColor(getColor(R.color.drivo_secondary));
+            btnRemoveStop.setVisibility(View.VISIBLE);
+        } else {
+            textAddStop.setText(R.string.confirm_price_add_stop);
+            textAddStop.setTextColor(getColor(R.color.drivo_success));
+            btnRemoveStop.setVisibility(View.GONE);
+        }
+    }
+
+    private void drawRouteGuide() {
+        if (googleMap == null) {
+            return;
+        }
+        googleMap.clear();
+
+        List<LatLng> points = new ArrayList<>();
+        points.add(new LatLng(originLat, originLng));
+        if (stop != null) {
+            points.add(new LatLng(stop.getLat(), stop.getLng()));
+        }
+        points.add(new LatLng(destinationLat, destinationLng));
+
+        googleMap.addMarker(new MarkerOptions().position(points.get(0))
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
+        if (stop != null) {
+            googleMap.addMarker(new MarkerOptions().position(new LatLng(stop.getLat(), stop.getLng()))
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
+        }
+        googleMap.addMarker(new MarkerOptions().position(points.get(points.size() - 1))
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+
+        List<PatternItem> dashed = Arrays.asList(new Dash(20f), new Gap(12f));
+        Polyline polyline = googleMap.addPolyline(new PolylineOptions()
+                .addAll(points)
+                .width(8f)
+                .color(getColor(R.color.drivo_success))
+                .pattern(dashed));
+
+        LatLngBounds.Builder bounds = new LatLngBounds.Builder();
+        for (LatLng point : points) {
+            bounds.include(point);
+        }
+        try {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 220));
+        } catch (IllegalStateException ignored) {
+            // El mapa aún no tiene tamaño medido; se reintenta con el próximo layout.
+        }
+    }
+
+    private List<Waypoint> currentWaypoints() {
+        return stop != null ? Collections.singletonList(stop) : null;
     }
 
     private void loadQuote() {
@@ -98,7 +218,7 @@ public class ConfirmPriceActivity extends AuthenticatedActivity {
         progressQuote.setVisibility(View.VISIBLE);
 
         tripRepository.createQuote(originLat, originLng, destinationLat, destinationLng, origin, destination,
-                new ApiCallback<Quote>() {
+                currentWaypoints(), new ApiCallback<Quote>() {
                     @Override
                     public void onSuccess(Quote quote) {
                         progressQuote.setVisibility(View.GONE);
@@ -134,14 +254,26 @@ public class ConfirmPriceActivity extends AuthenticatedActivity {
 
         textPriceMin.setText(formatMinMax(min, floorPercent));
         textPriceMax.setText(formatMinMax(max, ceilingPercent));
-        textPriceAmount.setText(formatPrice((float) quote.getSuggestedFare()));
 
         slider.setValueFrom(min);
         slider.setValueTo(max);
         slider.setStepSize(stepSize);
-        slider.setValue(Math.max(min, Math.min(max, (float) quote.getSuggestedFare())));
+        float snappedValue = snapToStep((float) quote.getSuggestedFare(), min, max, stepSize);
+        slider.setValue(snappedValue);
+        textPriceAmount.setText(formatPrice(snappedValue));
 
         setFormEnabled(true);
+    }
+
+    /**
+     * El Slider de Material exige que todo valor asignado caiga exacto en la grilla
+     * {@code min, min+stepSize, min+2*stepSize, ...} o lanza IllegalArgumentException — la
+     * tarifa sugerida del servidor viene en pesos con centavos y casi nunca cae ahí sola.
+     */
+    private float snapToStep(float value, float min, float max, float stepSize) {
+        float clamped = Math.max(min, Math.min(max, value));
+        long steps = Math.round((clamped - min) / stepSize);
+        return min + steps * stepSize;
     }
 
     private void requestRide() {
@@ -175,15 +307,20 @@ public class ConfirmPriceActivity extends AuthenticatedActivity {
 
     /** QUOTE_EXPIRED se resuelve recotizando una vez y reintentando, nunca como error crudo al usuario. */
     private void recotizeAndRetry() {
+        float previousOffer = slider.getValue();
         tripRepository.createQuote(originLat, originLng, destinationLat, destinationLng, origin, destination,
-                new ApiCallback<Quote>() {
+                currentWaypoints(), new ApiCallback<Quote>() {
                     @Override
                     public void onSuccess(Quote quote) {
                         bindQuote(quote);
-                        double clampedOffer = Math.max(quote.getFloor(), Math.min(quote.getCeiling(), slider.getValue()));
-                        slider.setValue((float) clampedOffer);
+                        // Conservar la oferta que el pasajero ya había elegido, no la nueva
+                        // tarifa sugerida — bindQuote() la pisó al reconstruir el slider.
+                        float retryOffer = snapToStep(previousOffer, slider.getValueFrom(),
+                                slider.getValueTo(), slider.getStepSize());
+                        slider.setValue(retryOffer);
+                        textPriceAmount.setText(formatPrice(retryOffer));
 
-                        tripRepository.createRide(quote.getId(), clampedOffer, new ApiCallback<Ride>() {
+                        tripRepository.createRide(quote.getId(), retryOffer, new ApiCallback<Ride>() {
                             @Override
                             public void onSuccess(Ride ride) {
                                 goToSearching(ride);

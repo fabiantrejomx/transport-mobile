@@ -9,6 +9,8 @@ import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
@@ -18,26 +20,29 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.DeviceRepository;
 import com.bng.drivo.data.repository.RestDeviceRepository;
-import com.bng.drivo.ui.profile.PerfilFragment;
+import com.bng.drivo.ui.settings.ConfiguracionesFragment;
 import com.bng.drivo.ui.trips.ViajesFragment;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 /**
- * Host de las 3 pestañas del pasajero (Inicio / Viajes / Perfil), con la barra de
- * navegación inferior siempre visible — patrón tipo WhatsApp: cambiar de pestaña solo
- * intercambia el contenido del contenedor, nunca oculta la barra ni apila una Activity nueva.
+ * Host de las 3 secciones del pasajero (Inicio / Viajes / Configuración), con un drawer
+ * lateral en vez de barra inferior — Inicio ahora es un mapa a pantalla completa con un modal
+ * persistente, sin espacio para una barra de navegación fija. Perfil se fusionó dentro de
+ * Configuración (identidad + ajustes en una sola pantalla). Mismo patrón show/hide de antes:
+ * cambiar de sección solo intercambia el contenido del contenedor.
  */
 public class HomeActivity extends AuthenticatedActivity {
 
     private static final String TAG_HOME = "tab_home";
     private static final String TAG_VIAJES = "tab_viajes";
-    private static final String TAG_PERFIL = "tab_perfil";
+    private static final String TAG_CONFIGURACIONES = "tab_configuraciones";
 
     private Fragment homeFragment;
     private Fragment viajesFragment;
-    private Fragment perfilFragment;
+    private Fragment configuracionesFragment;
     private Fragment activeFragment;
+    private DrawerLayout drawerLayout;
 
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> registerFcmToken());
@@ -52,7 +57,7 @@ public class HomeActivity extends AuthenticatedActivity {
         if (savedInstanceState != null) {
             homeFragment = fragmentManager.findFragmentByTag(TAG_HOME);
             viajesFragment = fragmentManager.findFragmentByTag(TAG_VIAJES);
-            perfilFragment = fragmentManager.findFragmentByTag(TAG_PERFIL);
+            configuracionesFragment = fragmentManager.findFragmentByTag(TAG_CONFIGURACIONES);
         }
         if (homeFragment == null) {
             homeFragment = new HomeFragment();
@@ -60,19 +65,19 @@ public class HomeActivity extends AuthenticatedActivity {
         if (viajesFragment == null) {
             viajesFragment = new ViajesFragment();
         }
-        if (perfilFragment == null) {
-            perfilFragment = new PerfilFragment();
+        if (configuracionesFragment == null) {
+            configuracionesFragment = new ConfiguracionesFragment();
         }
 
         FragmentTransaction transaction = fragmentManager.beginTransaction();
         addIfNeeded(transaction, fragmentManager, homeFragment, TAG_HOME);
         addIfNeeded(transaction, fragmentManager, viajesFragment, TAG_VIAJES);
-        addIfNeeded(transaction, fragmentManager, perfilFragment, TAG_PERFIL);
-        transaction.show(homeFragment).hide(viajesFragment).hide(perfilFragment);
+        addIfNeeded(transaction, fragmentManager, configuracionesFragment, TAG_CONFIGURACIONES);
+        transaction.show(homeFragment).hide(viajesFragment).hide(configuracionesFragment);
         transaction.commitNow();
         activeFragment = homeFragment;
 
-        setUpBottomNav();
+        setUpDrawer();
     }
 
     private void addIfNeeded(FragmentTransaction transaction, FragmentManager fragmentManager,
@@ -82,36 +87,43 @@ public class HomeActivity extends AuthenticatedActivity {
         }
     }
 
-    private void setUpBottomNav() {
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_nav);
-        bottomNav.setSelectedItemId(R.id.nav_inicio);
-        bottomNav.setOnItemSelectedListener(item -> {
+    private void setUpDrawer() {
+        drawerLayout = findViewById(R.id.drawer_layout);
+        NavigationView navView = findViewById(R.id.nav_view);
+        navView.setCheckedItem(R.id.nav_inicio);
+        navView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
+            boolean handled = true;
             if (id == R.id.nav_inicio) {
                 showTab(homeFragment);
-                return true;
-            }
-            if (id == R.id.nav_viajes) {
+            } else if (id == R.id.nav_viajes) {
                 showTab(viajesFragment);
-                return true;
+            } else if (id == R.id.nav_configuraciones) {
+                showTab(configuracionesFragment);
+            } else {
+                handled = false;
             }
-            if (id == R.id.nav_perfil) {
-                showTab(perfilFragment);
-                return true;
+            if (handled) {
+                item.setChecked(true);
+                drawerLayout.closeDrawer(GravityCompat.START);
             }
-            return false;
+            return handled;
         });
     }
 
+    /** La llaman los botones hamburguesa de cada Fragment hijo (Home, Viajes, Configuración). */
+    public void openDrawer() {
+        drawerLayout.openDrawer(GravityCompat.START);
+    }
+
     private void showTab(Fragment target) {
-        if (target == activeFragment) {
-            return;
+        if (target != activeFragment) {
+            getSupportFragmentManager().beginTransaction()
+                    .hide(activeFragment)
+                    .show(target)
+                    .commit();
+            activeFragment = target;
         }
-        getSupportFragmentManager().beginTransaction()
-                .hide(activeFragment)
-                .show(target)
-                .commit();
-        activeFragment = target;
     }
 
     /**

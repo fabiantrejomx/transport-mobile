@@ -5,21 +5,34 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.RideSummary;
+import com.bng.drivo.data.remote.ApiCallback;
+import com.bng.drivo.data.remote.ApiException;
+import com.bng.drivo.data.repository.RestTripRepository;
+import com.bng.drivo.data.repository.TripRepository;
+import com.bng.drivo.ui.home.HomeActivity;
+import com.google.android.material.appbar.MaterialToolbar;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
- * "Tus viajes": réplica de pViajes() del prototipo. Historial de muestra estático —
- * el matching a viajes reales llegará cuando el flujo de solicitud se conecte a
- * Firestore (fuera de alcance de esta pasada, ver docs/drivo-analisis-inicial.md).
- * Vive como pestaña permanente de la barra inferior (ver HomeActivity), no como Activity aparte.
+ * "Mis Viajes": historial real vía GET /rides (ver TripRepository.getRideHistory) — ya no es
+ * el mock estático de antes. Cada fila abre TripDetailBottomSheet, que sí trae al conductor
+ * (GET /rides/{id}, el único endpoint que lo incluye).
  */
 public class ViajesFragment extends Fragment {
+
+    private static final int HISTORY_LIMIT = 20;
+
+    private TripRepository tripRepository;
 
     @Nullable
     @Override
@@ -32,23 +45,43 @@ public class ViajesFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        LinearLayout container = view.findViewById(R.id.container_trips);
-        if (container.getChildCount() > 0) {
-            return;
-        }
+        tripRepository = new RestTripRepository(requireContext());
 
-        LayoutInflater inflater = LayoutInflater.from(requireContext());
-        addTrip(inflater, container, "Parque Los Fuertes", "Hoy, 10:32 am", "$68");
-        addTrip(inflater, container, "Terminal de autobuses", "Ayer, 6:15 pm", "$54");
-        addTrip(inflater, container, "Plaza Cristal", "Lun, 9:02 am", "$41");
+        MaterialToolbar toolbar = view.findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> ((HomeActivity) requireActivity()).openDrawer());
+
+        loadHistory(view);
     }
 
-    private void addTrip(LayoutInflater inflater, LinearLayout container,
-                          String destination, String date, String amount) {
-        View row = inflater.inflate(R.layout.item_trip_history, container, false);
-        ((TextView) row.findViewById(R.id.text_trip_destination)).setText(destination);
-        ((TextView) row.findViewById(R.id.text_trip_date)).setText(date);
-        ((TextView) row.findViewById(R.id.text_trip_amount)).setText(amount);
-        container.addView(row);
+    private void loadHistory(View view) {
+        tripRepository.getRideHistory(HISTORY_LIMIT, new ApiCallback<List<RideSummary>>() {
+            @Override
+            public void onSuccess(List<RideSummary> rides) {
+                if (isAdded()) {
+                    bindHistory(view, rides);
+                }
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                if (!isAdded()) {
+                    return;
+                }
+                bindHistory(view, Collections.emptyList());
+                Toast.makeText(requireContext(), R.string.viajes_load_error, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void bindHistory(View view, List<RideSummary> rides) {
+        LinearLayout container = view.findViewById(R.id.container_trips);
+        container.removeAllViews();
+        view.findViewById(R.id.text_empty).setVisibility(rides.isEmpty() ? View.VISIBLE : View.GONE);
+
+        LayoutInflater inflater = LayoutInflater.from(requireContext());
+        for (RideSummary ride : rides) {
+            View row = TripHistoryRowBinder.addTrip(inflater, container, ride);
+            row.setOnClickListener(v -> TripDetailBottomSheet.present(getParentFragmentManager(), ride.getId()));
+        }
     }
 }

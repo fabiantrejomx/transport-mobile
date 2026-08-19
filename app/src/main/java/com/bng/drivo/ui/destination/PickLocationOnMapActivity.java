@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.widget.TextView;
 
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.core.content.ContextCompat;
@@ -37,11 +38,15 @@ public class PickLocationOnMapActivity extends AuthenticatedActivity implements 
     private static final LatLng DEFAULT_POSITION = new LatLng(19.4326, -99.1332);
 
     private GoogleMap googleMap;
+    private TextView textSelectedAddress;
+    private String lastResolvedAddress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pick_location);
+
+        textSelectedAddress = findViewById(R.id.text_selected_address);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
@@ -64,6 +69,24 @@ public class PickLocationOnMapActivity extends AuthenticatedActivity implements 
         LatLng start = DEFAULT_POSITION;
         googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.fromLatLngZoom(start, 15f)));
         centerOnLastKnownLocationIfAvailable();
+
+        googleMap.setOnCameraMoveStartedListener(reason -> {
+            lastResolvedAddress = null;
+            textSelectedAddress.setText(R.string.pick_location_resolving_address);
+        });
+        googleMap.setOnCameraIdleListener(this::resolveAddressPreview);
+        resolveAddressPreview();
+    }
+
+    private void resolveAddressPreview() {
+        if (googleMap == null) {
+            return;
+        }
+        LatLng target = googleMap.getCameraPosition().target;
+        GeocoderHelper.reverseGeocodeAsync(this, target, address -> {
+            lastResolvedAddress = address != null ? address : getString(R.string.pick_location_fallback_address);
+            textSelectedAddress.setText(lastResolvedAddress);
+        });
     }
 
     @SuppressLint("MissingPermission")
@@ -89,7 +112,11 @@ public class PickLocationOnMapActivity extends AuthenticatedActivity implements 
             return;
         }
         LatLng target = googleMap.getCameraPosition().target;
-        GeocoderHelper.reverseGeocodeAsync(this, target, address -> returnResult(target, address));
+        if (lastResolvedAddress != null) {
+            returnResult(target, lastResolvedAddress);
+        } else {
+            GeocoderHelper.reverseGeocodeAsync(this, target, address -> returnResult(target, address));
+        }
     }
 
     private void returnResult(LatLng target, String address) {

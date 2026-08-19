@@ -26,6 +26,22 @@
         android:src="@drawable/ic_close"
         app:tint="?attr/colorOnSurface" />
 
+    <TextView
+        android:id="@+id/btn_sos_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_pill_error"
+        android:elevation="4dp"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="10dp"
+        android:text="@string/active_trip_sos"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -81,46 +97,95 @@
                         android:layout_height="wrap_content"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="12sp"
-                        tools:text="Nissan Versa Blanco · YKV-889 · 2 min" />
+                        tools:text="Nissan Versa Blanco · YKV-889" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/btn_call_driver"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingVertical="8dp">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginEnd="6dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_call"
+                        app:tint="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/active_trip_call_label"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
-                <ImageButton
-                    android:id="@+id/btn_call_driver"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_dot"
-                    android:backgroundTint="?attr/colorSurfaceVariant"
-                    android:contentDescription="@string/active_trip_call_description"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_call"
-                    app:tint="?attr/colorOnSurfaceVariant" />
-
-                <ImageButton
+                <LinearLayout
                     android:id="@+id/btn_message_driver"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_dot"
-                    android:backgroundTint="?attr/colorSurfaceVariant"
-                    android:contentDescription="@string/active_trip_message_description"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_message"
-                    app:tint="?attr/colorOnSurfaceVariant" />
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingVertical="8dp">
 
-                <ImageButton
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginEnd="6dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_message"
+                        app:tint="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/active_trip_message_label"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/btn_share_trip"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_dot"
-                    android:backgroundTint="?attr/colorSurfaceVariant"
-                    android:contentDescription="@string/active_trip_share_description"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_share"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingVertical="8dp"
                     android:visibility="gone"
-                    app:tint="?attr/colorOnSurfaceVariant"
-                    tools:visibility="visible" />
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginEnd="6dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_share"
+                        app:tint="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/active_trip_share_label"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="13sp" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Fases "conductor en camino" / "conductor esperando": sin precio ni S.O.S. todavía. -->
@@ -195,18 +260,6 @@
                         android:textStyle="bold"
                         tools:text="$290.00" />
                 </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_sos"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/active_trip_sos"
-                    android:textAllCaps="false"
-                    android:textColor="@color/drivo_error"
-                    app:cornerRadius="10dp"
-                    app:strokeColor="@color/drivo_error" />
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

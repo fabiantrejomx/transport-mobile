@@ -44,7 +44,7 @@ public class SplashActivity extends AppCompatActivity {
 
     private void goToNextScreen() {
         if (!authRepository.isLoggedIn()) {
-            navigateTo(LoginActivity.class);
+            navigateTo(RoleSelectionActivity.class);
             return;
         }
 

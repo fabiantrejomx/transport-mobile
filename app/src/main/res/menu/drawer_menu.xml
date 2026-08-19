@@ -9,7 +9,7 @@
         android:icon="@drawable/ic_nav_trips"
         android:title="@string/nav_viajes" />
     <item
-        android:id="@+id/nav_perfil"
-        android:icon="@drawable/ic_nav_profile"
-        android:title="@string/nav_perfil" />
+        android:id="@+id/nav_configuraciones"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/nav_configuraciones" />
 </menu>

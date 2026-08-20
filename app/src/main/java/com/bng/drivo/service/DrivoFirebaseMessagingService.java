@@ -12,6 +12,7 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.DeviceRepository;
 import com.bng.drivo.data.repository.RestDeviceRepository;
+import com.bng.drivo.ui.driver.DriverActiveTripActivity;
 import com.bng.drivo.ui.home.HomeActivity;
 import com.bng.drivo.util.NotificationChannels;
 import com.google.firebase.auth.FirebaseAuth;
@@ -79,7 +80,14 @@ public class DrivoFirebaseMessagingService extends FirebaseMessagingService {
                 ? NotificationChannels.RIDES_HIGH
                 : NotificationChannels.RIDES_NORMAL;
 
-        Intent intent = new Intent(this, HomeActivity.class);
+        // offer_accepted es la ÚNICA forma en que el conductor se entera de que ganó un
+        // viaje (el contrato no tiene "GET mi viaje activo") — por eso se manda directo a
+        // DriverActiveTripActivity en vez de a HomeActivity como el resto de los tipos.
+        Class<?> destination = TYPE_OFFER_ACCEPTED.equals(type) ? DriverActiveTripActivity.class
+                : HomeActivity.class;
+        // EXTRA_RIDE_ID coincide en texto con DriverActiveTripActivity.EXTRA_RIDE_ID —
+        // un solo putExtra sirve para los dos destinos posibles.
+        Intent intent = new Intent(this, destination);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         intent.putExtra(EXTRA_RIDE_ID, rideId);
 

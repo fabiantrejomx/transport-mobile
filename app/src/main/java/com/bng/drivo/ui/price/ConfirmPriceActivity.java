@@ -34,6 +34,8 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PatternItem;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.bng.drivo.util.LoadingButtonHelper;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.slider.Slider;
 
 import java.util.ArrayList;
@@ -80,7 +82,7 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
     private TextView textPriceMax;
     private Slider slider;
     private View progressQuote;
-    private View btnRequestTrip;
+    private MaterialButton btnRequestTrip;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -282,7 +284,7 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
         }
         requestingRide = true;
         setFormEnabled(false);
-        progressQuote.setVisibility(View.VISIBLE);
+        LoadingButtonHelper.setLoading(btnRequestTrip, true);
 
         tripRepository.createRide(currentQuote.getId(), slider.getValue(), new ApiCallback<Ride>() {
             @Override
@@ -297,8 +299,8 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
                     return;
                 }
                 requestingRide = false;
-                progressQuote.setVisibility(View.GONE);
                 setFormEnabled(true);
+                LoadingButtonHelper.setLoading(btnRequestTrip, false);
                 Toast.makeText(ConfirmPriceActivity.this, R.string.confirm_price_request_error, Toast.LENGTH_SHORT)
                         .show();
             }
@@ -313,6 +315,9 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
                     @Override
                     public void onSuccess(Quote quote) {
                         bindQuote(quote);
+                        // bindQuote() reactiva el botón como si fuera la carga inicial de la
+                        // pantalla — todavía estamos a mitad del reintento automático.
+                        LoadingButtonHelper.setLoading(btnRequestTrip, true);
                         // Conservar la oferta que el pasajero ya había elegido, no la nueva
                         // tarifa sugerida — bindQuote() la pisó al reconstruir el slider.
                         float retryOffer = snapToStep(previousOffer, slider.getValueFrom(),
@@ -329,8 +334,8 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
                             @Override
                             public void onError(ApiException error) {
                                 requestingRide = false;
-                                progressQuote.setVisibility(View.GONE);
                                 setFormEnabled(true);
+                                LoadingButtonHelper.setLoading(btnRequestTrip, false);
                                 Toast.makeText(ConfirmPriceActivity.this, R.string.confirm_price_request_error,
                                         Toast.LENGTH_SHORT).show();
                             }
@@ -340,8 +345,8 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
                     @Override
                     public void onError(ApiException error) {
                         requestingRide = false;
-                        progressQuote.setVisibility(View.GONE);
                         setFormEnabled(true);
+                        LoadingButtonHelper.setLoading(btnRequestTrip, false);
                         Toast.makeText(ConfirmPriceActivity.this, R.string.confirm_price_request_error,
                                 Toast.LENGTH_SHORT).show();
                     }

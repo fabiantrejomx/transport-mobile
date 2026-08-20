@@ -43,6 +43,7 @@ public class HomeActivity extends AuthenticatedActivity {
     private Fragment configuracionesFragment;
     private Fragment activeFragment;
     private DrawerLayout drawerLayout;
+    private NavigationView navView;
 
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> registerFcmToken());
@@ -89,7 +90,7 @@ public class HomeActivity extends AuthenticatedActivity {
 
     private void setUpDrawer() {
         drawerLayout = findViewById(R.id.drawer_layout);
-        NavigationView navView = findViewById(R.id.nav_view);
+        navView = findViewById(R.id.nav_view);
         navView.setCheckedItem(R.id.nav_inicio);
         navView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
@@ -104,7 +105,11 @@ public class HomeActivity extends AuthenticatedActivity {
                 handled = false;
             }
             if (handled) {
-                item.setChecked(true);
+                // setCheckedItem() (no item.setChecked()) es el que de verdad desmarca las
+                // demás opciones — sin group checkableBehavior="single" en el menú,
+                // item.setChecked(true) solo prendía la tocada y las anteriores se quedaban
+                // marcadas también, hasta que las 3 terminaban resaltadas.
+                navView.setCheckedItem(id);
                 drawerLayout.closeDrawer(GravityCompat.START);
             }
             return handled;
@@ -113,7 +118,20 @@ public class HomeActivity extends AuthenticatedActivity {
 
     /** La llaman los botones hamburguesa de cada Fragment hijo (Home, Viajes, Configuración). */
     public void openDrawer() {
+        navView.setCheckedItem(idForActiveFragment());
         drawerLayout.openDrawer(GravityCompat.START);
+    }
+
+    /** Para que el menú siempre abra mostrando la sección real, no solo la que estaba
+     * marcada la última vez que se tocó una opción del propio menú. */
+    private int idForActiveFragment() {
+        if (activeFragment == viajesFragment) {
+            return R.id.nav_viajes;
+        }
+        if (activeFragment == configuracionesFragment) {
+            return R.id.nav_configuraciones;
+        }
+        return R.id.nav_inicio;
     }
 
     private void showTab(Fragment target) {

@@ -20,6 +20,7 @@ import com.bng.drivo.data.repository.RestAddressRepository;
 import com.bng.drivo.service.PlacesAutocompleteService;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.util.GeocoderHelper;
+import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.ValidationHelper;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -30,6 +31,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -53,6 +55,9 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
     private String editingAddressId;
 
     private final PlacesAutocompleteService placesAutocompleteService = new PlacesAutocompleteService(this);
+
+    private MaterialButton btnSave;
+    private MaterialButton btnDelete;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,9 +87,10 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
         findViewById(R.id.text_search_address).setOnClickListener(v ->
                 placesAutocompleteService.launch(this, this::onPlaceSelected));
 
-        findViewById(R.id.btn_save_address).setOnClickListener(v -> saveAddress());
+        btnSave = findViewById(R.id.btn_save_address);
+        btnSave.setOnClickListener(v -> saveAddress());
 
-        android.widget.Button btnDelete = findViewById(R.id.btn_delete_address);
+        btnDelete = findViewById(R.id.btn_delete_address);
         if (isEditing) {
             btnDelete.setVisibility(android.view.View.VISIBLE);
             btnDelete.setOnClickListener(v -> confirmDelete());
@@ -204,15 +210,16 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
     }
 
     private void setSavingEnabled(boolean enabled) {
-        findViewById(R.id.btn_save_address).setEnabled(enabled);
+        LoadingButtonHelper.setLoading(btnSave, !enabled);
     }
 
     private void confirmDelete() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.address_list_delete_title)
                 .setMessage(R.string.address_list_delete_message)
-                .setPositiveButton(R.string.address_list_delete_positive, (dialog, which) ->
-                        addressRepository.delete(editingAddressId, new ApiCallback<Void>() {
+                .setPositiveButton(R.string.address_list_delete_positive, (dialog, which) -> {
+                    LoadingButtonHelper.setLoading(btnDelete, true);
+                    addressRepository.delete(editingAddressId, new ApiCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
                                 finish();
@@ -220,10 +227,12 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
 
                             @Override
                             public void onError(ApiException error) {
+                                LoadingButtonHelper.setLoading(btnDelete, false);
                                 Toast.makeText(AddEditAddressActivity.this, R.string.address_edit_delete_error,
                                         Toast.LENGTH_SHORT).show();
                             }
-                        }))
+                        });
+                })
                 .setNegativeButton(R.string.address_list_delete_negative, null)
                 .show();
     }

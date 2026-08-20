@@ -16,6 +16,8 @@ import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.util.ColorUtils;
+import com.bng.drivo.util.LoadingButtonHelper;
+import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +37,7 @@ public class FinishedTripActivity extends AuthenticatedActivity {
     private int rating = 0;
     private String rideId;
     private TripRepository tripRepository;
-    private View btnSubmit;
+    private MaterialButton btnSubmit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +74,7 @@ public class FinishedTripActivity extends AuthenticatedActivity {
         }
 
         String comment = ((EditText) findViewById(R.id.input_comment)).getText().toString().trim();
-        btnSubmit.setEnabled(false);
+        LoadingButtonHelper.setLoading(btnSubmit, true);
         tripRepository.rateRide(rideId, rating, comment.isEmpty() ? null : comment, new ApiCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
@@ -81,7 +83,7 @@ public class FinishedTripActivity extends AuthenticatedActivity {
 
             @Override
             public void onError(ApiException error) {
-                btnSubmit.setEnabled(true);
+                LoadingButtonHelper.setLoading(btnSubmit, false);
                 Toast.makeText(FinishedTripActivity.this, R.string.finished_trip_rating_error, Toast.LENGTH_SHORT)
                         .show();
             }

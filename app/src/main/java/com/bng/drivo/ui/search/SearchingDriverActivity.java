@@ -27,6 +27,8 @@ import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.price.ConfirmPriceActivity;
 import com.bng.drivo.ui.trip.ActiveTripActivity;
+import com.bng.drivo.util.LoadingButtonHelper;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -67,6 +69,8 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
     private double destinationLng;
 
     private boolean actionInFlight;
+    private MaterialButton btnAcceptDriver;
+    private MaterialButton btnRejectDriver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -205,8 +209,10 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
 
         startExpiryCountdown(card.findViewById(R.id.progress_offer_expiry), offer.getExpiresAtMillis());
 
-        card.findViewById(R.id.btn_accept_driver).setOnClickListener(v -> acceptOffer(offer));
-        card.findViewById(R.id.btn_reject_driver).setOnClickListener(v -> rejectOffer(offer));
+        btnAcceptDriver = card.findViewById(R.id.btn_accept_driver);
+        btnRejectDriver = card.findViewById(R.id.btn_reject_driver);
+        btnAcceptDriver.setOnClickListener(v -> acceptOffer(offer));
+        btnRejectDriver.setOnClickListener(v -> rejectOffer(offer));
 
         return card;
     }
@@ -252,6 +258,8 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
 
     private void acceptOffer(Offer offer) {
         setActionInFlight(true);
+        LoadingButtonHelper.setLoading(btnAcceptDriver, true);
+        btnRejectDriver.setEnabled(false);
         tripRepository.acceptOffer(rideId, offer.getOfferId(), new ApiCallback<Ride>() {
             @Override
             public void onSuccess(Ride ride) {
@@ -269,6 +277,8 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
                     showWaitingForNext();
                     return;
                 }
+                LoadingButtonHelper.setLoading(btnAcceptDriver, false);
+                btnRejectDriver.setEnabled(true);
                 Toast.makeText(SearchingDriverActivity.this, R.string.searching_accept_error, Toast.LENGTH_SHORT)
                         .show();
             }
@@ -277,6 +287,8 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
 
     private void rejectOffer(Offer offer) {
         setActionInFlight(true);
+        LoadingButtonHelper.setLoading(btnRejectDriver, true);
+        btnAcceptDriver.setEnabled(false);
         tripRepository.rejectOffer(rideId, offer.getOfferId(), new ApiCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
@@ -287,6 +299,8 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
             @Override
             public void onError(ApiException error) {
                 setActionInFlight(false);
+                LoadingButtonHelper.setLoading(btnRejectDriver, false);
+                btnAcceptDriver.setEnabled(true);
                 Toast.makeText(SearchingDriverActivity.this, R.string.searching_reject_error, Toast.LENGTH_SHORT)
                         .show();
             }

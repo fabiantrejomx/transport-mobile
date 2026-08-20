@@ -113,6 +113,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         view.findViewById(R.id.btn_open_drawer).setOnClickListener(v ->
                 ((HomeActivity) requireActivity()).openDrawer());
+        view.findViewById(R.id.btn_my_location).setOnClickListener(v -> {
+            if (hasLocationPermission()) {
+                showMyLocation();
+            } else {
+                permissionLauncher.launch(new String[]{
+                        Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
+            }
+        });
 
         if (hasLocationPermission()) {
             // Ya resuelto de una sesión anterior: no hay diálogo de por medio, es seguro
@@ -136,16 +144,21 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
+    private static final int PEEK_ADDRESS_ROWS = 3;
+
     /**
-     * El tope de colapso del modal se mide en tiempo real a partir de group_peek_content
-     * (saludo + buscador + elegir-en-mapa + direcciones guardadas) en vez de un dp fijo
-     * adivinado, para que siempre corte justo ahí sin importar cuántas direcciones haya.
+     * 2 niveles: colapsado (saludo + buscador + elegir-en-mapa + hasta las últimas
+     * {@link #PEEK_ADDRESS_ROWS} direcciones guardadas) y expandido (todo, hasta el tope). Se
+     * mide en tiempo real a partir del contenido en vez de un dp fijo adivinado, para que corte
+     * justo ahí sin importar cuántas direcciones haya.
      *
-     * <p>El listener NO se auto-remueve: direcciones guardadas llega async (loadSavedAddresses),
-     * así que el primer layout mide el contenido antes de que esas filas existan — si se
-     * removiera tras la primera medición, el peek quedaba fijo en esa altura corta y el modal
-     * nunca llegaba a mostrar las direcciones sin estirarlo a mano.
+     * <p>Los listeners NO se auto-remueven: direcciones guardadas llega async
+     * (loadSavedAddresses), así que el primer layout mide el contenido antes de que esas filas
+     * existan — si se removieran tras la primera medición, el corte quedaba fijo en el tamaño de
+     * la pantalla vacía.
      */
+    private static final int EXPANDED_TOP_SPACER_DP = 28;
+
     private void setUpBottomSheet(View root) {
         View sheet = root.findViewById(R.id.sheet_container);
         sheetBehavior = BottomSheetBehavior.from(sheet);
@@ -154,16 +167,60 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
         View peekContent = root.findViewById(R.id.group_peek_content);
-        peekContent.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
-            int peekHeightPx = peekContent.getHeight();
-            if (peekHeightPx <= 0) {
-                return;
+        peekContent.getViewTreeObserver().addOnGlobalLayoutListener(() -> updateSheetStops(root));
+        LinearLayout addressContainer = root.findViewById(R.id.container_saved_addresses);
+        addressContainer.getViewTreeObserver().addOnGlobalLayoutListener(() -> updateSheetStops(root));
+
+        // Un View aparte (no padding en group_peek_content) para que animarlo en cada onSlide
+        // no dispare de nuevo la medición del alto de colapso de arriba — ver updateSheetStops().
+        View topSpacer = root.findViewById(R.id.spacer_top_expand);
+        int maxSpacerPx = Math.round(EXPANDED_TOP_SPACER_DP * getResources().getDisplayMetrics().density);
+        sheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override
+            public void onStateChanged(@NonNull View bottomSheet, int newState) {
             }
-            sheetBehavior.setPeekHeight(peekHeightPx);
-            if (googleMap != null) {
-                googleMap.setPadding(0, 0, 0, peekHeightPx);
+
+            @Override
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+                ViewGroup.LayoutParams params = topSpacer.getLayoutParams();
+                params.height = Math.round(maxSpacerPx * Math.max(0f, slideOffset));
+                topSpacer.setLayoutParams(params);
             }
         });
+    }
+
+    private void updateSheetStops(View root) {
+        View peekContent = root.findViewById(R.id.group_peek_content);
+        int peekHeightPx = peekContent.getHeight();
+        if (peekHeightPx <= 0) {
+            return;
+        }
+
+        View addressLabel = root.findViewById(R.id.text_saved_addresses_label);
+        LinearLayout addressContainer = root.findViewById(R.id.container_saved_addresses);
+        int collapsedHeightPx = peekHeightPx + addressLabel.getHeight()
+                + heightOfFirstRows(addressContainer, PEEK_ADDRESS_ROWS);
+
+        sheetBehavior.setPeekHeight(collapsedHeightPx);
+        if (googleMap != null) {
+            googleMap.setPadding(0, 0, 0, collapsedHeightPx);
+        }
+    }
+
+    /** container arma sus hijos como fila, separador, fila, separador... (bindSavedAddresses) —
+     * los índices pares son filas, así que se cuentan como tales; los impares (separadores) se
+     * suman igual cuando caen entre dos filas contadas. */
+    private int heightOfFirstRows(LinearLayout container, int rowCount) {
+        int totalHeightPx = 0;
+        int rowsCounted = 0;
+        for (int i = 0; i < container.getChildCount() && rowsCounted < rowCount; i++) {
+            View child = container.getChildAt(i);
+            totalHeightPx += child.getHeight();
+            if (i % 2 == 0) {
+                rowsCounted++;
+            }
+        }
+        return totalHeightPx;
     }
 
     private void setUpDestinationSearch(View root) {
@@ -391,7 +448,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             return;
         }
         googleMap.setMyLocationEnabled(true);
-        googleMap.getUiSettings().setMyLocationButtonEnabled(true);
+        // El botón redondo propio (btn_my_location) reemplaza al del SDK para que comparta
+        // estilo con el de menú — el del SDK se queda apagado a propósito.
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
 
         fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
             if (location != null) {

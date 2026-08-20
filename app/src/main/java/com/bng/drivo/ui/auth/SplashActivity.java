@@ -15,7 +15,9 @@ import com.bng.drivo.data.repository.AuthRepository;
 import com.bng.drivo.data.repository.FirebaseAuthRepository;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
+import com.bng.drivo.ui.driver.DriverEntryPoint;
 import com.bng.drivo.ui.home.HomeActivity;
+import com.bng.drivo.util.PrefsHelper;
 
 public class SplashActivity extends AppCompatActivity {
 
@@ -44,28 +46,47 @@ public class SplashActivity extends AppCompatActivity {
 
     private void goToNextScreen() {
         if (!authRepository.isLoggedIn()) {
-            navigateTo(RoleSelectionActivity.class);
+            navigateTo(RoleSelectionActivity.class, false);
             return;
         }
+
+        boolean driverMode = new PrefsHelper(this).getBoolean(RoleSelectionActivity.PREF_KEY_DRIVER_MODE, false);
 
         userRepository.getCurrentUser(new ApiCallback<UserProfile>() {
             @Override
             public void onSuccess(UserProfile profile) {
-                navigateTo(profile.isComplete() ? HomeActivity.class : CompleteProfileActivity.class);
+                if (!profile.isComplete()) {
+                    navigateTo(CompleteProfileActivity.class, driverMode);
+                } else if (driverMode) {
+                    // Mismo gate que tras el login (DriverEntryPoint): un conductor que cerró
+                    // la app antes de terminar su registro no debe reabrir en DriverHomeActivity
+                    // ni de forma transitoria — GET /driver/application decide entre esa y
+                    // DriverRegistrationActivity en cada arranque, no solo la primera vez.
+                    DriverEntryPoint.route(SplashActivity.this);
+                } else {
+                    navigateTo(HomeActivity.class, false);
+                }
             }
 
             @Override
             public void onError(ApiException error) {
                 // Sin red no podemos saber si el perfil está completo; Home está protegido por
                 // AuthenticatedActivity de todas formas.
-                navigateTo(HomeActivity.class);
+                if (driverMode) {
+                    DriverEntryPoint.route(SplashActivity.this);
+                } else {
+                    navigateTo(HomeActivity.class, false);
+                }
             }
         });
     }
 
-    private void navigateTo(Class<?> destination) {
+    /** {@code driverMode} solo importa para CompleteProfileActivity — el resto de destinos ya
+     * están fijados a un rol y no leen el extra. */
+    private void navigateTo(Class<?> destination, boolean driverMode) {
         Intent intent = new Intent(this, destination);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        intent.putExtra(LoginActivity.EXTRA_DRIVER_ROLE, driverMode);
         startActivity(intent);
         finish();
     }

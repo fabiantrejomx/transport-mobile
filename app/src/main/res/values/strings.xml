@@ -65,6 +65,7 @@
     <string name="nav_viajes">Viajes</string>
     <string name="nav_configuraciones">Configuración</string>
     <string name="nav_menu_description">Abrir menú</string>
+    <string name="home_my_location_description">Ir a mi ubicación</string>
     <string name="nav_section_coming_soon">Próximamente</string>
 
     <!-- Etiquetas de dirección guardada (AddressLabel) -->
@@ -204,5 +205,163 @@
     <string name="active_trip_status_en_route_subtitle">Sigue su ubicación en el mapa</string>
     <string name="active_trip_status_waiting_title">Tu conductor te está esperando</string>
     <string name="active_trip_status_waiting_subtitle">En el punto de encuentro acordado</string>
+
+    <!-- Registro de conductor (C1) -->
+    <string name="driver_reg_title">Registro de Conductor</string>
+    <string name="driver_reg_subtitle">Completa los 7 pasos obligatorios para activar tu cuenta como conductor.</string>
+    <string name="driver_reg_modality_label">Elige tu vehículo:</string>
+    <string-array name="driver_reg_modality_options">
+        <item>Auto Particular</item>
+        <item>Taxi</item>
+    </string-array>
+    <string name="driver_reg_step1_title">Información Personal</string>
+    <string name="driver_reg_step2_title">Licencia de Conducir</string>
+    <string name="driver_reg_step3_title">Identificación Oficial</string>
+    <string name="driver_reg_step4_title">Información del Vehículo</string>
+    <string name="driver_reg_step5_title">Tarjeta de Circulación</string>
+    <string name="driver_reg_step6_title">Póliza de Seguro</string>
+    <string name="driver_reg_step7_title">Verificación de Seguridad</string>
+    <string name="driver_reg_curp_hint">CURP</string>
+    <string name="driver_reg_rfc_hint">RFC (opcional)</string>
+    <string name="driver_reg_vehicle_year_hint">Año de fabricación</string>
+    <string name="driver_reg_vehicle_brand_hint">Marca (Ej. Nissan)</string>
+    <string name="driver_reg_vehicle_model_hint">Modelo (Ej. Versa)</string>
+    <string name="driver_reg_vehicle_color_hint">Color</string>
+    <string name="driver_reg_vehicle_plate_hint">Número de Placa</string>
+    <string name="driver_reg_concession_label">Solo para modalidad Taxi</string>
+    <string name="driver_reg_is_owner_label">¿Eres el propietario del vehículo?</string>
+    <string name="driver_reg_not_owner_notice">La autorización para conductores no propietarios estará disponible próximamente. Por ahora, continúa el registro como propietario o usa un vehículo a tu nombre.</string>
+    <string name="driver_reg_submit_button">Enviar para Revisión</string>
+    <string name="driver_reg_upload_placeholder">Toca para subir foto</string>
+    <string name="driver_reg_source_camera">Tomar foto ahora</string>
+    <string name="driver_reg_source_gallery">Elegir de galería</string>
+    <string name="driver_reg_upload_profile_photo">Tomar Foto de Perfil</string>
+    <string name="driver_reg_upload_license_front">Licencia (Frente)</string>
+    <string name="driver_reg_upload_license_back">Licencia (Reverso)</string>
+    <string name="driver_reg_upload_id_front">Identificación Oficial (Frente)</string>
+    <string name="driver_reg_upload_id_back">Identificación Oficial (Reverso)</string>
+    <string name="driver_reg_upload_vehicle_photo">Foto del Vehículo (Exterior)</string>
+    <string name="driver_reg_upload_concession">Permiso de Concesión</string>
+    <string name="driver_reg_upload_circulation_card">Foto Tarjeta de Circulación</string>
+    <string name="driver_reg_upload_insurance">Póliza de Seguro Vigente</string>
+    <string name="driver_reg_upload_criminal_record">Carta de No Antecedentes Penales</string>
+    <string name="driver_reg_upload_selfie">Selfie de Verificación</string>
+    <string name="driver_reg_upload_done_suffix"> — Foto lista</string>
+    <string name="driver_reg_processing_photo">Procesando foto…</string>
+    <string name="driver_reg_photo_error">No se pudo procesar la foto. Intenta con otra.</string>
+    <string name="driver_reg_missing_fields_error">Completa CURP, los datos del vehículo y todas las fotos obligatorias antes de enviar.</string>
+    <string name="driver_reg_invalid_year_error">Ingresa un año de fabricación válido.</string>
+    <string name="driver_reg_submit_application_error">No se pudo enviar tu solicitud. Intenta de nuevo.</string>
+    <string name="driver_reg_upload_document_error">No se pudo subir %1$s. Intenta de nuevo.</string>
+    <string name="driver_reg_success_toast">Solicitud enviada. Te avisaremos cuando esté aprobada.</string>
+
+    <!-- Home + Radar del conductor (C2/C2-B) -->
+    <string name="driver_home_menu_description">Menú</string>
+    <string name="driver_home_menu_earnings">Ganancias / Historial</string>
+    <string name="driver_home_menu_settings">Configuración / Auto</string>
+    <string name="driver_home_menu_security">Centro de Seguridad y S.O.S</string>
+    <string name="driver_home_status_offline">Estás desconectado</string>
+    <string name="driver_home_status_online">Estás en línea</string>
+    <string name="driver_home_badge_searching">Buscando viajes…</string>
+    <string name="driver_home_connect_button">CONECTARSE</string>
+    <string name="driver_home_disconnect_button">DESCONECTARSE</string>
+    <string name="driver_home_connect_error">No se pudo conectar. Intenta de nuevo.</string>
+    <string name="driver_home_disconnect_error">No se pudo desconectar. Intenta de nuevo.</string>
+    <string name="driver_home_not_approved_toast">Tu cuenta aún no está aprobada para conectarte.</string>
+    <string name="driver_home_insufficient_balance_toast">Tu saldo está por debajo del mínimo. Recarga para conectarte.</string>
+    <string name="driver_home_location_permission_toast">Activa el permiso de ubicación para conectarte.</string>
+    <string name="driver_home_wallet_balance_format">$ %.2f MXN</string>
+    <string name="driver_home_wallet_unavailable">$ — MXN</string>
+    <string name="driver_home_status_title_draft">Termina tu registro</string>
+    <string name="driver_home_status_detail_draft">Vuelve al registro para completar los pasos y documentos pendientes.</string>
+    <string name="driver_home_status_title_pending_review">Tu solicitud está en revisión</string>
+    <string name="driver_home_status_detail_pending_review">Te avisaremos por notificación en cuanto la revisemos.</string>
+    <string name="driver_home_status_title_rejected">Tu solicitud fue rechazada</string>
+    <string name="driver_home_status_detail_rejected_reason">%1$s</string>
+    <string name="driver_home_status_detail_rejected_generic">Contáctanos para más detalles.</string>
+    <string name="driver_home_status_title_suspended">Tu cuenta está suspendida</string>
+    <string name="driver_home_status_detail_suspended">Contáctanos para más detalles.</string>
+    <string name="driver_home_status_title_error">No se pudo cargar tu estado</string>
+    <string name="driver_home_status_detail_error">Toca para reintentar.</string>
+
+    <!-- Oferta entrante y contraoferta (C3) -->
+    <string name="incoming_request_cash_label">Efectivo</string>
+    <string name="incoming_request_pickup_label">Mi ubicación actual</string>
+    <string name="incoming_request_counter_label">Tu Contraoferta:</string>
+    <string name="incoming_request_ignore_button">Ignorar</string>
+    <string name="incoming_request_accept_button_format">Aceptar por %1$s</string>
+    <string name="incoming_request_counter_button_format">+ $%1$.0f</string>
+    <string name="incoming_request_rating_format">★ %1$.1f</string>
+    <string name="incoming_request_rating_new_suffix"> (Nuevo)</string>
+    <string name="incoming_request_pickup_distance_km_format">A %1$.1f km (%2$d min) del pasajero</string>
+    <string name="incoming_request_pickup_distance_no_eta_format">A %1$.1f km del pasajero</string>
+    <string name="incoming_request_trip_distance_format">Viaje de %1$d km</string>
+    <string name="incoming_request_offer_error">No se pudo enviar tu oferta. Intenta de nuevo.</string>
+    <string name="incoming_request_ride_taken_error">Ese viaje ya no está disponible.</string>
+
+    <!-- Viaje activo del conductor + cobro (C4/C7) -->
+    <string name="driver_trip_waze_button">Navegar con Waze</string>
+    <string name="driver_trip_waze_unavailable">No se pudo abrir Waze.</string>
+    <string name="driver_trip_fare_label">Tarifa Acordada</string>
+    <string name="driver_trip_eta_stat_label">Llegada en</string>
+    <string name="driver_trip_progress_stat_label">Viaje</string>
+    <string name="driver_trip_progress_stat_value">En curso</string>
+    <string name="driver_trip_pickup_title_format">Recoger a %1$s</string>
+    <string name="driver_trip_dropoff_title_format">Llevando a %1$s</string>
+    <string name="driver_trip_pickup_subtitle_format">%1$s (A %2$.1f km)</string>
+    <string name="driver_trip_dropoff_subtitle_format">%1$s · Viaje de %2$d km</string>
+    <string name="driver_trip_action_arrived">LLEGUÉ AL PUNTO</string>
+    <string name="driver_trip_action_start">INICIAR VIAJE</string>
+    <string name="driver_trip_action_complete">FINALIZAR VIAJE</string>
+    <string name="driver_trip_arrived_error">No llegaste lo suficientemente cerca del origen. Acércate e intenta de nuevo.</string>
+    <string name="driver_trip_start_error">No se pudo iniciar el viaje. Intenta de nuevo.</string>
+    <string name="driver_trip_complete_error">No se pudo finalizar el viaje. Intenta de nuevo.</string>
+    <string name="driver_trip_cancelled_by_passenger_toast">El pasajero canceló el viaje</string>
+    <string name="driver_trip_load_error">No se pudo cargar la solicitud. Vuelve al radar e intenta de nuevo.</string>
+    <string name="driver_cobro_amount_label">Monto a cobrar en Efectivo</string>
+    <string name="driver_cobro_commission_note_format">La comisión ($%1$.2f) se descontará de tu saldo.</string>
+    <string name="driver_cobro_rating_prompt_format">¿Cómo calificarías a %1$s?</string>
+    <string name="driver_cobro_close_button">CERRAR VIAJE</string>
+    <string name="driver_cobro_rating_required_error">Toca una estrella para calificar antes de cerrar.</string>
+    <string name="driver_cobro_rating_error">No se pudo enviar la calificación. Intenta de nuevo.</string>
+
+    <!-- Ganancias del conductor (C5) -->
+    <string name="driver_earnings_title">Ganancias</string>
+    <string name="driver_earnings_balance_label">Saldo disponible</string>
+    <string name="driver_earnings_trips_today_format">%1$d viajes completados hoy</string>
+    <string name="driver_earnings_movements_header">MOVIMIENTOS</string>
+    <string name="driver_earnings_empty">Todavía no tienes movimientos.</string>
+    <string name="driver_earnings_load_error">No se pudo cargar tu wallet. Intenta de nuevo.</string>
+    <string name="driver_earnings_type_commission">Comisión</string>
+    <string name="driver_earnings_type_recharge">Recarga</string>
+    <string name="driver_earnings_type_adjustment">Ajuste</string>
+    <string name="driver_earnings_type_isr">ISR</string>
+    <string name="driver_earnings_type_iva">IVA</string>
+
+    <!-- Configuración del conductor (C6) -->
+    <string name="driver_settings_title">Configuración</string>
+    <string name="driver_settings_preferences_header">PREFERENCIAS</string>
+    <string name="driver_settings_row_vehicle">Mi Vehículo</string>
+    <string name="driver_settings_row_documents">Mis Documentos</string>
+    <string name="driver_settings_row_wallet">Wallet y Recargas</string>
+    <string name="driver_settings_row_security">Seguridad y S.O.S</string>
+    <string name="driver_settings_row_appearance">Apariencia</string>
+    <string name="driver_settings_logout">Cerrar Sesión</string>
+    <string name="driver_settings_account_active">Cuenta Activa</string>
+    <string name="driver_settings_account_status_draft">Registro incompleto</string>
+    <string name="driver_settings_account_status_pending_review">En revisión</string>
+    <string name="driver_settings_account_status_rejected">Solicitud rechazada</string>
+    <string name="driver_settings_account_status_suspended">Cuenta suspendida</string>
+    <string name="driver_settings_vehicle_message">Aún no puedes editar tu vehículo desde la app — escríbenos si necesitas actualizarlo.</string>
+    <string name="driver_settings_documents_complete">Todos tus documentos están completos.</string>
+    <string name="driver_settings_documents_missing_format">Documentos pendientes: %1$s</string>
+    <string name="driver_settings_wallet_message">Para recargar tu saldo, transfiere por SPEI a la cuenta de LibreGO y envía tu comprobante. Durante el piloto se acredita a mano.</string>
+    <string name="driver_settings_load_error">No se pudo cargar tu información.</string>
+
+    <!-- Centro de Seguridad del conductor (C8) -->
+    <string name="driver_security_row_accident">Reportar accidente vial</string>
+    <string name="driver_security_row_aggressive_passenger">El pasajero fue agresivo</string>
+    <string name="driver_security_row_balance_issue">Problema con mi saldo/ganancias</string>
+    <string name="driver_security_row_call_support">Llamar a central de soporte</string>
 
 </resources>

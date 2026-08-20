@@ -17,8 +17,10 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
+import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.ValidationHelper;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.google.android.material.button.MaterialButton;
 
 /** Editar nombre/correo — PATCH /me real, mismo repositorio que CompleteProfileActivity. */
 public class EditProfileBottomSheet extends BottomSheetDialogFragment {
@@ -30,7 +32,7 @@ public class EditProfileBottomSheet extends BottomSheetDialogFragment {
     private UserRepository userRepository;
     private EditText inputName;
     private EditText inputEmail;
-    private View btnSave;
+    private MaterialButton btnSave;
 
     @Nullable
     @Override
@@ -80,7 +82,7 @@ public class EditProfileBottomSheet extends BottomSheetDialogFragment {
             return;
         }
 
-        btnSave.setEnabled(false);
+        LoadingButtonHelper.setLoading(btnSave, true);
         userRepository.updateProfile(name, email.isEmpty() ? null : email, new ApiCallback<UserProfile>() {
             @Override
             public void onSuccess(UserProfile result) {
@@ -94,7 +96,7 @@ public class EditProfileBottomSheet extends BottomSheetDialogFragment {
                 if (!isAdded()) {
                     return;
                 }
-                btnSave.setEnabled(true);
+                LoadingButtonHelper.setLoading(btnSave, false);
                 Toast.makeText(requireContext(), R.string.perfil_edit_save_error, Toast.LENGTH_SHORT).show();
             }
         });

@@ -26,6 +26,18 @@
             android:name="com.bng.drivo.TRANSPORT_API_BASE_URL"
             android:value="${TRANSPORT_API_BASE_URL}" />
 
+        <!-- Solo para pasarle una content:// Uri temporal a la app de cámara del sistema al
+             tomar una foto de documento (DriverRegistrationActivity) — no expone nada más. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.bng.drivo.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".ui.auth.SplashActivity"
             android:exported="true"
@@ -53,6 +65,45 @@
             android:name=".ui.auth.CompleteProfileActivity"
             android:exported="false"
             android:label="@string/complete_profile_title"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
+            android:name=".ui.driver.DriverRegistrationActivity"
+            android:exported="false"
+            android:label="@string/driver_reg_title"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
+            android:name=".ui.driver.DriverHomeActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
+            android:name=".ui.driver.DriverActiveTripActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
+            android:name=".ui.driver.DriverEarningsActivity"
+            android:exported="false"
+            android:label="@string/driver_earnings_title"
+            android:parentActivityName=".ui.driver.DriverHomeActivity"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
+            android:name=".ui.driver.DriverSettingsActivity"
+            android:exported="false"
+            android:label="@string/driver_settings_title"
+            android:parentActivityName=".ui.driver.DriverHomeActivity"
+            android:theme="@style/Theme.Drivo" />
+
+        <activity
+            android:name=".ui.driver.DriverSecurityActivity"
+            android:exported="false"
+            android:label="@string/security_title"
+            android:parentActivityName=".ui.driver.DriverHomeActivity"
             android:theme="@style/Theme.Drivo" />
 
         <activity

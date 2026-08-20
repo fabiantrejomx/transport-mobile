@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,6 +26,7 @@ import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.map.MarkerIconFactory;
+import com.bng.drivo.util.LoadingButtonHelper;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -91,8 +93,8 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     private TextView textStatusTitle;
     private TextView textStatusSubtitle;
     private View btnShare;
-    private View btnCancelTrip;
-    private View btnSosBadge;
+    private ImageButton btnCancelTrip;
+    private TextView btnSosBadge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -340,6 +342,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     }
 
     private void cancelTrip() {
+        LoadingButtonHelper.setLoading(btnCancelTrip, true);
         tripRepository.cancelRide(rideId, new ApiCallback<com.bng.drivo.data.model.Ride>() {
             @Override
             public void onSuccess(com.bng.drivo.data.model.Ride result) {
@@ -351,6 +354,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
 
             @Override
             public void onError(ApiException error) {
+                LoadingButtonHelper.setLoading(btnCancelTrip, false);
                 Toast.makeText(ActiveTripActivity.this, R.string.active_trip_cancel_error, Toast.LENGTH_SHORT).show();
             }
         });
@@ -358,6 +362,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
 
     @SuppressLint("MissingPermission")
     private void sendSos() {
+        LoadingButtonHelper.setLoading(btnSosBadge, true);
         if (hasLocationPermission()) {
             fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
                 LatLng at = location != null ? new LatLng(location.getLatitude(), location.getLongitude())
@@ -373,11 +378,13 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         tripRepository.sendSos(rideId, at.latitude, at.longitude, new ApiCallback<String>() {
             @Override
             public void onSuccess(String trackingUrl) {
+                LoadingButtonHelper.setLoading(btnSosBadge, false);
                 Toast.makeText(ActiveTripActivity.this, R.string.active_trip_sos_sent, Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onError(ApiException error) {
+                LoadingButtonHelper.setLoading(btnSosBadge, false);
                 Toast.makeText(ActiveTripActivity.this, R.string.active_trip_sos_error, Toast.LENGTH_LONG).show();
             }
         });

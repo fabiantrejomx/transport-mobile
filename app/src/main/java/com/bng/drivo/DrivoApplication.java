@@ -1,11 +1,17 @@
 package com.bng.drivo;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.bng.drivo.util.NotificationChannels;
+import com.bng.drivo.util.StatusBarStyler;
 import com.bng.drivo.util.ThemePreferences;
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.libraries.places.api.Places;
@@ -22,6 +28,40 @@ public class DrivoApplication extends Application {
         initPlaces();
         initMapsRenderer();
         NotificationChannels.createAll(this);
+        registerActivityLifecycleCallbacks(new StatusBarLifecycleCallbacks());
+    }
+
+    /** Aplica StatusBarStyler a cada Activity creada, sin tener que llamarlo pantalla por
+     * pantalla — ver StatusBarStyler para el porqué. */
+    private static class StatusBarLifecycleCallbacks implements ActivityLifecycleCallbacks {
+        @Override
+        public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+            StatusBarStyler.apply(activity);
+        }
+
+        @Override
+        public void onActivityStarted(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityResumed(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityPaused(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityStopped(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+        }
+
+        @Override
+        public void onActivityDestroyed(@NonNull Activity activity) {
+        }
     }
 
     /** Pide el renderer nuevo (más rápido) desde el arranque, antes de que cualquier

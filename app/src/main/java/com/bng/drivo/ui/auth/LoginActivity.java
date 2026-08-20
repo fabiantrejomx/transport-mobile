@@ -22,8 +22,11 @@ import com.bng.drivo.data.repository.OtpSendCallback;
 import com.bng.drivo.data.repository.OtpVerifyCallback;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
+import com.bng.drivo.ui.driver.DriverEntryPoint;
 import com.bng.drivo.ui.home.HomeActivity;
+import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.ValidationHelper;
+import com.google.android.material.button.MaterialButton;
 
 /**
  * Login por teléfono + OTP (Firebase Auth, sin contraseña). No hay pantalla
@@ -34,16 +37,20 @@ public class LoginActivity extends AppCompatActivity {
 
     private static final String PHONE_PREFIX = "+52";
 
+    /** Puesto por RoleSelectionActivity cuando el login es para "Soy conductor". */
+    public static final String EXTRA_DRIVER_ROLE = "driver_role";
+
     private AuthRepository authRepository;
     private UserRepository userRepository;
+    private boolean driverRole;
 
     private View groupPhone;
     private View groupCode;
     private EditText inputPhone;
     private EditText[] codeDigits;
     private TextView textCodeSentTo;
-    private View btnSendCode;
-    private View btnVerifyCode;
+    private MaterialButton btnSendCode;
+    private MaterialButton btnVerifyCode;
 
     private String phoneNumber;
 
@@ -54,6 +61,7 @@ public class LoginActivity extends AppCompatActivity {
 
         authRepository = new FirebaseAuthRepository();
         userRepository = new RestUserRepository(this);
+        driverRole = getIntent().getBooleanExtra(EXTRA_DRIVER_ROLE, false);
 
         groupPhone = findViewById(R.id.group_phone);
         groupCode = findViewById(R.id.group_code);
@@ -67,10 +75,31 @@ public class LoginActivity extends AppCompatActivity {
         btnSendCode = findViewById(R.id.btn_send_code);
         btnVerifyCode = findViewById(R.id.btn_verify_code);
 
+        setUpPhoneInput();
         setUpCodeDigitInputs();
         btnSendCode.setOnClickListener(v -> attemptSendCode());
         btnVerifyCode.setOnClickListener(v -> attemptVerifyCode());
         findViewById(R.id.link_change_phone).setOnClickListener(v -> showPhoneStep());
+    }
+
+    /** Deshabilitado hasta que estén los 10 dígitos — la validación en el click se queda como
+     * respaldo, pero el usuario nunca debería llegar a dispararla. */
+    private void setUpPhoneInput() {
+        btnSendCode.setEnabled(false);
+        inputPhone.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                btnSendCode.setEnabled(s.length() == 10);
+            }
+        });
     }
 
     private void attemptSendCode() {
@@ -82,29 +111,31 @@ public class LoginActivity extends AppCompatActivity {
         }
         phoneNumber = PHONE_PREFIX + digits;
 
-        setSendingEnabled(false);
+        LoadingButtonHelper.setLoading(btnSendCode, true);
         authRepository.sendVerificationCode(this, phoneNumber, new OtpSendCallback() {
             @Override
             public void onCodeSent(String verificationId) {
-                setSendingEnabled(true);
+                LoadingButtonHelper.setLoading(btnSendCode, false);
                 showCodeStep();
             }
 
             @Override
             public void onAutoVerified() {
-                setSendingEnabled(true);
+                LoadingButtonHelper.setLoading(btnSendCode, false);
                 syncProfileAndContinue();
             }
 
             @Override
             public void onError(String message) {
-                setSendingEnabled(true);
+                LoadingButtonHelper.setLoading(btnSendCode, false);
                 Toast.makeText(LoginActivity.this, R.string.auth_login_send_error, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
+    /** Deshabilitado hasta que los 6 dígitos estén escritos. */
     private void setUpCodeDigitInputs() {
+        btnVerifyCode.setEnabled(false);
         for (int i = 0; i < codeDigits.length; i++) {
             int index = i;
             codeDigits[i].addTextChangedListener(new TextWatcher() {
@@ -121,6 +152,7 @@ public class LoginActivity extends AppCompatActivity {
                     if (s.length() == 1 && index < codeDigits.length - 1) {
                         codeDigits[index + 1].requestFocus();
                     }
+                    btnVerifyCode.setEnabled(currentCode().length() == 6);
                 }
             });
             codeDigits[i].setOnKeyListener((v, keyCode, event) -> {
@@ -147,6 +179,7 @@ public class LoginActivity extends AppCompatActivity {
             digit.setText("");
         }
         codeDigits[0].requestFocus();
+        btnVerifyCode.setEnabled(false);
     }
 
     private void attemptVerifyCode() {
@@ -157,17 +190,17 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        setVerifyingEnabled(false);
+        LoadingButtonHelper.setLoading(btnVerifyCode, true);
         authRepository.verifyCode(code, new OtpVerifyCallback() {
             @Override
             public void onSuccess() {
-                setVerifyingEnabled(true);
+                LoadingButtonHelper.setLoading(btnVerifyCode, false);
                 syncProfileAndContinue();
             }
 
             @Override
             public void onError(String message) {
-                setVerifyingEnabled(true);
+                LoadingButtonHelper.setLoading(btnVerifyCode, false);
                 Toast.makeText(LoginActivity.this, R.string.auth_login_verify_error, Toast.LENGTH_SHORT).show();
             }
         });
@@ -184,14 +217,6 @@ public class LoginActivity extends AppCompatActivity {
         clearCodeDigits();
         groupCode.setVisibility(View.GONE);
         groupPhone.setVisibility(View.VISIBLE);
-    }
-
-    private void setSendingEnabled(boolean enabled) {
-        btnSendCode.setEnabled(enabled);
-    }
-
-    private void setVerifyingEnabled(boolean enabled) {
-        btnVerifyCode.setEnabled(enabled);
     }
 
     /**
@@ -220,6 +245,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void goToHome() {
+        if (driverRole) {
+            DriverEntryPoint.route(this);
+            return;
+        }
         Intent intent = new Intent(this, HomeActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
@@ -228,6 +257,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private void goToCompleteProfile() {
         Intent intent = new Intent(this, CompleteProfileActivity.class);
+        intent.putExtra(EXTRA_DRIVER_ROLE, driverRole);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

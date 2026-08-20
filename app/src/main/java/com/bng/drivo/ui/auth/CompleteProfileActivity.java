@@ -12,8 +12,11 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
+import com.bng.drivo.ui.driver.DriverEntryPoint;
 import com.bng.drivo.ui.home.HomeActivity;
+import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.ValidationHelper;
+import com.google.android.material.button.MaterialButton;
 
 /**
  * Paso "completar perfil" tras el primer login OTP: pide nombre (obligatorio) y correo
@@ -25,7 +28,7 @@ public class CompleteProfileActivity extends AuthenticatedActivity {
     private UserRepository userRepository;
     private EditText inputName;
     private EditText inputEmail;
-    private View btnSave;
+    private MaterialButton btnSave;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +56,7 @@ public class CompleteProfileActivity extends AuthenticatedActivity {
             return;
         }
 
-        btnSave.setEnabled(false);
+        LoadingButtonHelper.setLoading(btnSave, true);
         userRepository.updateProfile(name, email.isEmpty() ? null : email, new ApiCallback<UserProfile>() {
             @Override
             public void onSuccess(UserProfile result) {
@@ -62,7 +65,7 @@ public class CompleteProfileActivity extends AuthenticatedActivity {
 
             @Override
             public void onError(ApiException error) {
-                btnSave.setEnabled(true);
+                LoadingButtonHelper.setLoading(btnSave, false);
                 String detail = error.getMessage();
                 String message = detail != null && !detail.isEmpty()
                         ? getString(R.string.complete_profile_save_error) + " (" + error.getCode() + ": " + detail + ")"
@@ -73,6 +76,11 @@ public class CompleteProfileActivity extends AuthenticatedActivity {
     }
 
     private void goToHome() {
+        boolean driverRole = getIntent().getBooleanExtra(LoginActivity.EXTRA_DRIVER_ROLE, false);
+        if (driverRole) {
+            DriverEntryPoint.route(this);
+            return;
+        }
         Intent intent = new Intent(this, HomeActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

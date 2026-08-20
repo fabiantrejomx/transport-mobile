@@ -30,6 +30,11 @@ public class FirebaseAuthRepository implements AuthRepository {
     }
 
     @Override
+    public String getCurrentUserId() {
+        return firebaseAuth.getCurrentUser() != null ? firebaseAuth.getCurrentUser().getUid() : null;
+    }
+
+    @Override
     public void sendVerificationCode(Activity activity, String phoneNumber, OtpSendCallback callback) {
         PhoneAuthOptions options = PhoneAuthOptions.newBuilder(firebaseAuth)
                 .setPhoneNumber(phoneNumber)

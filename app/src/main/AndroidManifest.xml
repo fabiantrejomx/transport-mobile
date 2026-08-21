@@ -137,26 +137,9 @@
             android:parentActivityName=".ui.address.AddressListActivity"
             android:theme="@style/Theme.Drivo" />
 
-        <activity
-            android:name=".ui.destination.PickLocationOnMapActivity"
-            android:exported="false"
-            android:label="@string/pick_location_title"
-            android:parentActivityName=".ui.home.HomeActivity"
-            android:theme="@style/Theme.Drivo" />
-
-        <activity
-            android:name=".ui.price.ConfirmPriceActivity"
-            android:exported="false"
-            android:label="@string/confirm_price_title"
-            android:parentActivityName=".ui.home.HomeActivity"
-            android:theme="@style/Theme.Drivo" />
-
-        <activity
-            android:name=".ui.search.SearchingDriverActivity"
-            android:exported="false"
-            android:label="@string/app_name"
-            android:parentActivityName=".ui.price.ConfirmPriceActivity"
-            android:theme="@style/Theme.Drivo" />
+        <!-- Elegir en el mapa, confirmar tarifa y buscar conductor ya no son Activities: ocurren
+             sobre el mapa de HomeActivity como pasos de HomeFragment (PickLocationPanel /
+             ConfirmPricePanel / SearchingPanel). -->
 
         <activity
             android:name=".ui.trip.ActiveTripActivity"

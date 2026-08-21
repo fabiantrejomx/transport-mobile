@@ -16,8 +16,8 @@ import java.util.Locale;
 /**
  * Reverse geocoding con el Geocoder nativo de Android (best-effort, sin costo ni
  * dependencia nueva) — ver docs/drivo-analisis-inicial.md para la migración futura
- * a Places API cuando aplique. Compartido por PickLocationOnMapActivity y
- * AddEditAddressActivity para no duplicar el hilo/try-catch en cada pantalla.
+ * a Places API cuando aplique. Compartido por PickLocationPanel y AddEditAddressActivity
+ * para no duplicar el hilo/try-catch en cada pantalla.
  */
 public final class GeocoderHelper {
 

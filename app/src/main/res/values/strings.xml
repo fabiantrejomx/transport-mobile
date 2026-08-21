@@ -187,6 +187,8 @@
     <string name="searching_eta_min">%1$d min</string>
     <string name="searching_accept_error">No se pudo confirmar con este conductor. Intenta de nuevo.</string>
     <string name="searching_reject_error">No se pudo rechazar la oferta. Intenta de nuevo.</string>
+    <string name="searching_offer_received">Un conductor te hizo una oferta</string>
+    <string name="searching_cancel_request">Cancelar solicitud</string>
 
     <!-- Viaje activo -->
     <string name="active_trip_price_label">Precio Acordado (Efectivo)</string>

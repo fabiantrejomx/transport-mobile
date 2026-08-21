@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panel del paso PICK_LOCATION dentro del modal de HomeFragment: vista previa de la dirección
+     bajo el pin fijo y confirmar. Era la tarjeta inferior de activity_pick_location.xml — el pin
+     mismo ahora vive en fragment_home.xml (img_pick_location_pin), centrado sobre el hueco visible
+     del mapa igual que el radar del paso SEARCHING. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingTop="20dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        app:cardBackgroundColor="?attr/colorSurfaceVariant"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="0dp">
+
+        <TextView
+            android:id="@+id/text_selected_address"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:padding="12dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="13sp"
+            tools:text="Calle Reforma 22, Centro, Orizaba" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_confirm_location"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:text="@string/pick_location_confirm"
+        android:textAllCaps="false"
+        app:cornerRadius="16dp" />
+</LinearLayout>

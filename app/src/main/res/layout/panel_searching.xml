@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panel del paso SEARCHING dentro del modal de HomeFragment. El radar animado NO vive aquí:
+     se queda como capa centrada sobre el mapa (layout_radar en fragment_home.xml), que es donde
+     tiene sentido — el modal solo lleva el texto de estado, la oferta del conductor de turno y
+     el cancelar.
+
+     container_drivers muestra una sola tarjeta a la vez, la de menor queue_position: el contrato
+     es un radar 1 a 1, nunca una lista de ofertas simultáneas (ver openapi.yaml). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingTop="20dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp">
+
+    <TextView
+        android:id="@+id/text_searching_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/searching_message"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        tools:text="Buscando conductores…" />
+
+    <TextView
+        android:id="@+id/text_searching_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/searching_subtitle"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp" />
+
+    <LinearLayout
+        android:id="@+id/container_drivers"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_cancel_search"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/searching_cancel_request"
+        android:textAllCaps="false"
+        app:cornerRadius="16dp" />
+</LinearLayout>

@@ -53,6 +53,10 @@ public class HomeActivity extends AuthenticatedActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
+        // Antes de añadir los fragments: commitNow() ejecuta onViewCreated en el acto, y
+        // HomeFragment ya llama ahí a setDrawerEnabled() al pintar su paso inicial.
+        setUpDrawer();
+
         FragmentManager fragmentManager = getSupportFragmentManager();
 
         if (savedInstanceState != null) {
@@ -77,8 +81,6 @@ public class HomeActivity extends AuthenticatedActivity {
         transaction.show(homeFragment).hide(viajesFragment).hide(configuracionesFragment);
         transaction.commitNow();
         activeFragment = homeFragment;
-
-        setUpDrawer();
     }
 
     private void addIfNeeded(FragmentTransaction transaction, FragmentManager fragmentManager,
@@ -114,6 +116,17 @@ public class HomeActivity extends AuthenticatedActivity {
             }
             return handled;
         });
+    }
+
+    /**
+     * Bloquea el menú lateral mientras el pasajero está a mitad de una solicitud (ver los pasos
+     * de HomeFragment). No basta con cambiar el botón flotante a "atrás": el cajón también se
+     * abre deslizando desde el borde, y ese gesto sacaría del flujo a quien solo quería mover el
+     * mapa.
+     */
+    public void setDrawerEnabled(boolean enabled) {
+        drawerLayout.setDrawerLockMode(enabled
+                ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
     }
 
     /** La llaman los botones hamburguesa de cada Fragment hijo (Home, Viajes, Configuración). */

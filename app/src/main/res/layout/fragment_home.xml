@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Host del flujo del pasajero: un solo mapa para los tres pasos (home → tarifa → radar).
+     Las capas van, de abajo a arriba: mapa, botones flotantes, tarjeta de ruta, radar, modal,
+     velo de status bar y banners de conectividad. Ver el javadoc de HomeFragment. -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -11,6 +13,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Único botón para las dos funciones: abre el menú en el paso IDLE y hace de "atrás" en
+         los demás, cambiando solo su ícono con un fundido en el sitio. Un segundo botón que
+         apareciera en otra posición al cambiar de paso rompería la continuidad que busca todo
+         este rediseño — ver HomeFragment.applyStep(). -->
     <ImageButton
         android:id="@+id/btn_open_drawer"
         android:layout_width="44dp"
@@ -41,6 +47,84 @@
         android:src="@drawable/ic_my_location"
         app:tint="?attr/colorOnSurface" />
 
+    <!-- Su margen superior lo fija HomeFragment.applyTopInsets: inset + 68dp, justo debajo de la
+         fila de botones flotantes (16dp de margen + 44dp de alto + 8dp de aire). -->
+    <include
+        android:id="@+id/card_route_summary"
+        layout="@layout/card_route_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:visibility="gone" />
+
+    <!-- Pin fijo del paso PICK_LOCATION: el mapa se arrastra debajo de él. Centrado en el hueco
+         visible igual que el radar (HomeFragment.updateMapViewport les da a ambos los mismos
+         márgenes). translationY sube la punta del pin al punto exacto, igual que en el layout
+         original de la Activity que absorbió. -->
+    <ImageView
+        android:id="@+id/img_pick_location_pin"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/pick_location_pin_description"
+        android:src="@drawable/ic_map_pin"
+        android:translationY="-18dp"
+        android:visibility="gone"
+        app:tint="@color/drivo_secondary" />
+
+    <!-- Radar del paso SEARCHING. Se centra en el hueco visible del mapa, no en la pantalla:
+         HomeFragment le da un margen inferior igual al alto del modal para que no quede medio
+         tapado por él. Se oculta en cuanto llega una oferta, que pasa a ser el foco. -->
+    <LinearLayout
+        android:id="@+id/layout_radar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_scrim_rounded"
+        android:clipChildren="false"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <!-- 200dp de alto total (160 + 20 de padding a cada lado): tiene que caber en el hueco
+             que dejan la tarjeta de ruta y el modal en la pantalla más corta que soportamos, o
+             asomaría por detrás de ambos. Los anillos originales medían 220dp, cuando el radar
+             tenía la pantalla entera para él solo. -->
+        <FrameLayout
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:clipChildren="false">
+
+            <View
+                android:id="@+id/radar_ring_outer"
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                android:layout_gravity="center"
+                android:alpha="0.15"
+                android:background="@drawable/bg_dot"
+                android:backgroundTint="@color/drivo_success" />
+
+            <View
+                android:id="@+id/radar_ring_inner"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_gravity="center"
+                android:alpha="0.25"
+                android:background="@drawable/bg_dot"
+                android:backgroundTint="@color/drivo_success" />
+
+            <View
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_dot"
+                android:backgroundTint="@color/drivo_success" />
+        </FrameLayout>
+    </LinearLayout>
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/sheet_container"
         android:layout_width="match_parent"
@@ -49,205 +133,41 @@
         android:elevation="12dp"
         app:layout_behavior="@string/bottom_sheet_behavior">
 
-        <LinearLayout
+        <!-- Un solo hijo con los tres paneles: solo uno está VISIBLE a la vez y el modal se
+             ajusta a su alto (HomeFragment.updateSheetStops). Cambiar de paso es un fundido
+             cruzado entre paneles, no una transición de pantalla. -->
+        <FrameLayout
+            android:id="@+id/sheet_content"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingBottom="24dp">
+            android:layout_height="wrap_content">
 
-            <LinearLayout
-                android:id="@+id/group_peek_content"
+            <include
+                android:id="@+id/panel_home"
+                layout="@layout/panel_home"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <include
+                android:id="@+id/panel_pick_location"
+                layout="@layout/panel_pick_location"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp">
-
-                <!-- Sin aire extra propio arriba: el modal topa justo debajo de la status bar
-                     (HomeFragment.applyTopInsets acota su altura), así que el saludo nunca queda
-                     bajo ella y este borde superior mide lo mismo colapsado que expandido. El
-                     spacer animado que había aquí compensaba eso por su cuenta y era justo lo
-                     que hacía crecer el borde al abrir el teclado, sin volver a encogerlo. -->
-                <View
-                    android:layout_width="40dp"
-                    android:layout_height="4dp"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginBottom="16dp"
-                    android:background="@drawable/bg_dot"
-                    android:backgroundTint="?attr/colorOutline" />
-
-                <TextView
-                    android:id="@+id/text_greeting"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:text="@string/home_greeting_default"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    tools:text="¡Hola, Carlos!" />
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/row_search_destination"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:cardCornerRadius="28dp"
-                    app:cardElevation="0dp"
-                    app:cardBackgroundColor="?attr/colorSurfaceVariant">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="16dp"
-                        android:paddingVertical="14dp">
-
-                        <ImageView
-                            android:id="@+id/icon_search_leading"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:layout_marginEnd="12dp"
-                            android:clickable="true"
-                            android:contentDescription="@string/home_search_icon_description"
-                            android:focusable="true"
-                            android:src="@drawable/ic_search"
-                            app:tint="?attr/colorOnSurfaceVariant" />
-
-                        <EditText
-                            android:id="@+id/input_destination"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:background="@null"
-                            android:hint="@string/home_search_hint"
-                            android:imeOptions="actionSearch"
-                            android:inputType="text"
-                            android:maxLines="1"
-                            android:padding="0dp"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textColorHint="?attr/colorOnSurfaceVariant"
-                            android:textSize="14sp" />
-
-                        <ImageView
-                            android:id="@+id/btn_clear_destination"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:layout_marginStart="8dp"
-                            android:clickable="true"
-                            android:contentDescription="@string/home_search_clear_description"
-                            android:focusable="true"
-                            android:src="@drawable/ic_close"
-                            android:visibility="gone"
-                            app:tint="?attr/colorOnSurfaceVariant" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <LinearLayout
-                    android:id="@+id/row_pick_on_map"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingVertical="14dp">
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginEnd="12dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_map_pin"
-                        app:tint="?attr/colorPrimary" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/home_pick_on_map"
-                        android:textColor="?attr/colorPrimary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Reemplaza a group_default_lists mientras se escribe en input_destination —
-                 ver HomeFragment.bindPredictions()/cancelSearch(). -->
-            <LinearLayout
-                android:id="@+id/container_predictions"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingHorizontal="20dp"
-                android:paddingTop="8dp"
                 android:visibility="gone" />
 
-            <LinearLayout
-                android:id="@+id/group_default_lists"
+            <include
+                android:id="@+id/panel_confirm_price"
+                layout="@layout/panel_confirm_price"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:visibility="gone" />
 
-                <!-- Nivel 2: hasta aquí se ven las últimas 2 direcciones guardadas — fuera de
-                     group_peek_content a propósito, ver HomeFragment.updateSheetStops(). -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingStart="20dp"
-                    android:paddingEnd="20dp">
-
-                    <TextView
-                        android:id="@+id/text_saved_addresses_label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="4dp"
-                        android:text="@string/home_saved_addresses"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="12sp" />
-
-                    <LinearLayout
-                        android:id="@+id/container_saved_addresses"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:orientation="vertical" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginHorizontal="20dp"
-                    android:background="?attr/colorOutline" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingHorizontal="20dp"
-                    android:paddingTop="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="4dp"
-                        android:text="@string/home_recent_trips"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="12sp" />
-
-                    <LinearLayout
-                        android:id="@+id/container_recent_trips"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical" />
-                </LinearLayout>
-            </LinearLayout>
-        </LinearLayout>
+            <include
+                android:id="@+id/panel_searching"
+                layout="@layout/panel_searching"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+        </FrameLayout>
     </androidx.core.widget.NestedScrollView>
 
     <!-- Tapa la status bar / notch con el mismo color del modal mientras éste sube, para que

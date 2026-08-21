@@ -15,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.IncomingRequest;
@@ -32,6 +33,7 @@ import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.map.MarkerIconFactory;
+import com.bng.drivo.ui.map.RouteCamera;
 import com.bng.drivo.util.ColorUtils;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -40,7 +42,6 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.Priority;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -79,6 +80,8 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
 
     private static final long LOCATION_INTERVAL_TRIP_MS = 4500L;
     private static final int STAR_COUNT = 5;
+    /** Aire alrededor de la ruta al encuadrarla, para que los pines no queden pegados al borde. */
+    private static final int ROUTE_BOUNDS_PADDING_PX = 160;
 
     private DriverRepository driverRepository;
     private TripRepository tripRepository;
@@ -88,6 +91,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private LocationCallback locationCallback;
 
     private GoogleMap googleMap;
+    private final RouteCamera routeCamera = new RouteCamera(ROUTE_BOUNDS_PADDING_PX);
     private String rideId;
     private String currentStatus;
     private boolean terminalStateHandled;
@@ -239,15 +243,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                     .pattern(dashed));
         }
 
-        try {
-            LatLngBounds.Builder bounds = new LatLngBounds.Builder();
-            for (LatLng point : points) {
-                bounds.include(point);
-            }
-            googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 160));
-        } catch (IllegalStateException ignored) {
-            // El mapa aún no tiene tamaño medido; se reintenta con el próximo layout.
+        LatLngBounds.Builder bounds = new LatLngBounds.Builder();
+        for (LatLng point : points) {
+            bounds.include(point);
         }
+        Fragment mapFragment = getSupportFragmentManager().findFragmentById(R.id.map);
+        routeCamera.frame(googleMap, bounds.build(), mapFragment != null ? mapFragment.getView() : null);
     }
 
     @Override

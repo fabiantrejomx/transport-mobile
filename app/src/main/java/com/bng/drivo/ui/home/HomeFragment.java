@@ -3,18 +3,28 @@ package com.bng.drivo.ui.home;
 import android.Manifest;
 import android.app.Activity;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -22,6 +32,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
 import com.bng.drivo.R;
@@ -52,6 +64,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.libraries.places.api.model.AutocompletePrediction;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -71,6 +84,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     // Ciudad de México como origen por defecto, antes de obtener la ubicación real.
     private static final LatLng DEFAULT_POSITION = new LatLng(19.4326, -99.1332);
     private static final String PREF_KEY_CAMERA = "home_camera_position";
+    private static final long SEARCH_DEBOUNCE_MS = 300;
 
     private FusedLocationProviderClient fusedLocationClient;
     private GoogleMap googleMap;
@@ -79,6 +93,18 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
     private AddressRepository addressRepository;
     private final PlacesAutocompleteService placesAutocompleteService = new PlacesAutocompleteService(this);
+    private final Handler searchDebounceHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearchRunnable;
+    private boolean searchModeActive;
+    private OnBackPressedCallback searchBackCallback;
+    private int lastCollapsedHeightPx = -1;
+    private int sheetTopInsetPx;
+    private View statusBarScrim;
+    @Nullable
+    private GradientDrawable sheetBackground;
+    private float sheetCornerRadiusPx;
+    /** Reutilizado en cada frame de onSlide para no asignar un array por fotograma. */
+    private final float[] sheetCornerRadii = new float[8];
 
     private final ActivityResultLauncher<String[]> permissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), this::onPermissionResult);
@@ -104,6 +130,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
+
+        searchBackCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                cancelSearch(view);
+            }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), searchBackCallback);
 
         setUpBottomSheet(view);
         setUpDestinationSearch(view);
@@ -145,6 +179,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private static final int PEEK_ADDRESS_ROWS = 3;
+    /** Igual que el layout_margin de btn_open_drawer / btn_my_location en fragment_home.xml. */
+    private static final int FLOATING_BUTTON_MARGIN_DP = 16;
+    /** Igual que el radio de bg_sheet_top_rounded.xml — desde ahí se anima hasta 0. */
+    private static final int SHEET_CORNER_RADIUS_DP = 24;
+    /**
+     * Fracción del recorrido a partir de la cual el modal empieza a "pegarse" al tope: se tapa
+     * la status bar y se pierden las esquinas redondeadas. Arranca tarde a propósito — hacerlo
+     * de forma lineal desde el estado colapsado teñiría la status bar con el mapa aún medio
+     * visible, que se ve raro.
+     */
+    private static final float SHEET_FULLSCREEN_FADE_START = 0.85f;
 
     /**
      * 2 niveles: colapsado (saludo + buscador + elegir-en-mapa + hasta las últimas
@@ -157,8 +202,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
      * existan — si se removieran tras la primera medición, el corte quedaba fijo en el tamaño de
      * la pantalla vacía.
      */
-    private static final int EXPANDED_TOP_SPACER_DP = 28;
-
     private void setUpBottomSheet(View root) {
         View sheet = root.findViewById(R.id.sheet_container);
         sheetBehavior = BottomSheetBehavior.from(sheet);
@@ -171,25 +214,121 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         LinearLayout addressContainer = root.findViewById(R.id.container_saved_addresses);
         addressContainer.getViewTreeObserver().addOnGlobalLayoutListener(() -> updateSheetStops(root));
 
-        // Un View aparte (no padding en group_peek_content) para que animarlo en cada onSlide
-        // no dispare de nuevo la medición del alto de colapso de arriba — ver updateSheetStops().
-        View topSpacer = root.findViewById(R.id.spacer_top_expand);
-        int maxSpacerPx = Math.round(EXPANDED_TOP_SPACER_DP * getResources().getDisplayMetrics().density);
+        statusBarScrim = root.findViewById(R.id.scrim_status_bar);
+        sheetCornerRadiusPx = SHEET_CORNER_RADIUS_DP * getResources().getDisplayMetrics().density;
+        // mutate() para no compartir el estado del drawable con cualquier otra vista que use
+        // bg_sheet_top_rounded: aquí se le cambia el radio en caliente.
+        if (sheet.getBackground() instanceof GradientDrawable) {
+            sheetBackground = (GradientDrawable) sheet.getBackground().mutate();
+            sheet.setBackground(sheetBackground);
+        }
+
         sheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                // Los estados finales se fijan aquí y no solo en onSlide: en una transición
+                // programática (setState) onSlide no siempre llega a reportar el 0 ó el 1
+                // exactos, y el velo se quedaría a medio camino.
+                if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
+                    applyFullScreenTransition(0f);
+                    // Cubre que el usuario arrastre el modal hacia abajo mientras busca, en vez
+                    // de usar el botón atrás — ver setUpDestinationSearch.
+                    if (searchModeActive) {
+                        exitSearchModeUi(root);
+                    }
+                } else if (newState == BottomSheetBehavior.STATE_EXPANDED) {
+                    applyFullScreenTransition(1f);
+                }
             }
 
             @Override
             public void onSlide(@NonNull View bottomSheet, float slideOffset) {
-                ViewGroup.LayoutParams params = topSpacer.getLayoutParams();
-                params.height = Math.round(maxSpacerPx * Math.max(0f, slideOffset));
-                topSpacer.setLayoutParams(params);
+                applyFullScreenTransition(slideOffset);
             }
         });
     }
 
+    /**
+     * Funde la status bar con el modal conforme éste llega al tope: tiñe el velo superior del
+     * color de la superficie y quita el redondeo de las esquinas, de modo que expandido parezca
+     * pantalla completa. {@code slideOffset} va de 0 (colapsado) a 1 (expandido).
+     */
+    private void applyFullScreenTransition(float slideOffset) {
+        float progress = (slideOffset - SHEET_FULLSCREEN_FADE_START) / (1f - SHEET_FULLSCREEN_FADE_START);
+        progress = Math.max(0f, Math.min(1f, progress));
+
+        statusBarScrim.setAlpha(progress);
+        if (sheetBackground == null) {
+            return;
+        }
+        float radius = sheetCornerRadiusPx * (1f - progress);
+        // Solo las dos esquinas de arriba, igual que bg_sheet_top_rounded.
+        sheetCornerRadii[0] = radius;
+        sheetCornerRadii[1] = radius;
+        sheetCornerRadii[2] = radius;
+        sheetCornerRadii[3] = radius;
+        sheetBackground.setCornerRadii(sheetCornerRadii);
+    }
+
+    /**
+     * Insets superiores explícitos: el modal topa justo debajo de la status bar (nunca detrás),
+     * y los botones flotantes se bajan para no quedar bajo ella.
+     *
+     * <p>Esto es lo que mantiene el borde superior del modal idéntico en todos los estados. El
+     * CoordinatorLayout tenía {@code fitsSystemWindows="true"}, y eso le metía al sheet el
+     * inset de la status bar como paddingTop solo al expandirse — medido en un SM-A165M: 0px
+     * colapsado → 100px expandido. Ese salto era el "borde que crece" al abrir el teclado, y
+     * quedaba visible al volver a colapsar. Gestionando el inset aquí, la geometría interna del
+     * modal es constante y el mapa queda a pantalla completa por debajo.
+     *
+     * <p>Se leen solo {@code systemBars + displayCutout}: el inset del teclado
+     * ({@code Type.ime()}) queda deliberadamente fuera, para que abrirlo o cerrarlo no pueda
+     * mover nada de esto.
+     */
+    private void applyTopInsets(View root) {
+        WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(root);
+        if (insets == null) {
+            return;
+        }
+        int topInsetPx = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()).top;
+        sheetTopInsetPx = topInsetPx;
+
+        // Altura explícita en vez de un margen superior: con margen, la posición que deja un
+        // onLayoutChild recién hecho difiere en esos mismos px de la que deja el asentamiento
+        // normal del behavior, y el modal daba un salto en el primer arrastre. Acotando la
+        // altura se consigue el mismo tope (fitToContentsOffset = alto del padre - alto del
+        // hijo = inset) sin margen que descuadre ese cálculo.
+        View sheet = root.findViewById(R.id.sheet_container);
+        int availableHeightPx = root.getHeight() - topInsetPx;
+        ViewGroup.LayoutParams sheetParams = sheet.getLayoutParams();
+        if (root.getHeight() > 0 && sheetParams.height != availableHeightPx) {
+            sheetParams.height = availableHeightPx;
+            sheet.setLayoutParams(sheetParams);
+        }
+
+        int buttonMarginPx = Math.round(FLOATING_BUTTON_MARGIN_DP * getResources().getDisplayMetrics().density);
+        setTopMargin(root.findViewById(R.id.btn_open_drawer), topInsetPx + buttonMarginPx);
+        setTopMargin(root.findViewById(R.id.btn_my_location), topInsetPx + buttonMarginPx);
+
+        // El velo cubre exactamente la franja que el modal deja libre al toparse abajo de ella.
+        ViewGroup.LayoutParams scrimParams = statusBarScrim.getLayoutParams();
+        if (scrimParams.height != topInsetPx) {
+            scrimParams.height = topInsetPx;
+            statusBarScrim.setLayoutParams(scrimParams);
+        }
+    }
+
+    private void setTopMargin(View view, int topMarginPx) {
+        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+        if (params.topMargin != topMarginPx) {
+            params.topMargin = topMarginPx;
+            view.setLayoutParams(params);
+        }
+    }
+
     private void updateSheetStops(View root) {
+        applyTopInsets(root);
         View peekContent = root.findViewById(R.id.group_peek_content);
         int peekHeightPx = peekContent.getHeight();
         if (peekHeightPx <= 0) {
@@ -201,9 +340,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         int collapsedHeightPx = peekHeightPx + addressLabel.getHeight()
                 + heightOfFirstRows(addressContainer, PEEK_ADDRESS_ROWS);
 
+        // El listener de arriba se dispara en CUALQUIER pase de layout, no solo cuando cambia el
+        // contenido. Sin este memo, setPeekHeight() se repetiría en cada uno.
+        if (collapsedHeightPx == lastCollapsedHeightPx) {
+            return;
+        }
+        lastCollapsedHeightPx = collapsedHeightPx;
+
         sheetBehavior.setPeekHeight(collapsedHeightPx);
         if (googleMap != null) {
-            googleMap.setPadding(0, 0, 0, collapsedHeightPx);
+            googleMap.setPadding(0, sheetTopInsetPx, 0, collapsedHeightPx);
         }
     }
 
@@ -224,16 +370,150 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private void setUpDestinationSearch(View root) {
-        root.findViewById(R.id.row_search_destination).setOnClickListener(v ->
-                placesAutocompleteService.launch(requireContext(), new PlacesAutocompleteService.ResultListener() {
-                    @Override
-                    public void onPlaceSelected(String address, double lat, double lng) {
-                        goToConfirmPrice(address, lat, lng);
-                    }
-                }));
+        EditText input = root.findViewById(R.id.input_destination);
+        ImageView leadingIcon = root.findViewById(R.id.icon_search_leading);
+        ImageView clearButton = root.findViewById(R.id.btn_clear_destination);
 
-        root.findViewById(R.id.row_pick_on_map).setOnClickListener(v ->
-                pickLocationLauncher.launch(new Intent(requireContext(), PickLocationOnMapActivity.class)));
+        // input_destination vive dentro de un NestedScrollView que a la vez es el target de
+        // un BottomSheetBehavior: ambos interceptan el primer toque en ACTION_DOWN para decidir
+        // si es scroll/drag antes de dejarlo llegar al hijo (el clásico bug de "EditText dentro
+        // de ScrollView necesita 2 toques"). Avisar aquí que no intercepten evita que el primer
+        // toque se pierda.
+        input.setOnTouchListener((v, event) -> {
+            v.getParent().requestDisallowInterceptTouchEvent(true);
+            return false;
+        });
+
+        input.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                enterSearchMode(root);
+            }
+        });
+
+        input.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                clearButton.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+                scheduleSearch(root, s.toString());
+            }
+        });
+
+        // Siempre lupa, sin flecha "atrás": para salir de la búsqueda ya está el arrastre del
+        // modal y el botón atrás del sistema (ver searchBackCallback) — un tercer affordance
+        // redundante en el propio ícono solo añadía confusión.
+        leadingIcon.setOnClickListener(v -> input.requestFocus());
+
+        clearButton.setOnClickListener(v -> input.setText(""));
+
+        root.findViewById(R.id.row_pick_on_map).setOnClickListener(v -> {
+            cancelSearch(root);
+            pickLocationLauncher.launch(new Intent(requireContext(), PickLocationOnMapActivity.class));
+        });
+    }
+
+    private void enterSearchMode(View root) {
+        if (searchModeActive) {
+            return;
+        }
+        searchModeActive = true;
+        searchBackCallback.setEnabled(true);
+        // Síncrono a propósito (no root.post): diferirlo abría una carrera real — si el
+        // usuario cancelaba la búsqueda antes de que el Runnable pospuesto llegara a
+        // ejecutarse, éste corría de todos modos DESPUÉS del cancelSearch y volvía a expandir
+        // el sheet (reinflando el spacer superior) justo después de haberlo cerrado. El input
+        // ya no necesita este diferido: el doble-toque se resolvió con
+        // requestDisallowInterceptTouchEvent arriba, no con esto. El sheet se deja arrastrable
+        // (default): el usuario puede bajarlo con el dedo aunque esté buscando, sin depender
+        // solo del botón atrás — ver onStateChanged en setUpBottomSheet.
+        sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+    }
+
+    /** Acción explícita del usuario (flecha, botón atrás del sistema): limpia y colapsa. */
+    private void cancelSearch(View root) {
+        exitSearchModeUi(root);
+        sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+    }
+
+    /**
+     * Limpia el estado de búsqueda sin tocar el BottomSheetBehavior — se usa tanto desde
+     * {@link #cancelSearch} como cuando el propio usuario arrastra el modal hasta colapsarlo
+     * (ver onStateChanged en setUpBottomSheet), caso en el que el sheet ya está colapsado y
+     * llamar a setState de nuevo sería redundante.
+     */
+    private void exitSearchModeUi(View root) {
+        if (!searchModeActive) {
+            return;
+        }
+        searchDebounceHandler.removeCallbacksAndMessages(null);
+        EditText input = root.findViewById(R.id.input_destination);
+        input.setText("");
+        input.clearFocus();
+
+        InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(input.getWindowToken(), 0);
+        }
+
+        searchModeActive = false;
+        searchBackCallback.setEnabled(false);
+    }
+
+    private void scheduleSearch(View root, String query) {
+        searchDebounceHandler.removeCallbacksAndMessages(null);
+        if (query.trim().isEmpty()) {
+            showPredictions(root, Collections.emptyList());
+            return;
+        }
+        pendingSearchRunnable = () -> placesAutocompleteService.findPredictions(
+                requireContext(), query, originLocation, predictions -> {
+                    if (isAdded()) {
+                        showPredictions(root, predictions);
+                    }
+                });
+        searchDebounceHandler.postDelayed(pendingSearchRunnable, SEARCH_DEBOUNCE_MS);
+    }
+
+    private void showPredictions(View root, List<AutocompletePrediction> predictions) {
+        EditText input = root.findViewById(R.id.input_destination);
+        boolean hasQuery = input.getText().length() > 0;
+
+        root.findViewById(R.id.group_default_lists).setVisibility(hasQuery ? View.GONE : View.VISIBLE);
+        View predictionsContainer = root.findViewById(R.id.container_predictions);
+        predictionsContainer.setVisibility(hasQuery ? View.VISIBLE : View.GONE);
+        if (!hasQuery) {
+            return;
+        }
+        bindPredictions((LinearLayout) predictionsContainer, predictions);
+    }
+
+    private void bindPredictions(LinearLayout container, List<AutocompletePrediction> predictions) {
+        container.removeAllViews();
+        LayoutInflater inflater = LayoutInflater.from(requireContext());
+        for (AutocompletePrediction prediction : predictions) {
+            View row = inflater.inflate(R.layout.item_place_prediction, container, false);
+            ((TextView) row.findViewById(R.id.text_prediction_primary)).setText(prediction.getPrimaryText(null));
+            ((TextView) row.findViewById(R.id.text_prediction_secondary)).setText(prediction.getSecondaryText(null));
+            row.setOnClickListener(v -> placesAutocompleteService.resolvePlace(
+                    requireContext(), prediction.getPlaceId(), new PlacesAutocompleteService.ResultListener() {
+                        @Override
+                        public void onPlaceSelected(String address, double lat, double lng) {
+                            if (!isAdded()) {
+                                return;
+                            }
+                            cancelSearch(requireView());
+                            goToConfirmPrice(address, lat, lng);
+                        }
+                    }));
+            container.addView(row);
+        }
     }
 
     private void onLocationPicked(ActivityResult result) {

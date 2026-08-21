@@ -25,16 +25,15 @@ import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.map.MapStyler;
+import com.bng.drivo.ui.map.RouteCamera;
 import com.bng.drivo.ui.price.ConfirmPriceActivity;
 import com.bng.drivo.ui.trip.ActiveTripActivity;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -52,6 +51,8 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
     public static final String EXTRA_RIDE_ID = "extra_ride_id";
 
     private static final long RADAR_PULSE_DURATION_MS = 1600L;
+    /** Aire alrededor de la ruta al encuadrarla, para que los pines no queden pegados al borde. */
+    private static final int ROUTE_BOUNDS_PADDING_PX = 220;
 
     private final RideRealtimeRepository realtimeRepository = new FirestoreRideRealtimeRepository();
     private TripRepository tripRepository;
@@ -60,6 +61,7 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
     private CountDownTimer expiryTimer;
 
     private GoogleMap googleMap;
+    private final RouteCamera routeCamera = new RouteCamera(ROUTE_BOUNDS_PADDING_PX);
     private String rideId;
     private String origin;
     private String destination;
@@ -115,12 +117,9 @@ public class SearchingDriverActivity extends AuthenticatedActivity implements On
         googleMap.addMarker(new MarkerOptions().position(destinationPoint)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
-        try {
-            LatLngBounds bounds = new LatLngBounds.Builder().include(originPoint).include(destinationPoint).build();
-            googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 220));
-        } catch (IllegalStateException ignored) {
-            googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.fromLatLngZoom(originPoint, 14f)));
-        }
+        LatLngBounds bounds = new LatLngBounds.Builder().include(originPoint).include(destinationPoint).build();
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        routeCamera.frame(googleMap, bounds, mapFragment != null ? mapFragment.getView() : null);
     }
 
     /** Animación puramente decorativa (dos anillos que laten) — no depende de ningún dato. */

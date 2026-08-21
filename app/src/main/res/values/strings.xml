@@ -59,6 +59,8 @@
     <string name="home_saved_addresses">Direcciones guardadas</string>
     <string name="home_recent_trips">Últimos viajes</string>
     <string name="home_load_error">No se pudo cargar tu información</string>
+    <string name="home_search_icon_description">Buscar destino</string>
+    <string name="home_search_clear_description">Borrar búsqueda</string>
 
     <!-- Drawer -->
     <string name="nav_inicio">Inicio</string>

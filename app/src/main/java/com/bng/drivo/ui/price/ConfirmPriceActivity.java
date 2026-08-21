@@ -6,6 +6,8 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.fragment.app.Fragment;
+
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
@@ -19,8 +21,8 @@ import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.service.PlacesAutocompleteService;
 import com.bng.drivo.ui.map.MapStyler;
+import com.bng.drivo.ui.map.RouteCamera;
 import com.bng.drivo.ui.search.SearchingDriverActivity;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -60,6 +62,9 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
     public static final String EXTRA_DESTINATION_LAT = "extra_destination_lat";
     public static final String EXTRA_DESTINATION_LNG = "extra_destination_lng";
 
+    /** Aire alrededor de la ruta al encuadrarla, para que los pines no queden pegados al borde. */
+    private static final int ROUTE_BOUNDS_PADDING_PX = 220;
+
     private TripRepository tripRepository;
     private final PlacesAutocompleteService placesAutocompleteService = new PlacesAutocompleteService(this);
 
@@ -74,6 +79,7 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
     private GoogleMap googleMap;
     private Quote currentQuote;
     private boolean requestingRide;
+    private final RouteCamera routeCamera = new RouteCamera(ROUTE_BOUNDS_PADDING_PX);
 
     private TextView textAddStop;
     private View btnRemoveStop;
@@ -204,11 +210,8 @@ public class ConfirmPriceActivity extends AuthenticatedActivity implements OnMap
         for (LatLng point : points) {
             bounds.include(point);
         }
-        try {
-            googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 220));
-        } catch (IllegalStateException ignored) {
-            // El mapa aún no tiene tamaño medido; se reintenta con el próximo layout.
-        }
+        Fragment mapFragment = getSupportFragmentManager().findFragmentById(R.id.map);
+        routeCamera.frame(googleMap, bounds.build(), mapFragment != null ? mapFragment.getView() : null);
     }
 
     private List<Waypoint> currentWaypoints() {

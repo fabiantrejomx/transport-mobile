@@ -44,7 +44,10 @@ import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AddressRepository;
+import com.bng.drivo.data.repository.ConnectivityRepository;
+import com.bng.drivo.data.repository.RealtimeSubscription;
 import com.bng.drivo.data.repository.RestAddressRepository;
+import com.bng.drivo.data.repository.SystemConnectivityRepository;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
@@ -85,6 +88,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private static final LatLng DEFAULT_POSITION = new LatLng(19.4326, -99.1332);
     private static final String PREF_KEY_CAMERA = "home_camera_position";
     private static final long SEARCH_DEBOUNCE_MS = 300;
+    private static final long BANNER_FADE_MS = 200;
+    private static final long RECONNECTED_BANNER_VISIBLE_MS = 2500;
 
     private FusedLocationProviderClient fusedLocationClient;
     private GoogleMap googleMap;
@@ -92,6 +97,21 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private LatLng originLocation = DEFAULT_POSITION;
 
     private AddressRepository addressRepository;
+    private ConnectivityRepository connectivityRepository;
+    @Nullable
+    private RealtimeSubscription connectivitySubscription;
+    private View offlineBanner;
+    private View onlineBanner;
+    private final Handler reconnectedBannerHandler = new Handler(Looper.getMainLooper());
+    // true solo entre un evento offline real y el siguiente online — así el banner verde de
+    // reconexión no aparece en el primer estado "online" al abrir la app con señal, que nunca
+    // estuvo caída.
+    private boolean wasOffline;
+    // Qué secciones tienen ya sus datos. Al recuperar la señal se reintenta solo lo que falta,
+    // en vez de volver a pedirlo todo: menos datos y sin parpadeo de lo que ya se ve.
+    private boolean greetingLoaded;
+    private boolean savedAddressesLoaded;
+    private boolean recentTripsLoaded;
     private final PlacesAutocompleteService placesAutocompleteService = new PlacesAutocompleteService(this);
     private final Handler searchDebounceHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearchRunnable;
@@ -124,6 +144,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext());
         addressRepository = new RestAddressRepository(requireContext());
+        connectivityRepository = new SystemConnectivityRepository(requireContext());
+        offlineBanner = view.findViewById(R.id.banner_offline);
+        onlineBanner = view.findViewById(R.id.banner_online);
 
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
@@ -166,6 +189,89 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                     Manifest.permission.ACCESS_COARSE_LOCATION
             });
         }
+    }
+
+    /**
+     * La suscripción vive entre onStart y onStop, no entre onCreate y onDestroy: con la app en
+     * segundo plano no hay nada que refrescar, y dejar el callback registrado solo gastaría.
+     */
+    @Override
+    public void onStart() {
+        super.onStart();
+        connectivitySubscription = connectivityRepository.observe(this::onConnectivityChanged);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (connectivitySubscription != null) {
+            connectivitySubscription.stop();
+            connectivitySubscription = null;
+        }
+        reconnectedBannerHandler.removeCallbacksAndMessages(null);
+    }
+
+    /**
+     * Único punto donde se reacciona a la red. Antes, un fallo de carga era permanente: las
+     * secciones se piden en onViewCreated y nada las volvía a pedir, así que quedarse sin
+     * internet al abrir obligaba a cerrar y reabrir la app aunque la señal volviera.
+     */
+    private void onConnectivityChanged(boolean online) {
+        View root = getView();
+        if (root == null) {
+            return;
+        }
+        showOfflineBanner(!online);
+        if (!online) {
+            wasOffline = true;
+            return;
+        }
+        if (wasOffline) {
+            wasOffline = false;
+            showReconnectedBanner();
+        }
+        if (!greetingLoaded) {
+            loadGreeting(root);
+        }
+        if (!savedAddressesLoaded) {
+            loadSavedAddresses(root);
+        }
+        if (!recentTripsLoaded) {
+            loadRecentTrips(root);
+        }
+    }
+
+    private void showOfflineBanner(boolean show) {
+        if (offlineBanner == null || (offlineBanner.getVisibility() == View.VISIBLE) == show) {
+            return;
+        }
+        if (show) {
+            offlineBanner.setAlpha(0f);
+            offlineBanner.setVisibility(View.VISIBLE);
+            offlineBanner.animate().alpha(1f).setDuration(BANNER_FADE_MS).start();
+        } else {
+            offlineBanner.animate().alpha(0f).setDuration(BANNER_FADE_MS)
+                    .withEndAction(() -> offlineBanner.setVisibility(View.GONE)).start();
+        }
+    }
+
+    /**
+     * A diferencia del banner rojo (que se queda mientras dure el problema), este se retira
+     * solo: confirma la reconexión y no necesita quedarse ahí una vez que el usuario ya lo vio.
+     */
+    private void showReconnectedBanner() {
+        if (onlineBanner == null) {
+            return;
+        }
+        reconnectedBannerHandler.removeCallbacksAndMessages(null);
+        onlineBanner.animate().cancel();
+        onlineBanner.setAlpha(0f);
+        onlineBanner.setVisibility(View.VISIBLE);
+        onlineBanner.animate().alpha(1f).setDuration(BANNER_FADE_MS).start();
+        reconnectedBannerHandler.postDelayed(() ->
+                onlineBanner.animate().alpha(0f).setDuration(BANNER_FADE_MS)
+                        .withEndAction(() -> onlineBanner.setVisibility(View.GONE)).start(),
+                RECONNECTED_BANNER_VISIBLE_MS);
     }
 
     @Override
@@ -310,6 +416,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         int buttonMarginPx = Math.round(FLOATING_BUTTON_MARGIN_DP * getResources().getDisplayMetrics().density);
         setTopMargin(root.findViewById(R.id.btn_open_drawer), topInsetPx + buttonMarginPx);
         setTopMargin(root.findViewById(R.id.btn_my_location), topInsetPx + buttonMarginPx);
+        // Mismo margen que los botones (y mismo alto en el layout): así los tres quedan
+        // centrados en la misma fila, no la píldora flotando por encima de ellos.
+        setTopMargin(root.findViewById(R.id.banner_offline), topInsetPx + buttonMarginPx);
+        setTopMargin(root.findViewById(R.id.banner_online), topInsetPx + buttonMarginPx);
 
         // El velo cubre exactamente la franja que el modal deja libre al toparse abajo de ella.
         ViewGroup.LayoutParams scrimParams = statusBarScrim.getLayoutParams();
@@ -545,13 +655,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 if (!isAdded()) {
                     return;
                 }
+                greetingLoaded = true;
                 String firstName = profile.getName() != null ? profile.getName().split("\\s+")[0] : "";
                 ((TextView) root.findViewById(R.id.text_greeting)).setText(getString(R.string.home_greeting, firstName));
             }
 
             @Override
             public void onError(ApiException error) {
-                // El saludo es cosmético; sin nombre solo se deja el placeholder del layout.
+                // El saludo es cosmético; sin nombre solo se deja el placeholder del layout. Pero
+                // sí queda pendiente, para recuperarlo al volver la señal.
+                greetingLoaded = false;
             }
         });
     }
@@ -560,6 +673,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         addressRepository.getAll(new ApiCallback<List<SavedAddress>>() {
             @Override
             public void onSuccess(List<SavedAddress> addresses) {
+                savedAddressesLoaded = true;
                 if (isAdded()) {
                     bindSavedAddresses(root, addresses);
                 }
@@ -567,6 +681,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
             @Override
             public void onError(ApiException error) {
+                // Se pinta la lista vacía para que el modal no quede a medias, pero marcada como
+                // pendiente: sin esto, "no hay direcciones" y "no hubo red" se veían igual y ya
+                // nunca se distinguían.
+                savedAddressesLoaded = false;
                 if (isAdded()) {
                     bindSavedAddresses(root, Collections.emptyList());
                 }
@@ -604,6 +722,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 new ApiCallback<List<RideSummary>>() {
                     @Override
                     public void onSuccess(List<RideSummary> rides) {
+                        recentTripsLoaded = true;
                         if (isAdded()) {
                             bindRecentTrips(root, rides);
                         }
@@ -611,7 +730,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
                     @Override
                     public void onError(ApiException error) {
-                        // Sección secundaria del modal; sin viajes recientes simplemente queda vacía.
+                        // Sección secundaria del modal; sin viajes recientes simplemente queda
+                        // vacía, pero pendiente de reintento al volver la señal.
+                        recentTripsLoaded = false;
                     }
                 });
     }

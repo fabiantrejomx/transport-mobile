@@ -18,11 +18,15 @@
     <color name="drivo_surface_variant">#1C2C3D</color>
     <color name="drivo_on_surface_variant">#9FB0C0</color>
     <color name="drivo_outline">#33455A</color>
+    <color name="drivo_on_surface_border">#66E7EDF3</color>
 
     <color name="drivo_error">#FFB4AB</color>
     <color name="drivo_on_error">#601410</color>
 
     <color name="drivo_success">#6FD3A6</color>
+    <!-- Texto oscuro sobre el verde claro de arriba — reutiliza el tono "success" del tema claro
+         (#2E7D5B), ya probado en esta misma paleta, en vez de inventar un verde nuevo. -->
+    <color name="drivo_on_success">#2E7D5B</color>
 
     <color name="drivo_scrim">#E6142130</color>
 </resources>

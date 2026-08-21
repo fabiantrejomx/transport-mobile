@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Variante de bg_dot para los botones flotantes sobre el mapa (menú / mi ubicación): fondo y
+     borde siguen el tema por su cuenta, sin backgroundTint desde el código — si se tiñera por
+     fuera, el tint pintaría el borde del mismo color que el relleno y lo anularía.
+
+     El borde parte de colorOnSurface, no de colorOutline: colorOnSurface ya es la inversa tonal
+     de colorSurface en este theme (oscuro sobre fondo claro, claro sobre fondo oscuro), que es
+     justo el contraste que se necesita para no perder el botón contra el mapa al cambiar de
+     tema. colorOutline es demasiado sutil para ese propósito — está pensado para separar
+     superficies parecidas entre sí, no para destacar un botón sobre un mapa.
+
+     Al 40% de opacidad (drivo_on_surface_border) en vez de sólido: a opacidad completa el borde
+     competía visualmente con el ícono en un círculo de solo 44dp. No se puede mezclar opacidad
+     con un ?attr dentro de un shape, por eso es un @color propio en vez de ?attr/colorOnSurface
+     directo — sus dos variantes (values/values-night) siguen el tema igual que un attr. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="?attr/colorSurface" />
+    <stroke
+        android:width="1.5dp"
+        android:color="@color/drivo_on_surface_border" />
+</shape>

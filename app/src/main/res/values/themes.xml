@@ -37,4 +37,24 @@
         <item name="android:textCursorDrawable">@null</item>
         <item name="android:importantForAutofill">no</item>
     </style>
+
+    <!-- Píldora del item seleccionado en el drawer (nav_view), estilo Google Keep: pegada al
+         borde izquierdo del panel (sin esquina ahí) y redondeada solo en el extremo derecho, en
+         vez de la píldora M3 por defecto que flota separada de ambos bordes.
+
+         El lado derecho va en 50%, no en un dp fijo: es una RelativeCornerSize, o sea la mitad
+         del alto real del item, así que da siempre un semicírculo exacto aunque cambie
+         itemMinHeight. Con un valor fijo (28dp) la curva quedaba mal resuelta en cuanto el alto
+         del item no era exactamente el doble.
+
+         Left/Right en vez de Start/End a propósito — MaterialShapeDrawable no espeja estas
+         esquinas en RTL, y la app no soporta RTL (itemShapeInsetStart=0 en activity_home.xml
+         fija el lado izquierdo igual de literal). -->
+    <style name="ShapeAppearanceOverlay.Drivo.NavigationView.Item" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">0dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeTopRight">50%</item>
+        <item name="cornerSizeBottomRight">50%</item>
+    </style>
 </resources>

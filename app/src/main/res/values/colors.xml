@@ -18,12 +18,17 @@
     <color name="drivo_surface_variant">#EEF2F6</color>
     <color name="drivo_on_surface_variant">#55677A</color>
     <color name="drivo_outline">#D6DEE6</color>
+    <!-- drivo_on_surface al 40% de opacidad — borde de los botones flotantes sobre el mapa
+         (bg_dot_outlined.xml): perceptible sin ser tan marcado como el color sólido. -->
+    <color name="drivo_on_surface_border">#6614212E</color>
 
     <color name="drivo_error">#B3261E</color>
     <color name="drivo_on_error">#FFFFFF</color>
 
-    <!-- Color de confirmaciones / punto de origen en el mapa (fuera de los roles estándar de M3) -->
+    <!-- Color de confirmaciones / punto de origen en el mapa (fuera de los roles estándar de M3,
+         no hay colorSuccess en el theme — se referencia siempre como @color, nunca como ?attr) -->
     <color name="drivo_success">#2E7D5B</color>
+    <color name="drivo_on_success">#FFFFFF</color>
 
     <!-- Scrim tras texto sobre el mapa (ej. radar de búsqueda) — mismo tono que la superficie, semitransparente -->
     <color name="drivo_scrim">#E6FFFFFF</color>

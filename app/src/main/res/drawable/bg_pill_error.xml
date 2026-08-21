@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Radio mayor que cualquier alto real de la píldora a propósito: Android lo recorta al medio
+     alto disponible, así que esto garantiza la forma de estadio completa sin depender de
+     calcular el alto exacto del contenido. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="@color/drivo_error" />
-    <corners android:radius="20dp" />
+    <solid android:color="?attr/colorError" />
+    <corners android:radius="100dp" />
 </shape>

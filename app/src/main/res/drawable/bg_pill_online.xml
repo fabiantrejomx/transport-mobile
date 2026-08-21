@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mismo patrón que bg_pill_error.xml — no se reutiliza bg_pill_success.xml porque ese tiene
+     un radio de 20dp pensado para la píldora de ETA en item_driver_offer, no para el alto de
+     44dp de este banner (con 20dp quedaría con lados rectos, no en estadio). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/drivo_success" />
+    <corners android:radius="100dp" />
+</shape>

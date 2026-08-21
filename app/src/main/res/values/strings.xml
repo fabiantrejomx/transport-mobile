@@ -54,12 +54,18 @@
     <string name="home_permission_retry">Reintentar</string>
     <string name="home_permission_open_settings">Abrir ajustes</string>
     <string name="home_greeting">¡Hola, %1$s!</string>
+    <!-- Texto por defecto de text_greeting mientras el perfil no ha cargado (o no pudo cargar
+         sin red) — sin esto el TextView arranca vacío y, al ser wrap_content, ocupa ancho cero:
+         ni siquiera el "¡Hola" se alcanza a ver. -->
+    <string name="home_greeting_default">¡Hola!</string>
     <string name="home_search_hint">¿A dónde vamos hoy?</string>
     <string name="home_pick_on_map">Elegir en el mapa</string>
     <string name="home_saved_addresses">Direcciones guardadas</string>
     <string name="home_recent_trips">Últimos viajes</string>
     <string name="home_load_error">No se pudo cargar tu información</string>
     <string name="home_search_icon_description">Buscar destino</string>
+    <string name="connectivity_offline">Sin conexión a internet</string>
+    <string name="connectivity_restored">Se restableció la conexión</string>
     <string name="home_search_clear_description">Borrar búsqueda</string>
 
     <!-- Drawer -->

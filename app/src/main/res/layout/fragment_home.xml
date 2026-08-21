@@ -17,8 +17,7 @@
         android:layout_height="44dp"
         android:layout_gravity="top|start"
         android:layout_margin="16dp"
-        android:background="@drawable/bg_dot"
-        android:backgroundTint="?attr/colorSurface"
+        android:background="@drawable/bg_dot_outlined"
         android:contentDescription="@string/nav_menu_description"
         android:elevation="4dp"
         android:padding="10dp"
@@ -26,21 +25,21 @@
         app:tint="?attr/colorOnSurface" />
 
     <!-- Reemplaza el botón de ubicación por defecto del SDK de Maps (setMyLocationButtonEnabled
-         se deja en false) para que comparta el mismo estilo redondo que el de menú — el fondo
-         blanco es intencional y fijo, no sigue el tema, igual que en Google Maps mismo. -->
+         se deja en false) para que comparta el mismo estilo redondo que el de menú. Antes tenía
+         fondo blanco fijo (como en Google Maps) sin seguir el tema; ahora sigue el tema igual
+         que btn_open_drawer, con borde para no perderse contra el mapa que también cambia. -->
     <ImageButton
         android:id="@+id/btn_my_location"
         android:layout_width="44dp"
         android:layout_height="44dp"
         android:layout_gravity="top|end"
         android:layout_margin="16dp"
-        android:background="@drawable/bg_dot"
-        android:backgroundTint="@android:color/white"
+        android:background="@drawable/bg_dot_outlined"
         android:contentDescription="@string/home_my_location_description"
         android:elevation="4dp"
         android:padding="10dp"
         android:src="@drawable/ic_my_location"
-        android:tint="#3C4043" />
+        app:tint="?attr/colorOnSurface" />
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/sheet_container"
@@ -83,6 +82,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
+                    android:text="@string/home_greeting_default"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="24sp"
                     android:textStyle="bold"
@@ -266,5 +266,55 @@
         android:alpha="0"
         android:background="?attr/colorSurface"
         android:elevation="12dp" />
+
+    <!-- Aviso de sin conexión, en píldora. Se alinea en la misma fila que los dos botones
+         flotantes: mismo alto (44dp) y mismo margen superior (HomeFragment.applyTopInsets le da
+         inset + 16dp, igual que a ellos), así los tres centros verticales coinciden. El ancho es
+         wrap_content centrado, acotado por 60dp a cada lado = 16dp de margen del botón + 44dp de
+         su ancho, de modo que la píldora nunca puede invadirlos por larga que sea la frase. Si
+         cambia el tamaño o el margen de btn_open_drawer / btn_my_location, hay que actualizar
+         tanto ese 60dp como el alto de aquí.
+
+         Su elevación supera a la del modal (12dp) para seguir siendo visible aunque éste esté
+         expandido a pantalla completa. Se muestra y se oculta solo, siguiendo al
+         ConnectivityRepository — el usuario no tiene que hacer nada. -->
+    <TextView
+        android:id="@+id/banner_offline"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginStart="60dp"
+        android:layout_marginEnd="60dp"
+        android:background="@drawable/bg_pill_error"
+        android:elevation="16dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingHorizontal="18dp"
+        android:text="@string/connectivity_offline"
+        android:textColor="?attr/colorOnError"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <!-- Aviso de reconexión — mismo nivel, tamaño y fila que banner_offline (ver comentario
+         arriba), pero transitorio: HomeFragment.showReconnectedBanner() lo desvanece solo tras
+         unos segundos, no espera a que el usuario haga nada ni a que la señal vuelva a caerse. -->
+    <TextView
+        android:id="@+id/banner_online"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginStart="60dp"
+        android:layout_marginEnd="60dp"
+        android:background="@drawable/bg_pill_online"
+        android:elevation="16dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingHorizontal="18dp"
+        android:text="@string/connectivity_restored"
+        android:textColor="@color/drivo_on_success"
+        android:textSize="13sp"
+        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

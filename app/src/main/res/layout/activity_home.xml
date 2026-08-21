@@ -10,12 +10,30 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- itemShapeInsetStart=0 + el overlay de ShapeAppearanceOverlay.Drivo.NavigationView.Item
+         son lo que logra el estilo Keep: la píldora de seleccionado queda pegada al borde
+         izquierdo (sin esquina ni margen ahí) y redondeada solo del lado derecho, en vez de
+         flotar separada de ambos bordes como el M3 por defecto.
+
+         itemMinHeight=56dp es la altura que Material 3 especifica para los items del navigation
+         drawer; sin fijarla, el alto lo decidía listPreferredItemHeightSmall (~48dp) y la fila
+         quedaba apretada. Los insets vertical van en 0 igual que en el estilo M3 de fábrica
+         (m3_navigation_item_shape_inset_top/bottom): así la píldora ocupa todo el alto del item
+         y la curva se aprecia completa, en vez de encogerla por arriba y por abajo.
+
+         itemShapeInsetEnd=12dp sí es el valor de fábrica de M3, se mantiene. -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:fitsSystemWindows="true"
+        app:itemMinHeight="56dp"
+        app:itemShapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Drivo.NavigationView.Item"
+        app:itemShapeInsetBottom="0dp"
+        app:itemShapeInsetEnd="12dp"
+        app:itemShapeInsetStart="0dp"
+        app:itemShapeInsetTop="0dp"
         app:menu="@menu/drawer_menu" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

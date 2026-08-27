@@ -42,6 +42,7 @@ import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.SavedAddress;
 import com.bng.drivo.data.model.UserProfile;
+import com.bng.drivo.data.model.Waypoint;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AddressRepository;
@@ -56,6 +57,7 @@ import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.service.PlacesAutocompleteService;
 import com.bng.drivo.ui.destination.PickLocationPanel;
+import com.bng.drivo.ui.destination.PickStopPanel;
 import com.bng.drivo.ui.map.MapPresenter;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.price.ConfirmPricePanel;
@@ -120,19 +122,24 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private GoogleMap googleMap;
     private BottomSheetBehavior<View> sheetBehavior;
     private LatLng originLocation = DEFAULT_POSITION;
+    /** Del último OnCameraMoveStartedListener: distingue un arrastre real de un reencuadre nuestro. */
+    private boolean lastCameraMoveWasGesture;
 
     private TripFlowViewModel viewModel;
     private MapPresenter mapPresenter;
     private PickLocationPanel pickLocationPanel;
+    private PickStopPanel pickStopPanel;
     private ConfirmPricePanel confirmPricePanel;
     private SearchingPanel searchingPanel;
     private View panelHome;
     private View panelPickLocation;
+    private View panelPickStop;
     private View panelConfirmPrice;
     private View panelSearching;
     private View sheetContent;
     private View routeCard;
     private View pickLocationPin;
+    private View pickStopPin;
     private View radarOverlay;
 
     private AddressRepository addressRepository;
@@ -151,12 +158,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private boolean greetingLoaded;
     private boolean savedAddressesLoaded;
     private boolean recentTripsLoaded;
+    // Cacheadas para pasárselas a PickStopPanel sin repetir la llamada a red: Home ya las carga
+    // al abrir, y son las mismas direcciones sin importar qué paso del flujo esté activo.
+    private List<SavedAddress> savedAddresses = Collections.emptyList();
     private final PlacesAutocompleteService placesAutocompleteService = new PlacesAutocompleteService(this);
     private final Handler searchDebounceHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearchRunnable;
     private boolean searchModeActive;
     private OnBackPressedCallback backCallback;
     private int lastCollapsedHeightPx = -1;
+    /** Alto del modal en PICK_STOP medido en reposo — ver {@link #updateSheetStops}. */
+    private int pickStopRestingHeightPx;
+    /** Paso cuyo colapso queda por re-afirmar con el panel ya medido — ver {@link #updateSheetStops}. */
+    @Nullable
+    private TripFlowViewModel.Step pendingCollapseStep;
+    /** false cuando el paso no pinta ningún botón flotante y la tarjeta de ruta puede subir. */
+    private boolean routeCardClearsFloatingRow = true;
     private int sheetTopInsetPx;
     /**
      * Paso cuyo panel está realmente puesto en el modal. Va un fundido por detrás de
@@ -202,11 +219,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         panelHome = view.findViewById(R.id.panel_home);
         panelPickLocation = view.findViewById(R.id.panel_pick_location);
+        panelPickStop = view.findViewById(R.id.panel_pick_stop);
         panelConfirmPrice = view.findViewById(R.id.panel_confirm_price);
         panelSearching = view.findViewById(R.id.panel_searching);
         sheetContent = view.findViewById(R.id.sheet_content);
         routeCard = view.findViewById(R.id.card_route_summary);
         pickLocationPin = view.findViewById(R.id.img_pick_location_pin);
+        pickStopPin = view.findViewById(R.id.img_pick_stop_pin);
         radarOverlay = view.findViewById(R.id.layout_radar);
 
         SupportMapFragment mapFragment =
@@ -260,8 +279,41 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                     }
                 });
 
+        pickStopPanel = new PickStopPanel(panelPickStop, mapPresenter, placesAutocompleteService,
+                new PickStopPanel.Callbacks() {
+                    @Override
+                    public void onStopConfirmed(@NonNull String address, double lat, double lng) {
+                        if (isAdded()) {
+                            confirmStopPick(address, lat, lng);
+                        }
+                    }
+
+                    @Override
+                    public void onSearchExpandRequested() {
+                        if (isAdded()) {
+                            sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                        }
+                    }
+
+                    @Override
+                    public void onSearchCollapseRequested() {
+                        if (isAdded()) {
+                            sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                        }
+                    }
+
+                    @Override
+                    public void onStopCancelled() {
+                        if (isAdded()) {
+                            // Misma salida que el botón atrás en este paso: se vuelve a la
+                            // tarifa sin parada y sin recotizar (ver applyStep/CONFIRM_PRICE).
+                            viewModel.goTo(TripFlowViewModel.Step.CONFIRM_PRICE);
+                        }
+                    }
+                });
+
         confirmPricePanel = new ConfirmPricePanel(panelConfirmPrice, routeCard, viewModel, mapPresenter,
-                tripRepository, placesAutocompleteService, new ConfirmPricePanel.Callbacks() {
+                tripRepository, new ConfirmPricePanel.Callbacks() {
             @Override
             public void onRideCreated(@NonNull Ride ride) {
                 if (isAdded()) {
@@ -271,6 +323,20 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
             @Override
             public void onQuoteFailed() {
+                if (isAdded()) {
+                    returnToIdle();
+                }
+            }
+
+            @Override
+            public void onAddStopRequested() {
+                if (isAdded()) {
+                    viewModel.goTo(TripFlowViewModel.Step.PICK_STOP);
+                }
+            }
+
+            @Override
+            public void onTripCancelled() {
                 if (isAdded()) {
                     returnToIdle();
                 }
@@ -312,6 +378,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 if (step == TripFlowViewModel.Step.PICK_LOCATION
                         || step == TripFlowViewModel.Step.CONFIRM_PRICE) {
                     returnToIdle();
+                } else if (step == TripFlowViewModel.Step.PICK_STOP) {
+                    // Si había una búsqueda expandida, el primer "atrás" solo la cancela (igual
+                    // que el buscador de Home) — recién el segundo sale del paso. Sin parada
+                    // nueva que guardar, el panel de tarifa ya tenía todo lo que tenía antes de
+                    // entrar aquí, así que basta con volver a mostrarlo.
+                    if (!pickStopPanel.handleBackPressed()) {
+                        viewModel.goTo(TripFlowViewModel.Step.CONFIRM_PRICE);
+                    }
                 } else if (step == TripFlowViewModel.Step.SEARCHING) {
                     searchingPanel.confirmCancel();
                 }
@@ -345,6 +419,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (root == null) {
             return;
         }
+        // Capturado antes de swapPanel: es lo único que todavía dice de dónde venimos, ya que
+        // swapPanel pisa displayedStep al paso nuevo (en el acto si animate es false).
+        TripFlowViewModel.Step previousStep = displayedStep;
         boolean idle = step == TripFlowViewModel.Step.IDLE;
 
         if (!idle) {
@@ -353,8 +430,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         // El modal vuelve a su posición base antes de medir el panel nuevo: si venía expandido
         // (buscador abierto) el peek recién calculado no se aplicaría hasta soltarlo.
-        sheetBehavior.setDraggable(idle);
+        //
+        // PICK_STOP también es arrastrable, igual que IDLE: es el único paso con su propio
+        // buscador (ver PickStopPanel), y arrastrar el modal hacia abajo es una de las formas de
+        // cancelar esa búsqueda, junto al botón "Cancelar búsqueda" de su propio panel.
+        boolean draggable = idle || step == TripFlowViewModel.Step.PICK_STOP;
+        sheetBehavior.setDraggable(draggable);
         sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        pendingCollapseStep = step;
         applyFullScreenTransition(0f);
 
         swapPanel(step, animate);
@@ -369,13 +452,31 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         addStopRow.setEnabled(step == TripFlowViewModel.Step.CONFIRM_PRICE);
         addStopRow.setClickable(step == TripFlowViewModel.Step.CONFIRM_PRICE);
         pickLocationPin.setVisibility(step == TripFlowViewModel.Step.PICK_LOCATION ? View.VISIBLE : View.GONE);
-        root.findViewById(R.id.btn_my_location).setVisibility(
-                step == TripFlowViewModel.Step.SEARCHING ? View.GONE : View.VISIBLE);
-        updateNavButtonIcon(root, idle);
+        pickStopPin.setVisibility(step == TripFlowViewModel.Step.PICK_STOP ? View.VISIBLE : View.GONE);
+        // Los pasos que ya resuelven la salida dentro del modal ("Cancelar") se quedan sin flecha
+        // flotante: una etiqueta dice lo que hace y una flecha desnuda no, y en PICK_STOP el
+        // modal expandido la tapaba de todos modos. Se aplica a los dos a la vez para que el
+        // botón no se esfume y reaparezca al ir y volver entre ellos.
+        boolean showNavButton = step != TripFlowViewModel.Step.CONFIRM_PRICE
+                && step != TripFlowViewModel.Step.PICK_STOP;
+        // En CONFIRM_PRICE el mapa queda congelado (abajo), así que no hay nada que recentrar; en
+        // SEARCHING pasaba ya lo mismo. En PICK_STOP sí se conserva: ahí arrastrar el mapa es el
+        // mecanismo para colocar el pin, y volver a la ubicación propia es una ayuda real.
+        boolean showMyLocation = step != TripFlowViewModel.Step.SEARCHING
+                && step != TripFlowViewModel.Step.CONFIRM_PRICE;
+        setNavButtonVisible(root, showNavButton, idle);
+        root.findViewById(R.id.btn_my_location).setVisibility(showMyLocation ? View.VISIBLE : View.GONE);
+        // Sin ningún flotante arriba, la tarjeta de ruta ya no tiene que librar esa fila y sube
+        // hasta el margen normal — ver applyTopInsets.
+        routeCardClearsFloatingRow = showNavButton || showMyLocation;
         if (getActivity() instanceof HomeActivity) {
             ((HomeActivity) requireActivity()).setDrawerEnabled(idle);
         }
-        mapPresenter.setGesturesEnabled(step != TripFlowViewModel.Step.SEARCHING);
+        // Congelado también al confirmar la tarifa: sin controles de mapa en ese paso, dejar los
+        // gestos activos permitiría alejarse de la ruta sin nada que la devuelva al encuadre
+        // (MapPresenter solo reencuadra al dibujarla o al cambiar el padding).
+        mapPresenter.setGesturesEnabled(step != TripFlowViewModel.Step.SEARCHING
+                && step != TripFlowViewModel.Step.CONFIRM_PRICE);
 
         if (step != TripFlowViewModel.Step.SEARCHING) {
             searchingPanel.hide();
@@ -383,13 +484,34 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (step != TripFlowViewModel.Step.PICK_LOCATION) {
             pickLocationPanel.hide();
         }
+        if (step != TripFlowViewModel.Step.PICK_STOP) {
+            pickStopPanel.hide();
+        }
         if (idle) {
             mapPresenter.clearRoute();
+            // El acercamiento a la ubicación del usuario se había quedado en el alejamiento que
+            // deja el encuadre de la ruta (ver MapPresenter.frame): sin este recentrado, cancelar
+            // o volver desde cualquier paso del flujo dejaba el mapa alejado en vez de volver a
+            // la vista inicial de Home.
+            if (hasLocationPermission()) {
+                showMyLocation();
+            }
         } else if (step == TripFlowViewModel.Step.PICK_LOCATION) {
             mapPresenter.clearRoute();
             pickLocationPanel.show();
+        } else if (step == TripFlowViewModel.Step.PICK_STOP) {
+            // La ruta origen-destino ya dibujada se deja tal cual: es el contexto sobre el que
+            // se elige la parada, y no hay pantalla nueva que encuadrar desde cero.
+            pickStopPanel.show(savedAddresses, viewModel.getOrigin());
         } else if (step == TripFlowViewModel.Step.CONFIRM_PRICE) {
-            confirmPricePanel.show();
+            // Volver de PICK_STOP no es una entrada nueva al paso: si hubo parada nueva,
+            // confirmStopPick refresca ruta y cotización por su cuenta justo después de este
+            // goTo; si fue un simple atrás, el panel no cambió nada que haya que recotizar.
+            // Llamar a show() aquí resetearía igual la tarifa que el pasajero ya había ajustado
+            // con el slider.
+            if (previousStep != TripFlowViewModel.Step.PICK_STOP) {
+                confirmPricePanel.show();
+            }
         } else {
             searchingPanel.show();
         }
@@ -411,6 +533,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             panelHome.setVisibility(step == TripFlowViewModel.Step.IDLE ? View.VISIBLE : View.GONE);
             panelPickLocation.setVisibility(
                     step == TripFlowViewModel.Step.PICK_LOCATION ? View.VISIBLE : View.GONE);
+            panelPickStop.setVisibility(
+                    step == TripFlowViewModel.Step.PICK_STOP ? View.VISIBLE : View.GONE);
             panelConfirmPrice.setVisibility(
                     step == TripFlowViewModel.Step.CONFIRM_PRICE ? View.VISIBLE : View.GONE);
             panelSearching.setVisibility(
@@ -435,6 +559,30 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             swap.run();
             sheetContent.animate().alpha(1f).setDuration(PANEL_FADE_IN_MS).start();
         }).start();
+    }
+
+    /**
+     * Muestra u oculta el botón flotante de navegación. Al reaparecer no se funde: el fundido en
+     * el sitio ({@link #updateNavButtonIcon}) solo tiene sentido cuando el botón ya estaba a la
+     * vista y lo que cambia es su papel — animar una reaparición dejaría además el alpha a medias
+     * si el cambio de paso interrumpe la animación anterior.
+     */
+    private void setNavButtonVisible(View root, boolean visible, boolean idle) {
+        ImageButton navButton = root.findViewById(R.id.btn_open_drawer);
+        if (!visible) {
+            navButton.animate().cancel();
+            navButton.setVisibility(View.GONE);
+            return;
+        }
+        if (navButton.getVisibility() != View.VISIBLE) {
+            navButton.animate().cancel();
+            navButton.setAlpha(1f);
+            navButton.setVisibility(View.VISIBLE);
+            navButtonIdle = idle;
+            applyNavIcon(navButton, idle);
+            return;
+        }
+        updateNavButtonIcon(root, idle);
     }
 
     /**
@@ -467,6 +615,20 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         navButton.setImageResource(idle ? R.drawable.ic_menu : R.drawable.ic_back);
         navButton.setContentDescription(
                 getString(idle ? R.string.nav_menu_description : R.string.action_back));
+    }
+
+    /**
+     * Parada elegida sobre el mapa (paso PICK_STOP): se guarda y se vuelve a la confirmación de
+     * tarifa ya con la ruta y la cotización al día — ver el comentario de la rama CONFIRM_PRICE
+     * en {@link #applyStep}.
+     */
+    private void confirmStopPick(String address, double lat, double lng) {
+        viewModel.setStop(new Waypoint(lat, lng, address));
+        // Primero el cambio de paso (esconde el pin fijo de inmediato) y solo después el
+        // reencuadre de la ruta: si el pin siguiera visible durante el vuelo de cámara, se vería
+        // "flotar" separado del punto que en realidad quedó marcado.
+        viewModel.goTo(TripFlowViewModel.Step.CONFIRM_PRICE);
+        confirmPricePanel.refreshAfterStopChange();
     }
 
     /** Destino elegido (buscador, dirección guardada o pin en el mapa): arranca la negociación. */
@@ -684,6 +846,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                     if (searchModeActive) {
                         exitSearchModeUi(root);
                     }
+                    // Mismo caso para el buscador de PICK_STOP: no hace nada si no había una
+                    // búsqueda en curso (ver PickStopPanel.handleBackPressed).
+                    pickStopPanel.handleBackPressed();
                 } else if (newState == BottomSheetBehavior.STATE_EXPANDED) {
                     applyFullScreenTransition(1f);
                 }
@@ -768,7 +933,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         // centrados en la misma fila, no la píldora flotando por encima de ellos.
         setTopMargin(root.findViewById(R.id.banner_offline), topInsetPx + buttonMarginPx);
         setTopMargin(root.findViewById(R.id.banner_online), topInsetPx + buttonMarginPx);
-        setTopMargin(routeCard, topInsetPx + Math.round(ROUTE_CARD_TOP_MARGIN_DP * density));
+        // Sin flotantes arriba no hay fila que librar, y la tarjeta sube al margen normal — son
+        // los 52dp de diferencia entre ambas constantes, que se los queda la zona útil del mapa.
+        int routeCardMarginDp = routeCardClearsFloatingRow
+                ? ROUTE_CARD_TOP_MARGIN_DP : FLOATING_BUTTON_MARGIN_DP;
+        setTopMargin(routeCard, topInsetPx + Math.round(routeCardMarginDp * density));
 
         // El velo cubre exactamente la franja que el modal deja libre al toparse abajo de ella.
         ViewGroup.LayoutParams scrimParams = statusBarScrim.getLayoutParams();
@@ -794,8 +963,24 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
      */
     private void updateSheetStops(View root) {
         applyTopInsets(root);
-        int collapsedHeightPx = displayedStep == TripFlowViewModel.Step.IDLE
-                ? idlePeekHeight(root) : sheetContent.getHeight();
+        int collapsedHeightPx;
+        if (displayedStep == TripFlowViewModel.Step.IDLE) {
+            collapsedHeightPx = idlePeekHeight(root);
+        } else if (displayedStep == TripFlowViewModel.Step.PICK_STOP) {
+            // Mismo alto que los demás pasos, pero congelado mientras se busca: con las
+            // predicciones en pantalla el panel mide bastante más que en reposo, y ese valor
+            // inflado se quedaba cacheado y se colaba como corte del paso siguiente al confirmar
+            // la parada — el modal aparecía más arriba de lo normal, comiéndose el mapa.
+            if (!pickStopPanel.isSearching()) {
+                int measured = sheetContent.getHeight();
+                if (measured > 0) {
+                    pickStopRestingHeightPx = measured;
+                }
+            }
+            collapsedHeightPx = pickStopRestingHeightPx;
+        } else {
+            collapsedHeightPx = sheetContent.getHeight();
+        }
         if (collapsedHeightPx <= 0) {
             return;
         }
@@ -806,6 +991,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             lastCollapsedHeightPx = collapsedHeightPx;
             sheetBehavior.setPeekHeight(collapsedHeightPx, animateNextPeek);
             animateNextPeek = false;
+        }
+        // Con el panel nuevo ya medido, se re-afirma el colapso que pidió applyStep.
+        //
+        // setPeekHeight() no recalcula el destino de un asentamiento en curso: si el modal venía
+        // expandido (el buscador de PICK_STOP) y applyStep pidió colapsarlo, el asentamiento
+        // arranca calculado contra el peek del panel viejo, y el peek nuevo llega cuando ya está
+        // en vuelo. El modal aterrizaba entonces en el offset antiguo — visiblemente más arriba
+        // de su sitio, comiéndose el mapa — aunque el peek guardado ya fuera el correcto.
+        //
+        // Se espera a que displayedStep alcance el paso pedido (el swap va un fundido por detrás)
+        // para re-afirmarlo una sola vez y con la medida definitiva. Acotado a los cambios de
+        // paso a propósito: fuera de ellos el usuario puede estar arrastrando el modal en IDLE, y
+        // forzar el colapso ahí le arrebataría el gesto.
+        if (pendingCollapseStep != null && displayedStep == pendingCollapseStep) {
+            pendingCollapseStep = null;
+            sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
         }
         // Fuera del memo: la tarjeta de ruta aparece con alto 0 y solo queda medida en el pase
         // siguiente, cuando el modal ya no cambió de alto y el memo cortaría la actualización.
@@ -843,6 +1044,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         // cuesta nada mantener los dos al día nada más pedirlo el mapa.
         centerInViewport(radarOverlay, topPaddingPx, sheetHeightPx);
         centerInViewport(pickLocationPin, topPaddingPx, sheetHeightPx);
+        centerInViewport(pickStopPin, topPaddingPx, sheetHeightPx);
     }
 
     private void centerInViewport(View overlay, int topPaddingPx, int bottomPaddingPx) {
@@ -1067,6 +1269,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private void bindSavedAddresses(View root, List<SavedAddress> addresses) {
+        savedAddresses = addresses;
         LinearLayout container = root.findViewById(R.id.container_saved_addresses);
         container.removeAllViews();
 
@@ -1145,12 +1348,28 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(
                 initialCamera != null ? initialCamera : CameraPosition.fromLatLngZoom(DEFAULT_POSITION, 15f)));
         // El SDK solo permite un listener de cada tipo por mapa: como es compartido entre pasos,
-        // este es el único punto que los registra, y delega a PickLocationPanel según si su
-        // paso está activo (ver su javadoc) en vez de pelear por el mismo slot de listener.
-        googleMap.setOnCameraMoveStartedListener(reason -> pickLocationPanel.onCameraMoveStarted());
+        // este es el único punto que los registra, y delega a los paneles de "elegir en el
+        // mapa" según cuál esté activo (cada uno ignora la llamada si su paso no lo está, ver
+        // su propio javadoc) en vez de pelear por el mismo slot de listener.
+        //
+        // Solo se reenvía cuando el movimiento es un arrastre real del usuario (REASON_GESTURE):
+        // el mapa también se reencuadra por su cuenta cuando cambia el padding (por ejemplo, al
+        // expandirse el modal de PICK_STOP para mostrar predicciones — ver updateMapViewport), y
+        // ese reencuadre programático no debe pisar la dirección que el pin ya tenía ni, peor
+        // aún, la búsqueda que el usuario esté escribiendo en ese momento.
+        googleMap.setOnCameraMoveStartedListener(reason -> {
+            lastCameraMoveWasGesture = reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE;
+            if (lastCameraMoveWasGesture) {
+                pickLocationPanel.onCameraMoveStarted();
+                pickStopPanel.onCameraMoveStarted();
+            }
+        });
         googleMap.setOnCameraIdleListener(() -> {
             saveCameraPosition();
-            pickLocationPanel.onCameraIdle();
+            if (lastCameraMoveWasGesture) {
+                pickLocationPanel.onCameraIdle();
+                pickStopPanel.onCameraIdle();
+            }
         });
 
         SupportMapFragment mapFragment =

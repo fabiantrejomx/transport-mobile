@@ -74,6 +74,20 @@
         android:visibility="gone"
         app:tint="@color/drivo_secondary" />
 
+    <!-- Pin fijo del paso PICK_STOP: mismo patrón que img_pick_location_pin, pero teñido del
+         color que MapPresenter usa para los puntos intermedios de la ruta (drivo_primary), para
+         que el pin anticipe el color del marcador que va a dejar. -->
+    <ImageView
+        android:id="@+id/img_pick_stop_pin"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/pick_stop_pin_description"
+        android:src="@drawable/ic_map_pin"
+        android:translationY="-18dp"
+        android:visibility="gone"
+        app:tint="@color/drivo_primary" />
+
     <!-- Radar del paso SEARCHING. Se centra en el hueco visible del mapa, no en la pantalla:
          HomeFragment le da un margen inferior igual al alto del modal para que no quede medio
          tapado por él. Se oculta en cuanto llega una oferta, que pasa a ser el foco. -->
@@ -150,6 +164,13 @@
             <include
                 android:id="@+id/panel_pick_location"
                 layout="@layout/panel_pick_location"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/panel_pick_stop"
+                layout="@layout/panel_pick_stop"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone" />

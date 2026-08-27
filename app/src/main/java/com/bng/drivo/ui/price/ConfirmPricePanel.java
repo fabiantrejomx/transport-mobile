@@ -15,7 +15,6 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiErrorCode;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.TripRepository;
-import com.bng.drivo.service.PlacesAutocompleteService;
 import com.bng.drivo.ui.home.TripFlowViewModel;
 import com.bng.drivo.ui.map.MapPresenter;
 import com.bng.drivo.util.LoadingButtonHelper;
@@ -43,6 +42,12 @@ public class ConfirmPricePanel {
 
         /** Sin cotización no hay nada que confirmar: el host vuelve a Home. */
         void onQuoteFailed();
+
+        /** "+ Añadir parada" tocado: el host pasa al paso de elegirla sobre el mapa. */
+        void onAddStopRequested();
+
+        /** "Cancelar": se descarta la solicitud y el host vuelve a Home. */
+        void onTripCancelled();
     }
 
     /** El Slider de Material exige que (max - min) sea múltiplo exacto de este paso. */
@@ -53,7 +58,6 @@ public class ConfirmPricePanel {
     private final TripFlowViewModel viewModel;
     private final MapPresenter mapPresenter;
     private final TripRepository tripRepository;
-    private final PlacesAutocompleteService placesAutocompleteService;
     private final Callbacks callbacks;
 
     private final TextView textOrigin;
@@ -66,20 +70,19 @@ public class ConfirmPricePanel {
     private final Slider slider;
     private final View progressQuote;
     private final MaterialButton btnRequestTrip;
+    private final MaterialButton btnCancelTrip;
 
     private boolean requestingRide;
 
     public ConfirmPricePanel(@NonNull View panel, @NonNull View routeCard,
                              @NonNull TripFlowViewModel viewModel, @NonNull MapPresenter mapPresenter,
                              @NonNull TripRepository tripRepository,
-                             @NonNull PlacesAutocompleteService placesAutocompleteService,
                              @NonNull Callbacks callbacks) {
         this.panel = panel;
         this.routeCard = routeCard;
         this.viewModel = viewModel;
         this.mapPresenter = mapPresenter;
         this.tripRepository = tripRepository;
-        this.placesAutocompleteService = placesAutocompleteService;
         this.callbacks = callbacks;
 
         textOrigin = routeCard.findViewById(R.id.text_origin);
@@ -92,7 +95,9 @@ public class ConfirmPricePanel {
         slider = panel.findViewById(R.id.slider_price);
         progressQuote = panel.findViewById(R.id.progress_quote);
         btnRequestTrip = panel.findViewById(R.id.btn_request_trip);
+        btnCancelTrip = panel.findViewById(R.id.btn_cancel_trip);
 
+        btnCancelTrip.setOnClickListener(v -> callbacks.onTripCancelled());
         slider.addOnChangeListener((s, value, fromUser) -> textPriceAmount.setText(formatPrice(value)));
         panel.findViewById(R.id.row_payment).setOnClickListener(v ->
                 Toast.makeText(context(), R.string.confirm_price_payment_coming_soon, Toast.LENGTH_SHORT).show());
@@ -111,6 +116,7 @@ public class ConfirmPricePanel {
      */
     public void show() {
         requestingRide = false;
+        btnCancelTrip.setEnabled(true);
         LoadingButtonHelper.setLoading(btnRequestTrip, false);
         textOrigin.setText(viewModel.getOriginText());
         textDestination.setText(viewModel.getDestinationText());
@@ -123,15 +129,19 @@ public class ConfirmPricePanel {
         if (viewModel.getStop() != null) {
             return;
         }
-        placesAutocompleteService.launch(context(), new PlacesAutocompleteService.ResultListener() {
-            @Override
-            public void onPlaceSelected(String address, double lat, double lng) {
-                viewModel.setStop(new Waypoint(lat, lng, address));
-                bindStopRow();
-                mapPresenter.showRoute(viewModel.getRoutePoints());
-                loadQuote();
-            }
-        });
+        callbacks.onAddStopRequested();
+    }
+
+    /**
+     * Igual que {@link #show()} pero sin resetear el slider ni el spinner de golpe: se llama al
+     * volver del paso PICK_STOP con una parada nueva ya guardada en el ViewModel. Origen y
+     * destino no cambiaron, así que no hace falta repintar esas filas — solo la parada, la ruta
+     * (ahora con el punto intermedio) y la cotización, que sí depende de la distancia real.
+     */
+    public void refreshAfterStopChange() {
+        bindStopRow();
+        mapPresenter.showRoute(viewModel.getRoutePoints());
+        loadQuote();
     }
 
     private void removeStop() {
@@ -222,6 +232,9 @@ public class ConfirmPricePanel {
         }
         requestingRide = true;
         setFormEnabled(false);
+        // Cancelar sigue disponible mientras se cotiza, pero no mientras POST /rides está en
+        // vuelo: salir justo ahí dejaría el viaje ya creado en el servidor sin nadie mirándolo.
+        btnCancelTrip.setEnabled(false);
         LoadingButtonHelper.setLoading(btnRequestTrip, true);
 
         tripRepository.createRide(quote.getId(), slider.getValue(), new ApiCallback<Ride>() {
@@ -291,6 +304,7 @@ public class ConfirmPricePanel {
     private void failRequest() {
         requestingRide = false;
         setFormEnabled(true);
+        btnCancelTrip.setEnabled(true);
         LoadingButtonHelper.setLoading(btnRequestTrip, false);
         Toast.makeText(context(), R.string.confirm_price_request_error, Toast.LENGTH_SHORT).show();
     }

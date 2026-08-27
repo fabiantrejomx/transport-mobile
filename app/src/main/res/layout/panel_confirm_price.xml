@@ -114,4 +114,20 @@
         android:textAllCaps="false"
         android:textColor="@android:color/white"
         app:cornerRadius="16dp" />
+
+    <!-- Única salida visible de este paso: aquí ya no hay flecha flotante (ver
+         HomeFragment.applyStep). Va como TextButton y no Outlined a propósito — pegado a un CTA
+         verde de ancho completo, el peso visual bajo reduce el toque por error y es lo más barato
+         en alto, que es lo que la tarjeta de ruta acaba de ganar arriba. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_cancel_trip"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:text="@string/confirm_price_cancel"
+        android:textAllCaps="false"
+        app:cornerRadius="16dp" />
 </LinearLayout>

@@ -165,12 +165,25 @@
     <string name="pick_location_fallback_address">Ubicación seleccionada en el mapa</string>
     <string name="pick_location_resolving_address">Buscando dirección…</string>
 
+    <!-- Elegir parada en el mapa -->
+    <string name="pick_stop_confirm">Confirmar parada</string>
+    <string name="pick_stop_pin_description">Punto seleccionado para la parada</string>
+    <string name="pick_stop_search_hint">Escribe la dirección de la parada</string>
+    <string name="pick_stop_search_icon_description">Buscar parada</string>
+    <string name="pick_stop_search_clear_description">Borrar búsqueda</string>
+    <string name="pick_stop_cancel">Cancelar</string>
+    <string name="pick_stop_cancel_search">Cancelar búsqueda</string>
+    <string name="pick_stop_no_results">Sin resultados para tu búsqueda</string>
+
     <!-- Confirma tu viaje -->
     <string name="confirm_price_title">Confirma tu viaje</string>
     <string name="confirm_price_label">Tarifa Sugerida LibreGO</string>
     <string name="confirm_price_payment_cash">💵 Pago en Efectivo</string>
     <string name="confirm_price_payment_coming_soon">Próximamente: otros métodos de pago</string>
     <string name="confirm_price_request_trip">Solicitar Viaje</string>
+    <!-- "Cancelar" a secas, no "Cancelar solicitud" (SEARCHING): en este paso todavía no se ha
+         creado ningún viaje en el servidor — eso ocurre al tocar Solicitar Viaje. -->
+    <string name="confirm_price_cancel">Cancelar</string>
     <string name="confirm_price_quote_error">No se pudo calcular la tarifa. Intenta de nuevo.</string>
     <string name="confirm_price_request_error">No se pudo solicitar el viaje. Intenta de nuevo.</string>
     <string name="confirm_price_add_stop">+ Añadir parada</string>

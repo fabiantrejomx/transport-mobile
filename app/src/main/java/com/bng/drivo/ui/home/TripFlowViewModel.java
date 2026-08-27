@@ -33,6 +33,8 @@ public class TripFlowViewModel extends ViewModel {
         PICK_LOCATION,
         /** Destino elegido: ruta dibujada, tarifa negociable en el modal. */
         CONFIRM_PRICE,
+        /** Pin fijo al centro sobre la ruta ya dibujada, para elegir una parada intermedia. */
+        PICK_STOP,
         /** Viaje ya creado: radar sobre el mapa y ofertas de una en una. */
         SEARCHING
     }

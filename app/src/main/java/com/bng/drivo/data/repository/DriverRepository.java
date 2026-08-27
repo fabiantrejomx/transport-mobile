@@ -3,8 +3,11 @@ package com.bng.drivo.data.repository;
 import com.bng.drivo.data.model.DriverApplication;
 import com.bng.drivo.data.model.IncomingRequest;
 import com.bng.drivo.data.model.Ride;
+import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.Wallet;
 import com.bng.drivo.data.remote.ApiCallback;
+
+import java.util.List;
 
 public interface DriverRepository {
 
@@ -51,4 +54,14 @@ public interface DriverRepository {
 
     /** GET /driver/wallet */
     void getWallet(ApiCallback<Wallet> callback);
+
+    /** GET /rides?role=driver — los viajes que hizo este conductor, no los del pasajero. */
+    void getRideHistory(int limit, ApiCallback<List<RideSummary>> callback);
+
+    /**
+     * GET /rides/{id} — el detalle trae el bloque {@code driver}, y ahí viene la calificación
+     * del propio conductor: es el único punto del contrato donde ese número existe (no hay
+     * "GET mi calificación" ni viene en /me). Ver DriverSettingsActivity.
+     */
+    void getRideDetail(String rideId, ApiCallback<Ride> callback);
 }

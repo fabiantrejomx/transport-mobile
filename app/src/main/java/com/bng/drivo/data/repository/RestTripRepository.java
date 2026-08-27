@@ -2,6 +2,7 @@ package com.bng.drivo.data.repository;
 
 import android.content.Context;
 
+import com.bng.drivo.data.model.Offer;
 import com.bng.drivo.data.model.Quote;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
@@ -14,6 +15,7 @@ import com.bng.drivo.data.remote.TransportApiService;
 import com.bng.drivo.data.remote.dto.CreateRideRequest;
 import com.bng.drivo.data.remote.dto.DriverSummaryDto;
 import com.bng.drivo.data.remote.dto.LatLngDto;
+import com.bng.drivo.data.remote.dto.OfferCardDto;
 import com.bng.drivo.data.remote.dto.OfferIdRequest;
 import com.bng.drivo.data.remote.dto.PlaceDto;
 import com.bng.drivo.data.remote.dto.QuoteDto;
@@ -24,6 +26,8 @@ import com.bng.drivo.data.remote.dto.RideSummaryDto;
 import com.bng.drivo.data.remote.dto.SosRequest;
 import com.bng.drivo.data.remote.dto.SosResponseDto;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -77,6 +81,58 @@ public class RestTripRepository implements TripRepository {
                         callback.onError(error);
                     }
                 });
+    }
+
+    @Override
+    public void getOffers(String rideId, ApiCallback<List<Offer>> callback) {
+        ApiCallDispatcher.enqueue(service.getOffers(rideId), new ApiCallback<List<OfferCardDto>>() {
+            @Override
+            public void onSuccess(List<OfferCardDto> result) {
+                List<Offer> offers = new ArrayList<>();
+                if (result != null) {
+                    for (OfferCardDto dto : result) {
+                        offers.add(toOffer(dto));
+                    }
+                }
+                callback.onSuccess(offers);
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    /**
+     * Misma forma que arma {@code FirestoreRideRealtimeRepository} desde el canal en vivo: las dos
+     * fuentes tienen que producir el mismo {@link Offer} o la pantalla vería dos ofertas distintas
+     * según por dónde llegó la misma.
+     */
+    private Offer toOffer(OfferCardDto dto) {
+        DriverSummaryDto driver = dto.driver;
+        return new Offer(dto.offer_id,
+                driver != null ? driver.name : null,
+                driver != null ? driver.rating : null,
+                driver != null ? driver.brand : null,
+                driver != null ? driver.model : null,
+                driver != null ? driver.color : null,
+                driver != null ? driver.plate : null,
+                dto.amount, dto.eta_min,
+                dto.queue_position, dto.queue_total,
+                parseInstantMillis(dto.expires_at));
+    }
+
+    /** El contrato manda los instantes en ISO-8601; el modelo los guarda en milisegundos. */
+    private static Long parseInstantMillis(String isoTimestamp) {
+        if (isoTimestamp == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(isoTimestamp).toEpochMilli();
+        } catch (DateTimeParseException malFormado) {
+            return null;
+        }
     }
 
     @Override

@@ -31,6 +31,7 @@ import com.bng.drivo.data.repository.StorageRepository;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.util.ImageCompressor;
 import com.bng.drivo.util.LoadingButtonHelper;
+import com.bng.drivo.util.SubmittedApplicationCache;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -350,6 +351,11 @@ public class DriverRegistrationActivity extends AuthenticatedActivity {
                 year, isOwner, new ApiCallback<DriverApplication>() {
                     @Override
                     public void onSuccess(DriverApplication result) {
+                        // El contrato no devuelve estos datos en ningún GET; se guardan aquí para
+                        // que el conductor pueda revisar después qué fue lo que envió a revisión
+                        // (ver SubmittedApplicationCache y DriverSettingsActivity).
+                        SubmittedApplicationCache.save(DriverRegistrationActivity.this, modality, curp,
+                                rfc.isEmpty() ? null : rfc, brand, model, color, plate, year, isOwner);
                         uploadDocuments(requiredTypes);
                     }
 

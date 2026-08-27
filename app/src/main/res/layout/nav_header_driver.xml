@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cabecera del drawer del conductor: identidad + saldo y viajes de hoy.
+     Estos dos números estaban en el modal de Inicio, encima del botón de conectarse, pero ahí
+     estorbaban: ese modal solo tiene un trabajo, ponerse en línea. Aquí siguen a un toque del
+     mapa (abrir el cajón) sin competir con el botón, y tocarlos abre Ganancias, que es donde vive
+     el detalle real (el libro contable de /driver/wallet).
+
+     minWidth de 280dp porque el NavigationView es wrap_content: sin esto el ancho del cajón lo
+     decidiría el item de menú más largo y la cabecera saldría apretada. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_header_driver"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:minWidth="280dp"
+    android:orientation="vertical"
+    android:paddingHorizontal="20dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="18dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/text_nav_avatar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="?attr/colorPrimaryContainer"
+            android:gravity="center"
+            android:textColor="?attr/colorOnPrimaryContainer"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            tools:text="AG" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/text_nav_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Alfonso González" />
+
+            <TextView
+                android:id="@+id/text_nav_role"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="@string/driver_nav_header_role"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_stat_tile"
+            android:orientation="vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:text="@string/driver_home_stat_balance_label"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/text_nav_balance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="$ 350.00 MXN" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_stat_tile"
+            android:orientation="vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:text="@string/driver_home_stat_trips_label"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/text_nav_trips_today"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="4" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/driver_nav_header_hint"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+</LinearLayout>

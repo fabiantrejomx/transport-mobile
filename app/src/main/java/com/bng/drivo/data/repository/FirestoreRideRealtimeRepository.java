@@ -1,5 +1,7 @@
 package com.bng.drivo.data.repository;
 
+import android.util.Log;
+
 import com.bng.drivo.data.model.Offer;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -11,7 +13,23 @@ import java.util.Map;
 
 public class FirestoreRideRealtimeRepository implements RideRealtimeRepository {
 
+    private static final String TAG = "RideRealtime";
+
     private final FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+
+    /**
+     * Un listener que falla es indistinguible de uno que no recibe nada, y así se perdió una vez
+     * la lista entera de ofertas del pasajero: las reglas de Firestore la negaban (faltaba el
+     * documento padre rides/{id}) y en pantalla eso se veía igual que "todavía nadie ofertó".
+     * Registrarlo no arregla nada por sí solo, pero el fallo deja de ser mudo.
+     */
+    private static boolean failed(String what, com.google.firebase.firestore.FirebaseFirestoreException error) {
+        if (error == null) {
+            return false;
+        }
+        Log.w(TAG, "El canal en vivo de " + what + " falló: " + error.getCode(), error);
+        return true;
+    }
 
     @Override
     public RealtimeSubscription observeOffers(String rideId, OffersListener listener) {
@@ -19,7 +37,7 @@ public class FirestoreRideRealtimeRepository implements RideRealtimeRepository {
                 .collection("rides").document(rideId).collection("offers")
                 .orderBy("queue_position")
                 .addSnapshotListener((snapshot, error) -> {
-                    if (error != null || snapshot == null) {
+                    if (failed("las ofertas del viaje " + rideId, error) || snapshot == null) {
                         return;
                     }
                     List<Offer> offers = new ArrayList<>();
@@ -63,7 +81,8 @@ public class FirestoreRideRealtimeRepository implements RideRealtimeRepository {
         com.google.firebase.firestore.ListenerRegistration registration = firestore
                 .collection("rides").document(rideId)
                 .addSnapshotListener((snapshot, error) -> {
-                    if (error != null || snapshot == null || !snapshot.exists()) {
+                    if (failed("el estado del viaje " + rideId, error)
+                            || snapshot == null || !snapshot.exists()) {
                         return;
                     }
                     String status = snapshot.getString("status");
@@ -79,7 +98,8 @@ public class FirestoreRideRealtimeRepository implements RideRealtimeRepository {
         com.google.firebase.firestore.ListenerRegistration registration = firestore
                 .collection("trips").document(rideId).collection("live").document("driver")
                 .addSnapshotListener((snapshot, error) -> {
-                    if (error != null || snapshot == null || !snapshot.exists()) {
+                    if (failed("la posición del conductor en el viaje " + rideId, error)
+                            || snapshot == null || !snapshot.exists()) {
                         return;
                     }
                     Double lat = snapshot.getDouble("lat");

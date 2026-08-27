@@ -1,5 +1,6 @@
 package com.bng.drivo.data.repository;
 
+import com.bng.drivo.data.model.Offer;
 import com.bng.drivo.data.model.Quote;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
@@ -16,6 +17,16 @@ public interface TripRepository {
 
     /** POST /rides — "pedir el viaje": la oferta debe caer entre floor y ceiling de la cotización. */
     void createRide(String quoteId, double offer, ApiCallback<Ride> callback);
+
+    /**
+     * GET /rides/{id}/offers — la cola de ofertas vivas de la subasta.
+     *
+     * <p>Es la misma lista que el canal en vivo publica en {@code rides/{id}/offers}, servida por
+     * HTTP. Existe porque Firestore aquí es una proyección de Postgres, no la verdad: si ese canal
+     * no llega —reglas, red, proyección con retraso— la subasta tiene que seguir funcionando, y
+     * este endpoint la sostiene sin depender de nada de Firebase.
+     */
+    void getOffers(String rideId, ApiCallback<List<Offer>> callback);
 
     /** POST /rides/{id}/accept-offer */
     void acceptOffer(String rideId, String offerId, ApiCallback<Ride> callback);

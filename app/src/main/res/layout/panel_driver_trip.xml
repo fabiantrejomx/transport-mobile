@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panel del viaje en curso dentro del modal de DriverActiveTripActivity: cubre las tres fases
+     del contrato (MATCHED → DRIVER_ARRIVED → IN_PROGRESS) cambiando textos y el botón principal,
+     no de pantalla. Los 3 pasos son 3 taps distintos a propósito, aunque el mockup C4 solo tenga
+     "Finalizar Viaje": CLAUDE.md exige "Llegué al punto" separado de iniciar/finalizar, y son 3
+     endpoints reales. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="20dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorOutline" />
+
+    <!-- Quién va en el viaje. Mismo bloque que la tarjeta del pasajero en su viaje activo, con
+         los papeles invertidos: allá se ve al conductor, aquí al pasajero. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/text_trip_avatar"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="?attr/colorPrimaryContainer"
+            android:gravity="center"
+            android:textColor="?attr/colorOnPrimaryContainer"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="EG" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/text_trip_passenger_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Esteban G." />
+
+            <TextView
+                android:id="@+id/text_trip_passenger_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/drivo_secondary"
+                android:textSize="13sp"
+                tools:text="★ 5.0" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btn_trip_call"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_dot_outlined"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:contentDescription="@string/driver_trip_call_passenger"
+                android:src="@drawable/ic_call"
+                app:tint="?attr/colorOnSurface" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btn_trip_message"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_dot_outlined"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:contentDescription="@string/driver_trip_message_passenger"
+                android:src="@drawable/ic_message"
+                app:tint="?attr/colorOnSurface" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/text_trip_action_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        tools:text="Recoger a Esteban G." />
+
+    <TextView
+        android:id="@+id/text_trip_action_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp"
+        tools:text="Av. Oriente 6, Orizaba (A 2.5 km)" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_stat_tile"
+            android:orientation="vertical"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:text="@string/driver_trip_fare_label"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/text_trip_fare"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="$278.00" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_stat_tile"
+            android:orientation="vertical"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="12dp">
+
+            <TextView
+                android:id="@+id/text_trip_secondary_stat_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp"
+                tools:text="Llegada en" />
+
+            <TextView
+                android:id="@+id/text_trip_secondary_stat_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="6 min" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_trip_action"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:paddingVertical="16dp"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        app:cornerRadius="30dp"
+        tools:text="LLEGUÉ AL PUNTO" />
+
+    <!-- Cancelar solo existe antes de IN_PROGRESS, la misma regla que el pasajero: una vez que el
+         viaje arrancó, la única salida es finalizarlo. Va como botón de texto (no outlined) para
+         que no compita con la acción principal — es una salida, no una alternativa. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_trip_cancel"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/driver_trip_action_cancel"
+        android:textAllCaps="false"
+        android:textColor="@color/drivo_error"
+        android:textSize="14sp" />
+</LinearLayout>

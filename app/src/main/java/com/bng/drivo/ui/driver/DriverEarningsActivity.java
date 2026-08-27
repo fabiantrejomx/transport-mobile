@@ -13,7 +13,6 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.DriverRepository;
 import com.bng.drivo.data.repository.RestDriverRepository;
-import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.util.RelativeDateFormatter;
 
 import java.time.Instant;
@@ -31,7 +30,7 @@ import java.util.Locale;
  * conteo real de viajes de hoy (una fila `commission` = un viaje cerrado) + el libro contable
  * completo, sin nombres de pasajero (ese dato no viene en /driver/wallet).
  */
-public class DriverEarningsActivity extends AuthenticatedActivity {
+public class DriverEarningsActivity extends DriverSubScreenActivity {
 
     private DriverRepository driverRepository;
 
@@ -54,7 +53,7 @@ public class DriverEarningsActivity extends AuthenticatedActivity {
         textEmpty = findViewById(R.id.text_earnings_empty);
         progress = findViewById(R.id.progress_earnings);
 
-        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+        findViewById(R.id.btn_back).setOnClickListener(v -> navigateHome());
 
         loadWallet();
     }

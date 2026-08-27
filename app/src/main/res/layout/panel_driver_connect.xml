@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panel base del modal de DriverHomeActivity: cubre los dos estados en los que el conductor
+     está aprobado y sin solicitud en pantalla (desconectado y en línea). Es un solo panel con
+     los textos cambiando, no dos: entre "desconectado" y "en línea" no cambia la estructura,
+     solo el copy y el botón, y hacerlos dos paneles daría un fundido cruzado donde en realidad
+     no cambia nada de sitio. Ver DriverHomeActivity.applyStep(). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="18dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorOutline" />
+
+    <TextView
+        android:id="@+id/text_connect_greeting"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/driver_home_greeting_default"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        tools:text="¡Hola, Carlos!" />
+
+    <!-- Punto + etiqueta de estado: el color del punto es lo que se lee de un vistazo desde el
+         asiento del conductor, más rápido que releer el texto del botón. -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <View
+            android:id="@+id/dot_connection_status"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="?attr/colorOutline" />
+
+        <TextView
+            android:id="@+id/text_connection_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            tools:text="Estás desconectado" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/text_connection_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="14sp"
+        tools:text="@string/driver_home_offline_subtitle" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_connect_toggle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:paddingVertical="16dp"
+        android:textAllCaps="false"
+        android:textSize="17sp"
+        app:cornerRadius="30dp"
+        tools:text="CONECTARSE" />
+</LinearLayout>

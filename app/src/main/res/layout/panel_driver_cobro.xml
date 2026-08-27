@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panel de cobro y calificación, tras POST /driver/rides/{id}/complete. Sustituye a la tarjeta
+     flotante que había antes; mismo contenido, ahora dentro del modal como un paso más. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="18dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorOutline" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/driver_cobro_amount_label"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/text_cobro_amount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="42sp"
+        android:textStyle="bold"
+        tools:text="$278" />
+
+    <TextView
+        android:id="@+id/text_cobro_commission_note"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="20dp"
+        android:gravity="center"
+        android:textColor="@color/drivo_error"
+        android:textSize="12sp"
+        tools:text="La comisión ($27.80) se descontará de tu saldo." />
+
+    <TextView
+        android:id="@+id/text_cobro_rating_prompt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:gravity="center"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        tools:text="¿Cómo calificarías a Esteban G.?" />
+
+    <LinearLayout
+        android:id="@+id/container_cobro_stars"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:orientation="horizontal" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_cobro_close"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="16dp"
+        android:text="@string/driver_cobro_close_button"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        app:cornerRadius="30dp" />
+</LinearLayout>

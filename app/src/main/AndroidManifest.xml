@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Permiso normal (no pide diálogo): la alerta local de solicitud entrante del conductor
+         vibra además de sonar — ver RideAlert. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:name=".DrivoApplication"

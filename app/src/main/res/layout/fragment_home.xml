@@ -89,55 +89,48 @@
         app:tint="@color/drivo_primary" />
 
     <!-- Radar del paso SEARCHING. Se centra en el hueco visible del mapa, no en la pantalla:
-         HomeFragment le da un margen inferior igual al alto del modal para que no quede medio
-         tapado por él. Se oculta en cuanto llega una oferta, que pasa a ser el foco. -->
-    <LinearLayout
+         HomeFragment.updateMapViewport le da un margen inferior igual al alto del modal para que no quede medio
+         tapado por él. Se oculta en cuanto llega una oferta, que pasa a ser el foco.
+
+         Sin fondo ni contenedor con padding a propósito: los anillos flotan directamente sobre el
+         mapa. Antes había un velo blanco redondeado detrás, y como los anillos crecen al animarse
+         (hasta 1.15x = 184dp) mientras el velo medía lo mismo que su estado en reposo, la onda se
+         "cortaba" contra ese borde justo antes de desvanecerse. Por eso el contenedor mide 200dp
+         y los anillos 160dp: la onda cabe entera en su punto más grande y termina de desvanecerse
+         sin tocar ningún borde. Si se cambia la escala máxima de la animación, hay que subir
+         también este 200dp. -->
+    <FrameLayout
         android:id="@+id/layout_radar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
         android:layout_gravity="center"
-        android:background="@drawable/bg_scrim_rounded"
-        android:clipChildren="false"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:padding="20dp"
         android:visibility="gone">
 
-        <!-- 200dp de alto total (160 + 20 de padding a cada lado): tiene que caber en el hueco
-             que dejan la tarjeta de ruta y el modal en la pantalla más corta que soportamos, o
-             asomaría por detrás de ambos. Los anillos originales medían 220dp, cuando el radar
-             tenía la pantalla entera para él solo. -->
-        <FrameLayout
+        <View
+            android:id="@+id/radar_ring_outer"
             android:layout_width="160dp"
             android:layout_height="160dp"
-            android:clipChildren="false">
+            android:layout_gravity="center"
+            android:alpha="0.15"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/drivo_success" />
 
-            <View
-                android:id="@+id/radar_ring_outer"
-                android:layout_width="160dp"
-                android:layout_height="160dp"
-                android:layout_gravity="center"
-                android:alpha="0.15"
-                android:background="@drawable/bg_dot"
-                android:backgroundTint="@color/drivo_success" />
+        <View
+            android:id="@+id/radar_ring_inner"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:alpha="0.25"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/drivo_success" />
 
-            <View
-                android:id="@+id/radar_ring_inner"
-                android:layout_width="100dp"
-                android:layout_height="100dp"
-                android:layout_gravity="center"
-                android:alpha="0.25"
-                android:background="@drawable/bg_dot"
-                android:backgroundTint="@color/drivo_success" />
-
-            <View
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_dot"
-                android:backgroundTint="@color/drivo_success" />
-        </FrameLayout>
-    </LinearLayout>
+        <View
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/drivo_success" />
+    </FrameLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/sheet_container"

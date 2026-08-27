@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Menú del drawer del conductor. Mismo papel que drawer_menu.xml del pasajero: es el menú
+     general de la app, no un menú de la pantalla, por eso es un cajón lateral y no un modal.
+
+     A diferencia del pasajero (donde las 3 secciones son Fragments dentro de HomeActivity), aquí
+     Ganancias/Configuración/Seguridad siguen siendo Activities propias, así que "Inicio" es la
+     única opción que de verdad marca selección — ver DriverHomeActivity.setUpDrawer(). -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_driver_inicio"
+            android:icon="@drawable/ic_nav_home"
+            android:title="@string/nav_inicio" />
+        <item
+            android:id="@+id/nav_driver_earnings"
+            android:icon="@drawable/ic_nav_trips"
+            android:title="@string/driver_nav_earnings" />
+        <item
+            android:id="@+id/nav_driver_settings"
+            android:icon="@drawable/ic_settings"
+            android:title="@string/nav_configuraciones" />
+        <item
+            android:id="@+id/nav_driver_security"
+            android:icon="@drawable/ic_shield"
+            android:title="@string/driver_nav_security" />
+    </group>
+</menu>

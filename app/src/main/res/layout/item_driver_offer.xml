@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Una oferta dentro de la lista del paso "Buscando conductores". Antes esta tarjeta era la
+     ÚNICA en pantalla (radar 1 a 1) y podía permitirse ser grande; ahora conviven varias y hay
+     que poder compararlas de un vistazo, así que la información se aprieta en dos líneas y el
+     precio manda a la derecha. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
+    android:layout_marginBottom="10dp"
     app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
     app:strokeColor="?attr/colorOutline"
@@ -17,25 +21,22 @@
         android:orientation="vertical"
         android:padding="14dp">
 
+        <!-- Solo en la oferta más barata cuando hay con qué compararla: si se pusiera siempre,
+             dejaría de significar algo. -->
         <TextView
-            android:id="@+id/text_driver_counter"
+            android:id="@+id/text_driver_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp"
-            tools:text="Conductor disponible (1/3)" />
-
-        <ProgressBar
-            android:id="@+id/progress_offer_expiry"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="4dp"
-            android:layout_marginBottom="12dp"
-            android:max="1000"
-            android:progressTint="@color/drivo_error"
-            android:progressBackgroundTint="?attr/colorSurfaceVariant"
-            tools:progress="600" />
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_pill_success"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="3dp"
+            android:text="@string/searching_best_price_badge"
+            android:textColor="@color/drivo_on_success"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:visibility="visible" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -45,8 +46,8 @@
 
             <TextView
                 android:id="@+id/text_driver_avatar"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:layout_marginEnd="12dp"
                 android:background="@drawable/bg_dot"
                 android:backgroundTint="?attr/colorPrimaryContainer"
@@ -64,62 +65,77 @@
 
                 <TextView
                     android:id="@+id/text_driver_name"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textStyle="bold"
                     tools:text="Juan P. · ★4.9" />
 
                 <TextView
                     android:id="@+id/text_driver_details"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp"
                     tools:text="Nissan Versa Blanco · YKV-889" />
+
+                <TextView
+                    android:id="@+id/text_driver_eta"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/drivo_success"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="Llega en 4 min" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/text_driver_eta"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_pill_success"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:textColor="@android:color/white"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                tools:text="4 min" />
+                android:layout_marginStart="10dp"
+                android:gravity="end"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/text_driver_price"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    tools:text="$290.00" />
+
+                <!-- Cuánto se separa de lo que el pasajero ofreció: en una subasta es el dato que
+                     de verdad se compara, y restarlo de cabeza en cada tarjeta es justo lo que no
+                     se puede pedir con el conductor esperando respuesta. -->
+                <TextView
+                    android:id="@+id/text_driver_price_delta"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="11sp"
+                    tools:text="+$24.00 sobre tu oferta" />
+            </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
+        <!-- Cada oferta vence por su cuenta (offer_ttl_seconds del servidor), no todas a la vez:
+             la barra es por tarjeta. Cosmética — la verdad la decide el servidor. -->
+        <ProgressBar
+            android:id="@+id/progress_offer_expiry"
+            style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?attr/colorSurfaceVariant"
-            android:gravity="center"
-            android:orientation="vertical"
+            android:layout_height="3dp"
             android:layout_marginTop="12dp"
-            android:padding="12dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:letterSpacing="0.08"
-                android:text="@string/searching_offer_label"
-                android:textAllCaps="true"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="10sp" />
-
-            <TextView
-                android:id="@+id/text_driver_price"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                tools:text="$290.00" />
-        </LinearLayout>
+            android:max="1000"
+            android:progressBackgroundTint="?attr/colorSurfaceVariant"
+            android:progressTint="@color/drivo_error"
+            tools:progress="600" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -136,7 +152,7 @@
                 android:layout_weight="1"
                 android:text="@string/searching_reject_driver"
                 android:textAllCaps="false"
-                app:cornerRadius="10dp" />
+                app:cornerRadius="22dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_accept_driver"
@@ -146,8 +162,8 @@
                 android:backgroundTint="@color/drivo_success"
                 android:text="@string/searching_accept_driver"
                 android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                app:cornerRadius="10dp" />
+                android:textColor="@color/drivo_on_success"
+                app:cornerRadius="22dp" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

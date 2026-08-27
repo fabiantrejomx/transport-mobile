@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Viaje activo del conductor con el mismo esqueleto que el resto del rediseño: un solo mapa a
+     pantalla completa, flotantes arriba y un modal abajo que cambia de panel según la fase. Antes
+     eran dos MaterialCardView flotantes con márgenes propios que se alternaban a mano.
+
+     El modal no es arrastrable: sus dos paneles caben enteros y no guardan nada que mostrar al
+     expandirlos. Ver DriverActiveTripActivity. -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:layout_height="match_parent">
 
     <fragment
         android:id="@+id/map"
@@ -12,276 +16,66 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="16dp">
-
-        <TextView
-            android:id="@+id/btn_trip_sos"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_pill_error"
-            android:elevation="4dp"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:text="@string/active_trip_sos"
-            android:textColor="@android:color/white"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <TextView
-            android:id="@+id/btn_trip_waze"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="?attr/colorSurface"
-            android:elevation="4dp"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp"
-            android:text="@string/driver_trip_waze_button"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/card_trip"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+    <!-- S.O.S. y Waze en la misma fila que los flotantes del resto de la app (mismo alto de 44dp
+         y mismo margen; el inset superior lo pone DriverActiveTripActivity.applyTopInsets). Son
+         píldoras con texto y no botones redondos porque las dos son acciones que no se pueden
+         confundir con un icono: una manda ayuda y la otra abre otra app. -->
+    <TextView
+        android:id="@+id/btn_trip_sos"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_gravity="top|start"
         android:layout_margin="16dp"
-        app:cardCornerRadius="24dp"
-        app:cardElevation="8dp"
-        app:cardBackgroundColor="?attr/colorSurface">
+        android:background="@drawable/bg_pill_error"
+        android:elevation="4dp"
+        android:gravity="center"
+        android:paddingHorizontal="18dp"
+        android:text="@string/active_trip_sos"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:textStyle="bold" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="18dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingBottom="14dp">
-
-                <TextView
-                    android:id="@+id/text_trip_avatar"
-                    android:layout_width="46dp"
-                    android:layout_height="46dp"
-                    android:layout_marginEnd="12dp"
-                    android:background="@drawable/bg_dot"
-                    android:backgroundTint="?attr/colorPrimaryContainer"
-                    android:gravity="center"
-                    android:textColor="?attr/colorOnPrimaryContainer"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="EG" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/text_trip_passenger_name"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        tools:text="Esteban G." />
-
-                    <TextView
-                        android:id="@+id/text_trip_passenger_rating"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/drivo_secondary"
-                        android:textSize="13sp"
-                        tools:text="★ 5.0" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/text_trip_action_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                tools:text="Recoger a Esteban G." />
-
-            <TextView
-                android:id="@+id/text_trip_action_subtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="16dp"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp"
-                tools:text="Plaza Valle, Orizaba (A 2.5 km)" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1"
-                    android:background="?attr/colorSurfaceVariant"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="10dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/driver_trip_fare_label"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="11sp" />
-
-                    <TextView
-                        android:id="@+id/text_trip_fare"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        tools:text="$278.00" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="?attr/colorSurfaceVariant"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="10dp">
-
-                    <TextView
-                        android:id="@+id/text_trip_secondary_stat_label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="11sp"
-                        tools:text="Llegada en" />
-
-                    <TextView
-                        android:id="@+id/text_trip_secondary_stat_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        tools:text="6 min" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_trip_action"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingVertical="14dp"
-                android:textAllCaps="false"
-                android:textSize="16sp"
-                app:cornerRadius="26dp"
-                tools:text="LLEGUÉ AL PUNTO" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/card_cobro_rating"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+    <TextView
+        android:id="@+id/btn_trip_waze"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
         android:layout_margin="16dp"
-        android:visibility="gone"
-        app:cardCornerRadius="24dp"
-        app:cardElevation="8dp"
-        app:cardBackgroundColor="?attr/colorSurface">
+        android:background="@drawable/bg_pill_surface"
+        android:elevation="4dp"
+        android:gravity="center"
+        android:paddingHorizontal="18dp"
+        android:text="@string/driver_trip_waze_button"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="13sp"
+        android:textStyle="bold" />
 
-        <LinearLayout
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/sheet_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_sheet_top_rounded"
+        android:elevation="12dp"
+        app:layout_behavior="@string/bottom_sheet_behavior">
+
+        <FrameLayout
+            android:id="@+id/sheet_content"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="22dp">
+            android:layout_height="wrap_content">
 
-            <TextView
+            <include
+                android:id="@+id/panel_driver_trip"
+                layout="@layout/panel_driver_trip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <include
+                android:id="@+id/panel_driver_cobro"
+                layout="@layout/panel_driver_cobro"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="@string/driver_cobro_amount_label"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="14sp" />
+                android:visibility="gone" />
+        </FrameLayout>
+    </androidx.core.widget.NestedScrollView>
 
-            <TextView
-                android:id="@+id/text_cobro_amount"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="42sp"
-                android:textStyle="bold"
-                tools:text="$278" />
-
-            <TextView
-                android:id="@+id/text_cobro_commission_note"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="18dp"
-                android:gravity="center"
-                android:textColor="@color/drivo_error"
-                android:textSize="12sp"
-                tools:text="La comisión ($27.80) se descontará de tu saldo." />
-
-            <TextView
-                android:id="@+id/text_cobro_rating_prompt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_marginBottom="10dp"
-                android:textColor="?attr/colorOnSurface"
-                android:textStyle="bold"
-                tools:text="¿Cómo calificarías a Esteban G.?" />
-
-            <LinearLayout
-                android:id="@+id/container_cobro_stars"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="18dp"
-                android:orientation="horizontal" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_cobro_close"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingVertical="14dp"
-                android:text="@string/driver_cobro_close_button"
-                android:textAllCaps="false"
-                android:textSize="16sp"
-                app:cornerRadius="26dp" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-</FrameLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

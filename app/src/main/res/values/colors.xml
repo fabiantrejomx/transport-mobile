@@ -30,6 +30,13 @@
     <color name="drivo_success">#2E7D5B</color>
     <color name="drivo_on_success">#FFFFFF</color>
 
+    <!-- Azul de mapa: tramo conductor→pasajero, marcador del coche y paradas intermedias.
+         Tiene variante propia en values-night en vez de usar drivo_primary directo porque sobre
+         el mapa oscuro el azul marino de marca (#0F2C4C) queda casi invisible — el mapa no es una
+         superficie del tema, así que un color pensado para contrastar contra colorSurface no
+         sirve aquí. Se referencia siempre como @color, nunca como ?attr. -->
+    <color name="drivo_map_accent">#0F2C4C</color>
+
     <!-- Scrim tras texto sobre el mapa (ej. radar de búsqueda) — mismo tono que la superficie, semitransparente -->
     <color name="drivo_scrim">#E6FFFFFF</color>
 </resources>

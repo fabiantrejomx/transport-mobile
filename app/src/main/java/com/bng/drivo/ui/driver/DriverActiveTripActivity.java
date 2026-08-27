@@ -10,11 +10,18 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
 import com.bng.drivo.R;
@@ -31,11 +38,11 @@ import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
+import com.bng.drivo.ui.map.DriverRoutePainter;
 import com.bng.drivo.ui.map.MapStyler;
-import com.bng.drivo.ui.map.MarkerIconFactory;
-import com.bng.drivo.ui.map.RouteCamera;
 import com.bng.drivo.util.ColorUtils;
 import com.bng.drivo.util.LoadingButtonHelper;
+import com.bng.drivo.util.PlaceTextResolver;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationResult;
@@ -45,17 +52,12 @@ import com.google.android.gms.location.Priority;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.Dash;
-import com.google.android.gms.maps.model.Gap;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.PatternItem;
-import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -70,9 +72,19 @@ import java.util.Locale;
  * aunque el mockup C4 solo tenga un botón "Finalizar Viaje" — CLAUDE.md exige "Llegué al
  * punto" separado de iniciar/finalizar, y son 3 endpoints reales.
  *
- * Fuera de alcance por ahora (igual que el resto de la Fase 7): no hay botón de cancelar
- * viaje aquí (el mockup no lo pide) y salir de la pantalla con "atrás" no tiene forma de
- * retomarla — el contrato tampoco ofrece cómo, más allá de otro push.
+ * El mapa sigue esos mismos pasos con un tramo a la vez ({@link DriverRoutePainter}): mientras va
+ * por el pasajero se dibuja el tramo conductor→pasajero, y al iniciar el viaje se cambia al tramo
+ * origen→destino que pidió el pasajero. Dibujar los dos todo el tiempo mezclaba "lo que me falta
+ * manejar ahora" con "lo que viene después".
+ *
+ * La pantalla sigue el mismo esqueleto que el resto del rediseño: un solo mapa a pantalla
+ * completa, S.O.S./Waze flotando arriba y un modal abajo con dos paneles (viaje y cobro). El
+ * modal no es arrastrable — ninguno de los dos paneles guarda contenido extra que mostrar.
+ *
+ * Cancelar (POST /driver/rides/{id}/cancel) solo se ofrece antes de IN_PROGRESS, la misma regla
+ * que el pasajero: una vez arrancado el viaje, la única salida es finalizarlo. Salir con "atrás"
+ * sigue sin poder retomar la pantalla — el contrato no ofrece cómo, más allá de otro push —, así
+ * que "atrás" pide confirmación en vez de cerrar de golpe.
  */
 public class DriverActiveTripActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
@@ -80,8 +92,6 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
 
     private static final long LOCATION_INTERVAL_TRIP_MS = 4500L;
     private static final int STAR_COUNT = 5;
-    /** Aire alrededor de la ruta al encuadrarla, para que los pines no queden pegados al borde. */
-    private static final int ROUTE_BOUNDS_PADDING_PX = 160;
 
     private DriverRepository driverRepository;
     private TripRepository tripRepository;
@@ -91,7 +101,9 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private LocationCallback locationCallback;
 
     private GoogleMap googleMap;
-    private final RouteCamera routeCamera = new RouteCamera(ROUTE_BOUNDS_PADDING_PX);
+    private DriverRoutePainter routePainter;
+    @Nullable
+    private LatLng lastKnownLocation;
     private String rideId;
     private String currentStatus;
     private boolean terminalStateHandled;
@@ -105,11 +117,18 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private Integer pickupDistanceM;
     private Integer pickupEtaMin;
     private Integer tripDistanceM;
+    private final List<LatLng> stops = new ArrayList<>();
 
     private final List<TextView> cobroStarViews = new ArrayList<>();
     private int cobroRating;
 
-    private View cardTrip;
+    private View sheetContainer;
+    private View sheetContent;
+    private BottomSheetBehavior<View> sheetBehavior;
+    private int lastSheetHeightPx = -1;
+    private int sheetTopInsetPx;
+
+    private View panelTrip;
     private TextView textTripAvatar;
     private TextView textTripPassengerName;
     private TextView textTripPassengerRating;
@@ -119,13 +138,15 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private TextView textTripSecondaryStatLabel;
     private TextView textTripSecondaryStatValue;
     private MaterialButton btnTripAction;
+    private MaterialButton btnTripCancel;
 
-    private View cardCobroRating;
+    private View panelCobro;
     private TextView textCobroAmount;
     private TextView textCobroCommissionNote;
     private TextView textCobroRatingPrompt;
     private LinearLayout containerCobroStars;
     private MaterialButton btnCobroClose;
+    private OnBackPressedCallback backCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -141,8 +162,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         driverRepository = new RestDriverRepository(this);
         tripRepository = new RestTripRepository(this);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        routePainter = new DriverRoutePainter(this);
 
-        cardTrip = findViewById(R.id.card_trip);
+        sheetContainer = findViewById(R.id.sheet_container);
+        sheetContent = findViewById(R.id.sheet_content);
+        panelTrip = findViewById(R.id.panel_driver_trip);
+        panelCobro = findViewById(R.id.panel_driver_cobro);
         textTripAvatar = findViewById(R.id.text_trip_avatar);
         textTripPassengerName = findViewById(R.id.text_trip_passenger_name);
         textTripPassengerRating = findViewById(R.id.text_trip_passenger_rating);
@@ -152,8 +177,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textTripSecondaryStatLabel = findViewById(R.id.text_trip_secondary_stat_label);
         textTripSecondaryStatValue = findViewById(R.id.text_trip_secondary_stat_value);
         btnTripAction = findViewById(R.id.btn_trip_action);
-
-        cardCobroRating = findViewById(R.id.card_cobro_rating);
+        btnTripCancel = findViewById(R.id.btn_trip_cancel);
         textCobroAmount = findViewById(R.id.text_cobro_amount);
         textCobroCommissionNote = findViewById(R.id.text_cobro_commission_note);
         textCobroRatingPrompt = findViewById(R.id.text_cobro_rating_prompt);
@@ -162,8 +186,15 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
 
         findViewById(R.id.btn_trip_sos).setOnClickListener(v -> sendSos());
         findViewById(R.id.btn_trip_waze).setOnClickListener(v -> openWaze());
+        btnTripCancel.setOnClickListener(v -> confirmCancelTrip());
         btnCobroClose.setOnClickListener(v -> submitRating());
+        // Llamada y chat dentro de la app todavía no existen en el contrato; el aviso es honesto
+        // en vez de un botón muerto.
+        findViewById(R.id.btn_trip_call).setOnClickListener(v -> showContactComingSoon());
+        findViewById(R.id.btn_trip_message).setOnClickListener(v -> showContactComingSoon());
         setUpCobroStars();
+        setUpBottomSheet();
+        setUpBackHandling();
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         if (mapFragment != null) {
@@ -177,6 +208,13 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     public void onMapReady(GoogleMap map) {
         googleMap = map;
         MapStyler.apply(this, googleMap);
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+        googleMap.setPadding(0, sheetTopInsetPx, 0, Math.max(lastSheetHeightPx, 0));
+        if (hasLocationPermission()) {
+            googleMap.setMyLocationEnabled(true);
+        }
+        Fragment mapFragment = getSupportFragmentManager().findFragmentById(R.id.map);
+        routePainter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
         drawTripMap();
     }
 
@@ -195,6 +233,19 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                         ? new LatLng(request.getPickupLat(), request.getPickupLng()) : null;
                 dropoffLatLng = request.getDropoffLat() != null && request.getDropoffLng() != null
                         ? new LatLng(request.getDropoffLat(), request.getDropoffLng()) : null;
+                stops.clear();
+                for (com.bng.drivo.data.model.Waypoint stop : request.getStops()) {
+                    stops.add(new LatLng(stop.getLat(), stop.getLng()));
+                }
+                // "Tu ubicación actual" es el placeholder del pasajero y aquí no dice nada; se
+                // cambia por la dirección real del punto de recogida (ver PlaceTextResolver).
+                PlaceTextResolver.resolve(DriverActiveTripActivity.this, pickupText, pickupLatLng,
+                        resolved -> {
+                            pickupText = resolved;
+                            if (!"IN_PROGRESS".equals(currentStatus) && passengerName != null) {
+                                showPickupPhase("DRIVER_ARRIVED".equals(currentStatus));
+                            }
+                        });
 
                 textTripAvatar.setText(initialsFor(passengerName));
                 textTripPassengerName.setText(passengerName);
@@ -214,41 +265,40 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         });
     }
 
+    /**
+     * Un tramo a la vez, según la fase: el de recogida hasta que el viaje arranca, y el del
+     * pasajero a partir de IN_PROGRESS. Se llama en cada cambio de fase y cuando el modal cambia
+     * de alto, para reencuadrar contra el hueco visible que quede.
+     */
     private void drawTripMap() {
-        if (googleMap == null || pickupLatLng == null) {
+        if (googleMap == null || pickupLatLng == null || !routePainter.isReady()) {
             return;
         }
-        googleMap.clear();
-        if (hasLocationPermission()) {
-            googleMap.setMyLocationEnabled(true);
+        if ("IN_PROGRESS".equals(currentStatus) && dropoffLatLng != null) {
+            routePainter.showTripLeg(pickupLatLng, stops, dropoffLatLng);
+            return;
         }
-
-        List<LatLng> points = new ArrayList<>();
-        points.add(pickupLatLng);
-        googleMap.addMarker(new MarkerOptions().position(pickupLatLng)
-                .icon(MarkerIconFactory.circle(this, R.color.drivo_success, 16))
-                .anchor(0.5f, 0.5f));
-
-        if (dropoffLatLng != null) {
-            points.add(dropoffLatLng);
-            googleMap.addMarker(new MarkerOptions().position(dropoffLatLng)
-                    .icon(MarkerIconFactory.circle(this, R.color.drivo_secondary, 16))
-                    .anchor(0.5f, 0.5f));
-
-            List<PatternItem> dashed = Arrays.asList(new Dash(20f), new Gap(12f));
-            googleMap.addPolyline(new PolylineOptions()
-                    .addAll(points)
-                    .width(8f)
-                    .color(getColor(R.color.drivo_success))
-                    .pattern(dashed));
+        routePainter.showPickupLeg(lastKnownLocation, pickupLatLng);
+        if (lastKnownLocation == null) {
+            requestLastLocation();
         }
+    }
 
-        LatLngBounds.Builder bounds = new LatLngBounds.Builder();
-        for (LatLng point : points) {
-            bounds.include(point);
+    /** Primera posición de la sesión: sin ella el tramo de recogida saldría sin punto de partida. */
+    @SuppressLint("MissingPermission")
+    private void requestLastLocation() {
+        if (!hasLocationPermission()) {
+            return;
         }
-        Fragment mapFragment = getSupportFragmentManager().findFragmentById(R.id.map);
-        routeCamera.frame(googleMap, bounds.build(), mapFragment != null ? mapFragment.getView() : null);
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location == null || googleMap == null) {
+                return;
+            }
+            lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            if (!"IN_PROGRESS".equals(currentStatus) && pickupLatLng != null && routePainter.isReady()) {
+                routePainter.showPickupLeg(lastKnownLocation, pickupLatLng);
+            }
+        });
     }
 
     @Override
@@ -305,8 +355,9 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     }
 
     private void showPickupPhase(boolean arrived) {
-        cardTrip.setVisibility(View.VISIBLE);
-        cardCobroRating.setVisibility(View.GONE);
+        showPanel(panelTrip);
+        // Antes de arrancar el viaje todavía se puede cancelar (POST /driver/rides/{id}/cancel).
+        btnTripCancel.setVisibility(View.VISIBLE);
 
         textTripActionTitle.setText(getString(R.string.driver_trip_pickup_title_format, passengerName));
         double pickupKm = pickupDistanceM != null ? pickupDistanceM / 1000.0 : 0;
@@ -317,6 +368,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textTripSecondaryStatValue.setText(pickupEtaMin != null
                 ? getString(R.string.searching_eta_min, pickupEtaMin) : "--");
 
+        drawTripMap();
         btnTripAction.setText(arrived ? R.string.driver_trip_action_start : R.string.driver_trip_action_arrived);
         btnTripAction.setEnabled(true);
         btnTripAction.setOnClickListener(v -> {
@@ -329,8 +381,9 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     }
 
     private void showInProgressPhase() {
-        cardTrip.setVisibility(View.VISIBLE);
-        cardCobroRating.setVisibility(View.GONE);
+        showPanel(panelTrip);
+        // Ya arrancó: la única salida es finalizarlo, igual que del lado del pasajero.
+        btnTripCancel.setVisibility(View.GONE);
 
         textTripActionTitle.setText(getString(R.string.driver_trip_dropoff_title_format, passengerName));
         long tripKm = tripDistanceM != null ? Math.round(tripDistanceM / 1000.0) : 0;
@@ -348,8 +401,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     }
 
     private void showCobroRatingPhase(Ride completedRide) {
-        cardTrip.setVisibility(View.GONE);
-        cardCobroRating.setVisibility(View.VISIBLE);
+        showPanel(panelCobro);
 
         double agreedFare = completedRide.getAgreedFare() != null ? completedRide.getAgreedFare() : fare;
         textCobroAmount.setText(String.format(Locale.getDefault(), "$%.0f", agreedFare));
@@ -358,6 +410,139 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textCobroCommissionNote.setText(commission != null
                 ? getString(R.string.driver_cobro_commission_note_format, commission) : "");
         textCobroRatingPrompt.setText(getString(R.string.driver_cobro_rating_prompt_format, passengerName));
+    }
+
+    /** Cambia el panel visible del modal y deja que se remida solo en el siguiente pase. */
+    private void showPanel(View panel) {
+        panelTrip.setVisibility(panel == panelTrip ? View.VISIBLE : View.GONE);
+        panelCobro.setVisibility(panel == panelCobro ? View.VISIBLE : View.GONE);
+        lastSheetHeightPx = -1;
+    }
+
+    private void showContactComingSoon() {
+        Toast.makeText(this, R.string.driver_trip_contact_coming_soon, Toast.LENGTH_SHORT).show();
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Cancelar el viaje
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Cancelar tiene consecuencias reales para el pasajero (vuelve a buscar conductor) y para la
+     * cuenta del conductor, así que nunca se ejecuta con un solo toque: el diálogo dice qué pasa
+     * antes de confirmar.
+     */
+    private void confirmCancelTrip() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.driver_trip_cancel_title)
+                .setMessage(R.string.driver_trip_cancel_message)
+                .setPositiveButton(R.string.driver_trip_cancel_positive, (dialog, which) -> cancelTrip())
+                .setNegativeButton(R.string.driver_trip_cancel_negative, null)
+                .show();
+    }
+
+    private void cancelTrip() {
+        LoadingButtonHelper.setLoading(btnTripCancel, true);
+        driverRepository.cancelRide(rideId, new ApiCallback<Ride>() {
+            @Override
+            public void onSuccess(Ride result) {
+                terminalStateHandled = true;
+                stopLocationLoop();
+                Toast.makeText(DriverActiveTripActivity.this, R.string.driver_trip_cancelled_toast,
+                        Toast.LENGTH_SHORT).show();
+                finish();
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                LoadingButtonHelper.setLoading(btnTripCancel, false);
+                Toast.makeText(DriverActiveTripActivity.this, R.string.driver_trip_cancel_error,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * "Atrás" no puede cerrar la pantalla sin más: el contrato no ofrece cómo retomarla (solo
+     * otro push), así que salir por accidente dejaría al conductor con un viaje asignado y sin
+     * forma de avanzarlo. Antes de IN_PROGRESS ofrece cancelar de verdad; después no hace nada.
+     */
+    private void setUpBackHandling() {
+        backCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (btnTripCancel.getVisibility() == View.VISIBLE) {
+                    confirmCancelTrip();
+                }
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, backCallback);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Modal y medidas (mismo esquema que DriverHomeActivity)
+    // ---------------------------------------------------------------------------------------
+
+    private void setUpBottomSheet() {
+        sheetBehavior = BottomSheetBehavior.from(sheetContainer);
+        sheetBehavior.setHideable(false);
+        sheetBehavior.setSkipCollapsed(false);
+        sheetBehavior.setDraggable(false);
+        sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+
+        ViewTreeObserver.OnGlobalLayoutListener layoutListener = this::updateSheetStops;
+        sheetContent.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
+    }
+
+    private void updateSheetStops() {
+        applyTopInsets();
+        int heightPx = sheetContent.getHeight();
+        if (heightPx <= 0 || heightPx == lastSheetHeightPx) {
+            return;
+        }
+        lastSheetHeightPx = heightPx;
+        sheetBehavior.setPeekHeight(heightPx, true);
+        // El mapa encuadra la ruta contra el rectángulo que queda a la vista, no contra la
+        // pantalla completa: sin esto los pines caen detrás del modal.
+        if (googleMap != null) {
+            googleMap.setPadding(0, sheetTopInsetPx, 0, heightPx);
+            drawTripMap();
+        }
+    }
+
+    private void applyTopInsets() {
+        View root = findViewById(android.R.id.content);
+        WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(root);
+        if (insets == null) {
+            return;
+        }
+        int topInsetPx = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()).top;
+        sheetTopInsetPx = topInsetPx;
+        int bottomInsetPx = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+        if (sheetContent.getPaddingBottom() != bottomInsetPx) {
+            sheetContent.setPadding(sheetContent.getPaddingLeft(), sheetContent.getPaddingTop(),
+                    sheetContent.getPaddingRight(), bottomInsetPx);
+        }
+
+        int availableHeightPx = root.getHeight() - topInsetPx;
+        ViewGroup.LayoutParams sheetParams = sheetContainer.getLayoutParams();
+        if (root.getHeight() > 0 && sheetParams.height != availableHeightPx) {
+            sheetParams.height = availableHeightPx;
+            sheetContainer.setLayoutParams(sheetParams);
+        }
+
+        int marginPx = Math.round(16 * getResources().getDisplayMetrics().density);
+        setTopMargin(findViewById(R.id.btn_trip_sos), topInsetPx + marginPx);
+        setTopMargin(findViewById(R.id.btn_trip_waze), topInsetPx + marginPx);
+    }
+
+    private void setTopMargin(View view, int topMarginPx) {
+        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+        if (params.topMargin != topMarginPx) {
+            params.topMargin = topMarginPx;
+            view.setLayoutParams(params);
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -534,10 +719,16 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 .build();
         locationCallback = new LocationCallback() {
             @Override
-            public void onLocationResult(LocationResult result) {
+            public void onLocationResult(@NonNull LocationResult result) {
                 android.location.Location location = result.getLastLocation();
                 if (location == null) {
                     return;
+                }
+                lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                // Solo mueve el coche: reencuadrar cada 4.5 s le quitaría al conductor el control
+                // de la cámara mientras maneja.
+                if (routePainter.isReady()) {
+                    routePainter.updateDriverPosition(lastKnownLocation);
                 }
                 Double heading = location.hasBearing() ? (double) location.getBearing() : null;
                 Double accuracy = location.hasAccuracy() ? (double) location.getAccuracy() : null;
@@ -570,6 +761,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 == PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        routePainter.detach();
     }
 
     private String initialsFor(String name) {

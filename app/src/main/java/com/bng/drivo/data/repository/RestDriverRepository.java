@@ -5,7 +5,9 @@ import android.content.Context;
 import com.bng.drivo.data.model.DriverApplication;
 import com.bng.drivo.data.model.IncomingRequest;
 import com.bng.drivo.data.model.Ride;
+import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.Wallet;
+import com.bng.drivo.data.model.Waypoint;
 import com.bng.drivo.data.remote.ApiCallDispatcher;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiClient;
@@ -21,6 +23,7 @@ import com.bng.drivo.data.remote.dto.DriverSummaryDto;
 import com.bng.drivo.data.remote.dto.IncomingRequestDto;
 import com.bng.drivo.data.remote.dto.PlaceDto;
 import com.bng.drivo.data.remote.dto.RideDto;
+import com.bng.drivo.data.remote.dto.RideSummaryDto;
 import com.bng.drivo.data.remote.dto.WalletDto;
 
 import java.util.ArrayList;
@@ -146,6 +149,31 @@ public class RestDriverRepository implements DriverRepository {
         });
     }
 
+    @Override
+    public void getRideHistory(int limit, ApiCallback<List<RideSummary>> callback) {
+        ApiCallDispatcher.enqueue(service.getRides("driver", limit), new ApiCallback<List<RideSummaryDto>>() {
+            @Override
+            public void onSuccess(List<RideSummaryDto> result) {
+                List<RideSummary> summaries = new ArrayList<>();
+                for (RideSummaryDto dto : result) {
+                    summaries.add(new RideSummary(dto.id, dto.status, dto.agreed_fare,
+                            dto.origin_text, dto.dest_text, dto.requested_at));
+                }
+                callback.onSuccess(summaries);
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    @Override
+    public void getRideDetail(String rideId, ApiCallback<Ride> callback) {
+        ApiCallDispatcher.enqueue(service.getRide(rideId), mapRide(callback));
+    }
+
     private ApiCallback<ApplicationStatusDto> mapApplication(ApiCallback<DriverApplication> callback) {
         return new ApiCallback<ApplicationStatusDto>() {
             @Override
@@ -189,11 +217,19 @@ public class RestDriverRepository implements DriverRepository {
         String passengerName = dto.passenger != null ? dto.passenger.name : null;
         Double passengerRating = dto.passenger != null ? dto.passenger.rating : null;
         Integer passengerTrips = dto.passenger != null ? dto.passenger.trips : null;
+        List<Waypoint> stops = new ArrayList<>();
+        if (dto.waypoints != null) {
+            for (PlaceDto waypoint : dto.waypoints) {
+                if (waypoint != null) {
+                    stops.add(new Waypoint(waypoint.lat, waypoint.lng, waypoint.text));
+                }
+            }
+        }
         return new IncomingRequest(dto.ride_id, passengerName, passengerRating, passengerTrips, dto.offer,
                 dto.pickup != null ? dto.pickup.text : null, dto.dropoff != null ? dto.dropoff.text : null,
                 dto.pickup != null ? dto.pickup.lat : null, dto.pickup != null ? dto.pickup.lng : null,
                 dto.dropoff != null ? dto.dropoff.lat : null, dto.dropoff != null ? dto.dropoff.lng : null,
-                dto.pickup_distance_m, dto.pickup_eta_min, dto.trip_distance_m, dto.counter_increments,
-                dto.expires_at);
+                stops, dto.pickup_distance_m, dto.pickup_eta_min, dto.trip_distance_m,
+                dto.counter_increments, dto.expires_at);
     }
 }

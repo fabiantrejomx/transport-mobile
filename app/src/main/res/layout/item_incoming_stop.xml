@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Una parada intermedia dentro del bloque de ruta de la solicitud entrante. Va en su propio
+     archivo porque un viaje puede traer más de una y cada una necesita su etiqueta y su punto:
+     amontonarlas en un solo TextView las dejaría sin el código de color que las une con el mapa. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/drivo_map_accent" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.06"
+            android:text="@string/incoming_request_stop_label"
+            android:textAllCaps="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/text_stop_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        tools:text="Farmacia Guadalajara, Av. Oriente 6" />
+</LinearLayout>

@@ -8,7 +8,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bng.drivo.R;
-import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 /**
  * C8: Centro de Seguridad general del conductor (sin viaje activo) — mismo criterio que
@@ -16,14 +15,14 @@ import com.bng.drivo.ui.auth.AuthenticatedActivity;
  * (POST /sos con rideId) solo tiene sentido durante un viaje y ya vive en
  * DriverActiveTripActivity — ver el hallazgo 6 del plan de la Fase 7.
  */
-public class DriverSecurityActivity extends AuthenticatedActivity {
+public class DriverSecurityActivity extends DriverSubScreenActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_driver_security);
 
-        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+        findViewById(R.id.btn_back).setOnClickListener(v -> navigateHome());
         findViewById(R.id.btn_call_911).setOnClickListener(v ->
                 startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))));
 

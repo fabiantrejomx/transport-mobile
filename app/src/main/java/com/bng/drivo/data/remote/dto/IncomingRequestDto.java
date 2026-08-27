@@ -8,6 +8,13 @@ public class IncomingRequestDto {
     public double offer;
     public PlaceDto pickup;
     public PlaceDto dropoff;
+    /**
+     * Paradas intermedias del viaje del pasajero, en orden. El pasajero las manda al cotizar
+     * (waypoints de POST /quotes) y el contrato todavía no las documenta en esta respuesta: si el
+     * servidor no las incluye, Gson deja el campo en null y la app simplemente no pinta ninguna
+     * parada. Nunca dar por hecho que viene.
+     */
+    public List<PlaceDto> waypoints;
     public Integer pickup_distance_m;
     public Integer pickup_eta_min;
     public Integer trip_distance_m;

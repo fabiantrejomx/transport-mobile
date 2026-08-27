@@ -17,24 +17,83 @@
     android:paddingEnd="20dp"
     android:paddingBottom="24dp">
 
-    <TextView
-        android:id="@+id/text_searching_title"
+    <!-- Título a la izquierda y la oferta del pasajero a la derecha, en la misma fila. Va aquí y
+         no dentro de cada tarjeta porque es un dato del viaje, no del conductor: sin él, el
+         "+ $20.00 sobre tu oferta" de las tarjetas quedaba sin referencia — se veía cuánto sube
+         cada quien, pero ya no cuánto se había ofrecido. -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/searching_message"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        tools:text="Buscando conductores…" />
+        android:baselineAligned="false"
+        android:orientation="horizontal">
 
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/text_searching_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/searching_message"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Buscando conductores…" />
+
+            <TextView
+                android:id="@+id/text_searching_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/searching_subtitle"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/group_searching_your_offer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:text="@string/searching_your_offer_label"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/text_searching_your_offer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                tools:text="$98.00" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- El servidor no deja de difundir el viaje porque ya haya ofertas (las oleadas siguen), así
+         que con la lista en pantalla el radar se retira pero este aviso se queda: es lo que dice
+         que todavía pueden llegar más. -->
     <TextView
-        android:id="@+id/text_searching_subtitle"
+        android:id="@+id/text_searching_still_looking"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="@string/searching_subtitle"
+        android:layout_marginTop="10dp"
+        android:text="@string/searching_still_looking"
         android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="13sp" />
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/container_drivers"

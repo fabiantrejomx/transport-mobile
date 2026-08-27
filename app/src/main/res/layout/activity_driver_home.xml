@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Home del conductor sobre un único mapa, con el mismo esqueleto que fragment_home.xml del
+     pasajero: mapa a pantalla completa, botones flotantes redondos arriba, radar centrado en el
+     hueco visible y un modal persistente abajo que cambia de panel según el estado. Antes esto
+     era una barra superior descuadrada + tarjetas sueltas con márgenes propios.
+
+     El modal no es arrastrable en ningún estado del conductor (a diferencia del paso IDLE del
+     pasajero): ninguno de sus paneles tiene contenido de sobra que mostrar al expandirlo, así
+     que se ajusta al alto de su panel y ahí se queda. Ver DriverHomeActivity. -->
+<!-- El menú es un drawer y no un modal: es el menú general de la app (Inicio / Ganancias /
+     Configuración / Seguridad), igual que en el lado del pasajero, no un menú de esta pantalla. -->
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:layout_height="match_parent">
+
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
     <!-- Sin <fragment> estático a propósito: crear el SupportMapFragment ya empieza a cargar
          tiles y puede disparar el permiso de ubicación, y un conductor sin aprobar no debe ver
@@ -15,104 +29,122 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <LinearLayout
-        android:id="@+id/top_bar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="16dp">
+    <ImageButton
+        android:id="@+id/btn_menu"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_dot_outlined"
+        android:contentDescription="@string/driver_home_menu_description"
+        android:elevation="4dp"
+        android:padding="10dp"
+        android:src="@drawable/ic_menu"
+        android:visibility="gone"
+        app:tint="?attr/colorOnSurface" />
 
-        <ImageButton
-            android:id="@+id/btn_menu"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="?attr/colorSurface"
-            android:contentDescription="@string/driver_home_menu_description"
-            android:elevation="4dp"
-            android:padding="10dp"
-            android:src="@drawable/ic_menu_hamburger" />
+    <!-- Mismo botón propio que el pasajero (el del SDK se queda apagado) para que los dos
+         flotantes compartan forma, tamaño y fila. -->
+    <ImageButton
+        android:id="@+id/btn_my_location"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_dot_outlined"
+        android:contentDescription="@string/home_my_location_description"
+        android:elevation="4dp"
+        android:padding="10dp"
+        android:src="@drawable/ic_my_location"
+        android:visibility="gone"
+        app:tint="?attr/colorOnSurface" />
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            app:cardCornerRadius="24dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="?attr/colorSurface">
+    <!-- Radar del paso SEARCHING. Se centra en el hueco visible del mapa, no en la pantalla:
+         DriverHomeActivity.updateMapViewport le da un margen inferior igual al alto del modal para que no quede medio
+         tapado por él. Se oculta en cuanto llega una oferta, que pasa a ser el foco.
 
-            <TextView
-                android:id="@+id/text_status_badge"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:paddingVertical="12dp"
-                android:paddingHorizontal="16dp"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                tools:text="$ 350.00 MXN" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <View
-            android:layout_width="44dp"
-            android:layout_height="44dp" />
-    </LinearLayout>
-
+         Sin fondo ni contenedor con padding a propósito: los anillos flotan directamente sobre el
+         mapa. Antes había un velo blanco redondeado detrás, y como los anillos crecen al animarse
+         (hasta 1.15x = 184dp) mientras el velo medía lo mismo que su estado en reposo, la onda se
+         "cortaba" contra ese borde justo antes de desvanecerse. Por eso el contenedor mide 200dp
+         y los anillos 160dp: la onda cabe entera en su punto más grande y termina de desvanecerse
+         sin tocar ningún borde. Si se cambia la escala máxima de la animación, hay que subir
+         también este 200dp. -->
     <FrameLayout
-        android:id="@+id/radar_container"
-        android:layout_width="220dp"
-        android:layout_height="220dp"
+        android:id="@+id/layout_radar"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
         android:layout_gravity="center"
-        android:clipChildren="false"
         android:visibility="gone">
 
         <View
             android:id="@+id/radar_ring_outer"
-            android:layout_width="220dp"
-            android:layout_height="220dp"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
             android:layout_gravity="center"
+            android:alpha="0.15"
             android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/drivo_success"
-            android:alpha="0.15" />
+            android:backgroundTint="@color/drivo_success" />
 
         <View
             android:id="@+id/radar_ring_inner"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:alpha="0.25"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/drivo_success" />
+
+        <View
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/drivo_success"
-            android:alpha="0.25" />
+            android:backgroundTint="@color/drivo_success" />
     </FrameLayout>
 
+    <!-- Estados no aprobados (borrador / en revisión / rechazado / suspendido). No usa el modal:
+         en estos estados no hay mapa detrás que valga la pena dejar a la vista, y una tarjeta
+         centrada deja claro que no hay nada más que hacer en esta pantalla todavía. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_not_approved"
-        android:layout_width="280dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_marginHorizontal="24dp"
         android:visibility="gone"
-        app:cardCornerRadius="16dp"
+        app:cardCornerRadius="20dp"
         app:cardElevation="6dp"
         app:cardBackgroundColor="?attr/colorSurface">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
+            android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:paddingHorizontal="24dp"
+            android:paddingTop="32dp"
+            android:paddingBottom="24dp">
+
+            <ImageView
+                android:id="@+id/icon_not_approved"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:background="@drawable/bg_dot"
+                android:backgroundTint="?attr/colorPrimaryContainer"
+                android:contentDescription="@null"
+                android:padding="16dp"
+                android:src="@drawable/ic_clock"
+                app:tint="?attr/colorOnPrimaryContainer" />
 
             <TextView
                 android:id="@+id/text_not_approved_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
                 android:gravity="center"
                 android:textColor="?attr/colorOnSurface"
-                android:textSize="16sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 tools:text="Tu solicitud está en revisión" />
 
@@ -122,9 +154,22 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:gravity="center"
+                android:lineSpacingExtra="3dp"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="14sp"
-                tools:text="Te avisaremos por notificación cuando la revisemos." />
+                android:textSize="15sp"
+                tools:text="Ya recibimos tus documentos." />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_not_approved_action"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:paddingVertical="12dp"
+                android:textAllCaps="false"
+                android:textSize="15sp"
+                app:cornerRadius="26dp"
+                tools:text="Actualizar estado" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -134,219 +179,101 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center" />
 
-    <LinearLayout
-        android:id="@+id/bottom_actions"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/sheet_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:padding="20dp"
-        android:visibility="gone">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_connect_toggle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingVertical="16dp"
-            android:textAllCaps="false"
-            android:textSize="17sp"
-            app:cornerRadius="30dp" />
-
-        <TextView
-            android:id="@+id/text_connection_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:textColor="?attr/colorOnSurface"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/card_incoming_request"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:layout_margin="16dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_sheet_top_rounded"
+        android:elevation="12dp"
         android:visibility="gone"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="8dp"
-        app:cardBackgroundColor="?attr/colorSurface">
+        app:layout_behavior="@string/bottom_sheet_behavior">
 
-        <LinearLayout
+        <!-- Un solo hijo con los tres paneles: solo uno visible a la vez y el modal se ajusta a
+             su alto (DriverHomeActivity.updateSheetStops). Cambiar de estado es un fundido
+             cruzado dentro del modal, nunca una pantalla nueva. -->
+        <FrameLayout
+            android:id="@+id/sheet_content"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="18dp">
+            android:layout_height="wrap_content">
 
-            <LinearLayout
+            <include
+                android:id="@+id/panel_driver_connect"
+                layout="@layout/panel_driver_connect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <include
+                android:id="@+id/panel_driver_request"
+                layout="@layout/panel_driver_request"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingBottom="14dp">
-
-                <TextView
-                    android:id="@+id/text_incoming_avatar"
-                    android:layout_width="46dp"
-                    android:layout_height="46dp"
-                    android:layout_marginEnd="12dp"
-                    android:background="@drawable/bg_dot"
-                    android:backgroundTint="?attr/colorPrimaryContainer"
-                    android:gravity="center"
-                    android:textColor="?attr/colorOnPrimaryContainer"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="EG" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/text_incoming_name"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        tools:text="Esteban G." />
-
-                    <TextView
-                        android:id="@+id/text_incoming_rating"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/drivo_secondary"
-                        android:textSize="13sp"
-                        tools:text="★ 5.0" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/text_incoming_offer"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="?attr/colorPrimary"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        tools:text="$ 278.00" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/incoming_request_cash_label"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="12sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="?attr/colorOutline" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingTop="14dp"
-                android:paddingBottom="6dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/incoming_request_pickup_label"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/text_incoming_pickup_distance"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    android:textColor="?attr/colorPrimary"
-                    android:textSize="13sp"
-                    tools:text="A 2.5 km (6 min) del pasajero" />
-
-                <TextView
-                    android:id="@+id/text_incoming_dropoff_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textStyle="bold"
-                    tools:text="Plaza Valle, Orizaba" />
-
-                <TextView
-                    android:id="@+id/text_incoming_trip_distance"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/drivo_error"
-                    android:textSize="13sp"
-                    tools:text="Viaje de 14 km" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/text_incoming_counter_label"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="8dp"
-                android:gravity="center"
-                android:text="@string/incoming_request_counter_label"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp"
                 android:visibility="gone" />
 
-            <LinearLayout
-                android:id="@+id/container_incoming_counters"
+            <include
+                android:id="@+id/panel_driver_offer_sent"
+                layout="@layout/panel_driver_offer_sent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal" />
+                android:visibility="gone" />
+        </FrameLayout>
+    </androidx.core.widget.NestedScrollView>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:orientation="horizontal">
+    <!-- Mismos avisos de conectividad que el pasajero, en la misma fila que los dos flotantes
+         (44dp de alto, 60dp de margen a cada lado para no invadirlos). Aquí pesan más todavía:
+         un conductor sin señal deja de reportar ubicación y de recibir solicitudes. -->
+    <TextView
+        android:id="@+id/banner_offline"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginStart="60dp"
+        android:layout_marginEnd="60dp"
+        android:background="@drawable/bg_pill_error"
+        android:elevation="16dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingHorizontal="18dp"
+        android:text="@string/connectivity_offline"
+        android:textColor="?attr/colorOnError"
+        android:textSize="13sp"
+        android:visibility="gone" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_incoming_ignore"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1"
-                    android:text="@string/incoming_request_ignore_button"
-                    android:textAllCaps="false"
-                    app:cornerRadius="10dp" />
+    <TextView
+        android:id="@+id/banner_online"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginStart="60dp"
+        android:layout_marginEnd="60dp"
+        android:background="@drawable/bg_pill_online"
+        android:elevation="16dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingHorizontal="18dp"
+        android:text="@string/connectivity_restored"
+        android:textColor="@color/drivo_on_success"
+        android:textSize="13sp"
+        android:visibility="gone" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_incoming_accept"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.6"
-                    android:textAllCaps="false"
-                    app:cornerRadius="10dp"
-                    tools:text="Aceptar por $278" />
-            </LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-            <ProgressBar
-                android:id="@+id/progress_incoming_expiry"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="16dp"
-                android:max="1000"
-                android:progressBackgroundTint="?attr/colorSurfaceVariant"
-                android:progressTint="@color/drivo_error"
-                tools:progress="600" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-</FrameLayout>
+    <!-- Mismos ajustes de píldora que el NavigationView del pasajero (ver activity_home.xml):
+         estilo "Keep", pegada al borde izquierdo y con 56dp de alto por item. -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:fitsSystemWindows="true"
+        app:itemMinHeight="56dp"
+        app:itemShapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Drivo.NavigationView.Item"
+        app:itemShapeInsetBottom="0dp"
+        app:itemShapeInsetEnd="12dp"
+        app:itemShapeInsetStart="0dp"
+        app:itemShapeInsetTop="0dp"
+        app:headerLayout="@layout/nav_header_driver"
+        app:menu="@menu/driver_drawer_menu" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

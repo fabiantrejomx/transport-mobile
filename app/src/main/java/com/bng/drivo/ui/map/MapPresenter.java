@@ -132,7 +132,9 @@ public class MapPresenter {
 
         addMarker(points.get(0), R.color.drivo_success);
         for (int i = 1; i < points.size() - 1; i++) {
-            addMarker(points.get(i), R.color.drivo_primary);
+            // drivo_map_accent y no drivo_primary: el azul marino de marca desaparece sobre el
+            // mapa en tema oscuro (ver values/colors.xml).
+            addMarker(points.get(i), R.color.drivo_map_accent);
         }
         addMarker(points.get(points.size() - 1), R.color.drivo_secondary);
 

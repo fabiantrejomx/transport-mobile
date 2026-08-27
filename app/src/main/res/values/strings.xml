@@ -194,8 +194,8 @@
     <string name="searching_message">Buscando conductores…</string>
     <string name="searching_subtitle">Conductores disponibles cerca de ti</string>
     <string name="searching_offer_label">Oferta del conductor</string>
-    <string name="searching_reject_driver">Rechazar</string>
-    <string name="searching_accept_driver">Aceptar</string>
+    <string name="searching_reject_driver">Descartar</string>
+    <string name="searching_accept_driver">Elegir</string>
     <string name="searching_counter">Conductor disponible (%1$d/%2$d)</string>
     <string name="searching_eta_min">%1$d min</string>
     <string name="searching_accept_error">No se pudo confirmar con este conductor. Intenta de nuevo.</string>
@@ -285,7 +285,6 @@
     <string name="driver_home_menu_security">Centro de Seguridad y S.O.S</string>
     <string name="driver_home_status_offline">Estás desconectado</string>
     <string name="driver_home_status_online">Estás en línea</string>
-    <string name="driver_home_badge_searching">Buscando viajes…</string>
     <string name="driver_home_connect_button">CONECTARSE</string>
     <string name="driver_home_disconnect_button">DESCONECTARSE</string>
     <string name="driver_home_connect_error">No se pudo conectar. Intenta de nuevo.</string>
@@ -296,16 +295,19 @@
     <string name="driver_home_wallet_balance_format">$ %.2f MXN</string>
     <string name="driver_home_wallet_unavailable">$ — MXN</string>
     <string name="driver_home_status_title_draft">Termina tu registro</string>
-    <string name="driver_home_status_detail_draft">Vuelve al registro para completar los pasos y documentos pendientes.</string>
+    <string name="driver_home_status_detail_draft">Aún te faltan pasos o documentos por completar. Continúa donde te quedaste para enviar tu solicitud.</string>
     <string name="driver_home_status_title_pending_review">Tu solicitud está en revisión</string>
-    <string name="driver_home_status_detail_pending_review">Te avisaremos por notificación en cuanto la revisemos.</string>
+    <string name="driver_home_status_detail_pending_review">Ya recibimos tus documentos y los estamos validando. Te avisaremos con una notificación en cuanto tengamos una respuesta; por ahora no necesitas hacer nada más.</string>
     <string name="driver_home_status_title_rejected">Tu solicitud fue rechazada</string>
     <string name="driver_home_status_detail_rejected_reason">%1$s</string>
-    <string name="driver_home_status_detail_rejected_generic">Contáctanos para más detalles.</string>
+    <string name="driver_home_status_detail_rejected_generic">No pudimos aprobar tu solicitud. Contáctanos para conocer los detalles.</string>
     <string name="driver_home_status_title_suspended">Tu cuenta está suspendida</string>
-    <string name="driver_home_status_detail_suspended">Contáctanos para más detalles.</string>
+    <string name="driver_home_status_detail_suspended">No puedes conectarte mientras tu cuenta esté suspendida. Contáctanos para conocer los detalles.</string>
     <string name="driver_home_status_title_error">No se pudo cargar tu estado</string>
-    <string name="driver_home_status_detail_error">Toca para reintentar.</string>
+    <string name="driver_home_status_detail_error">Revisa tu conexión a internet e inténtalo de nuevo.</string>
+    <string name="driver_home_status_action_refresh">Actualizar estado</string>
+    <string name="driver_home_status_action_retry">Reintentar</string>
+    <string name="driver_home_status_action_continue_registration">Continuar mi registro</string>
 
     <!-- Oferta entrante y contraoferta (C3) -->
     <string name="incoming_request_cash_label">Efectivo</string>
@@ -375,7 +377,6 @@
     <string name="driver_settings_account_status_pending_review">En revisión</string>
     <string name="driver_settings_account_status_rejected">Solicitud rechazada</string>
     <string name="driver_settings_account_status_suspended">Cuenta suspendida</string>
-    <string name="driver_settings_vehicle_message">Aún no puedes editar tu vehículo desde la app — escríbenos si necesitas actualizarlo.</string>
     <string name="driver_settings_documents_complete">Todos tus documentos están completos.</string>
     <string name="driver_settings_documents_missing_format">Documentos pendientes: %1$s</string>
     <string name="driver_settings_wallet_message">Para recargar tu saldo, transfiere por SPEI a la cuenta de LibreGO y envía tu comprobante. Durante el piloto se acredita a mano.</string>
@@ -387,4 +388,87 @@
     <string name="driver_security_row_balance_issue">Problema con mi saldo/ganancias</string>
     <string name="driver_security_row_call_support">Llamar a central de soporte</string>
 
+
+    <!-- Home del conductor sobre el modal (mismo patrón que el pasajero) -->
+    <string name="driver_home_greeting_default">¡Hola!</string>
+    <string name="driver_home_greeting">¡Hola, %1$s!</string>
+    <string name="driver_home_offline_subtitle">Conéctate para empezar a recibir solicitudes de viaje cerca de ti.</string>
+    <string name="driver_home_online_subtitle">Estamos buscando viajes cerca de ti. Deja la app abierta para no perder ninguna solicitud.</string>
+    <string name="driver_home_stat_balance_label">Saldo</string>
+    <string name="driver_home_stat_trips_label">Viajes de hoy</string>
+    <string name="driver_home_trips_today_value">%1$d</string>
+
+    <!-- Solicitud entrante y oferta enviada -->
+    <string name="incoming_request_title">Nueva solicitud de viaje</string>
+    <string name="incoming_request_expires_label">La solicitud vence pronto</string>
+    <string name="driver_offer_sent_title">Oferta enviada</string>
+    <string name="driver_offer_sent_accepted_title">Aceptaste el viaje</string>
+    <string name="driver_offer_sent_subtitle_format">Le enviaste %1$s a %2$s. Otros conductores también pueden estar ofertando: el pasajero elige. Si te elige a ti, recibirás una notificación y el viaje se abrirá desde ahí.</string>
+    <string name="driver_offer_sent_dismiss">Seguir buscando viajes</string>
+
+    <!-- Cancelar viaje (conductor) -->
+    <string name="driver_trip_action_cancel">Cancelar viaje</string>
+    <string name="driver_trip_cancel_title">¿Cancelar este viaje?</string>
+    <string name="driver_trip_cancel_message">El pasajero recibirá un aviso de que cancelaste y el viaje volverá a buscar conductor. Cancelar seguido puede afectar tu cuenta.</string>
+    <string name="driver_trip_cancel_positive">Sí, cancelar</string>
+    <string name="driver_trip_cancel_negative">Seguir con el viaje</string>
+    <string name="driver_trip_cancel_error">No se pudo cancelar el viaje. Intenta de nuevo.</string>
+    <string name="driver_trip_cancelled_toast">Cancelaste el viaje</string>
+    <string name="driver_trip_passenger_label">Pasajero</string>
+    <string name="driver_trip_call_passenger">Llamar</string>
+    <string name="driver_trip_message_passenger">Mensaje</string>
+    <string name="driver_trip_contact_coming_soon">La llamada y el chat dentro de la app llegan en una próxima versión.</string>
+
+    <!-- Ajustes del conductor: desempeño y solicitud enviada -->
+    <string name="driver_settings_performance_header">Mi desempeño</string>
+    <string name="driver_settings_stat_rating">Calificación</string>
+    <string name="driver_settings_stat_trips">Viajes completados</string>
+    <string name="driver_settings_stat_balance">Saldo</string>
+    <string name="driver_settings_stat_empty">—</string>
+    <string name="driver_settings_rating_hint">Tu calificación es el promedio de las estrellas que te dejan los pasajeros al terminar cada viaje.</string>
+    <string name="driver_settings_row_application">Mi solicitud enviada</string>
+    <string name="driver_settings_application_status_label">Estado</string>
+    <string name="driver_settings_application_modality_label">Modalidad</string>
+    <string name="driver_settings_application_modality_particular">Auto particular</string>
+    <string name="driver_settings_application_modality_taxi">Taxi</string>
+    <string name="driver_settings_application_documents_label">Documentos</string>
+    <string name="driver_settings_application_doc_ok_format">✓ %1$s</string>
+    <string name="driver_settings_application_doc_missing_format">✗ %1$s (falta)</string>
+    <string name="driver_settings_application_rejection_label">Motivo del rechazo</string>
+    <string name="driver_settings_application_none">Todavía no enviaste una solicitud.</string>
+    <string name="driver_settings_vehicle_year_label">Año</string>
+    <string name="driver_settings_vehicle_plate_label">Placas</string>
+    <string name="driver_settings_vehicle_owner_yes">Eres el propietario del vehículo</string>
+    <string name="driver_settings_vehicle_owner_no">El vehículo está a nombre de otra persona</string>
+    <string name="driver_settings_vehicle_unknown">No tenemos guardados los datos del vehículo en este teléfono. Se guardan al enviar el registro desde esta app.</string>
+    <string name="driver_settings_curp_label">CURP</string>
+    <string name="driver_settings_rfc_label">RFC</string>
+
+    <!-- Drawer del conductor -->
+    <string name="driver_nav_earnings">Ganancias</string>
+    <string name="driver_nav_header_role">Conductor</string>
+    <string name="driver_nav_header_hint">Toca para ver el detalle de tus ganancias</string>
+    <string name="driver_nav_security">Seguridad</string>
+
+    <!-- Etiquetas de la ruta en la solicitud entrante -->
+    <string name="incoming_request_origin_label">Origen</string>
+    <string name="incoming_request_destination_label">Destino</string>
+    <string name="incoming_request_stop_label">Parada intermedia</string>
+    <string name="incoming_request_place_unknown">Ubicación del pasajero</string>
+    <string name="incoming_request_expiry_format">Te quedan %1$s para responder</string>
+    <string name="incoming_request_expired">La solicitud venció</string>
+
+    <!-- Subasta de conductores (paso "Buscando conductores") -->
+    <string name="searching_offers_title">%1$d conductores aceptaron</string>
+    <string name="searching_offers_title_one">1 conductor aceptó</string>
+    <string name="searching_offers_subtitle">Elige con quién quieres viajar</string>
+    <string name="searching_your_offer_label">Tu oferta</string>
+    <string name="searching_still_looking">Seguimos buscando más conductores…</string>
+    <string name="searching_best_price_badge">Mejor precio</string>
+    <string name="searching_price_delta_same">Aceptó tu tarifa</string>
+    <string name="searching_price_delta_over">+ $%1$.2f sobre tu oferta</string>
+    <string name="searching_eta_arrives">Llega en %1$d min</string>
+    <string name="searching_offer_gone">Esa oferta ya no está disponible</string>
+    <string name="searching_expired_toast">Ningún conductor tomó tu viaje. Vuelve a pedirlo, o sube un poco la tarifa para que más conductores lo vean.</string>
+    <string name="searching_no_longer_active_toast">Esa solicitud ya no está activa</string>
 </resources>

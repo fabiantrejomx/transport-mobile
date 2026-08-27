@@ -175,6 +175,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     /** false cuando el paso no pinta ningún botón flotante y la tarjeta de ruta puede subir. */
     private boolean routeCardClearsFloatingRow = true;
     private int sheetTopInsetPx;
+    /** Alto real del modal (pantalla menos el inset superior); 0 hasta el primer layout válido. */
+    private int sheetAvailableHeightPx;
     /**
      * Paso cuyo panel está realmente puesto en el modal. Va un fundido por detrás de
      * {@code viewModel.getStep()} y es el que manda al medir: durante la transición el modal
@@ -430,12 +432,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         // El modal vuelve a su posición base antes de medir el panel nuevo: si venía expandido
         // (buscador abierto) el peek recién calculado no se aplicaría hasta soltarlo.
-        //
-        // PICK_STOP también es arrastrable, igual que IDLE: es el único paso con su propio
-        // buscador (ver PickStopPanel), y arrastrar el modal hacia abajo es una de las formas de
-        // cancelar esa búsqueda, junto al botón "Cancelar búsqueda" de su propio panel.
-        boolean draggable = idle || step == TripFlowViewModel.Step.PICK_STOP;
-        sheetBehavior.setDraggable(draggable);
+        if (step == TripFlowViewModel.Step.SEARCHING) {
+            // Todavía no hay ofertas que puedan desbordar: lo decidirá la primera medida del
+            // panel, en updateSheetStops.
+            searchingOverflows = false;
+        }
+        applySheetDraggable();
         sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
         pendingCollapseStep = step;
         applyFullScreenTransition(0f);
@@ -455,10 +457,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         pickStopPin.setVisibility(step == TripFlowViewModel.Step.PICK_STOP ? View.VISIBLE : View.GONE);
         // Los pasos que ya resuelven la salida dentro del modal ("Cancelar") se quedan sin flecha
         // flotante: una etiqueta dice lo que hace y una flecha desnuda no, y en PICK_STOP el
-        // modal expandido la tapaba de todos modos. Se aplica a los dos a la vez para que el
+        // modal expandido la tapaba de todos modos. Se aplica a los tres a la vez para que el
         // botón no se esfume y reaparezca al ir y volver entre ellos.
+        //
+        // SEARCHING entra en la misma regla: su salida es "Cancelar solicitud", que además dice
+        // lo que de verdad pasa al irse (se cancela el viaje en el servidor). Una flecha ahí
+        // sugería un "atrás" inofensivo que no existe. El gesto del sistema sigue funcionando y
+        // hace exactamente lo mismo que el botón, con su confirmación (ver setUpBackHandling).
         boolean showNavButton = step != TripFlowViewModel.Step.CONFIRM_PRICE
-                && step != TripFlowViewModel.Step.PICK_STOP;
+                && step != TripFlowViewModel.Step.PICK_STOP
+                && step != TripFlowViewModel.Step.SEARCHING;
         // En CONFIRM_PRICE el mapa queda congelado (abajo), así que no hay nada que recentrar; en
         // SEARCHING pasaba ya lo mismo. En PICK_STOP sí se conserva: ahí arrastrar el mapa es el
         // mecanismo para colocar el pin, y volver a la ubicación propia es una ayuda real.
@@ -720,6 +728,15 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (hasLocationPermission() && googleMap != null && !googleMap.isMyLocationEnabled()) {
             showMyLocation();
         }
+        // Volver del bloqueo de pantalla no recrea nada, así que las medidas del modal siguen
+        // siendo las de antes — y pueden venir de un pase de layout hecho con la ventana a medio
+        // restaurar. Se tiran y se recalculan con la geometría ya asentada; sin forzar el pase,
+        // nada volvería a pedirlas porque el contenido no cambió.
+        View root = getView();
+        if (root != null) {
+            lastCollapsedHeightPx = -1;
+            root.requestLayout();
+        }
     }
 
     /**
@@ -805,6 +822,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
      * visible, que se ve raro.
      */
     private static final float SHEET_FULLSCREEN_FADE_START = 0.85f;
+    /** Tope del modal en el paso de la subasta, como fracción del alto útil de la pantalla. */
+    private static final float SEARCHING_MAX_PEEK_FRACTION = 0.62f;
+    /**
+     * Recorrido mínimo que siempre le queda al modal por encima de su corte. Es lo que garantiza
+     * que arrastrarlo hacia arriba tenga a dónde ir — ver {@link #clampPeek}.
+     */
+    private static final int SHEET_MIN_EXPAND_TRAVEL_DP = 56;
+
+    /** Si la subasta no cabe en su tope y por tanto el modal se puede subir — ver applySheetDraggable(). */
+    private boolean searchingOverflows;
 
     /**
      * El listener NO se auto-remueve: el contenido del modal cambia solo (direcciones guardadas
@@ -920,9 +947,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         View sheet = root.findViewById(R.id.sheet_container);
         int availableHeightPx = root.getHeight() - topInsetPx;
         ViewGroup.LayoutParams sheetParams = sheet.getLayoutParams();
-        if (root.getHeight() > 0 && sheetParams.height != availableHeightPx) {
-            sheetParams.height = availableHeightPx;
-            sheet.setLayoutParams(sheetParams);
+        if (root.getHeight() > 0) {
+            sheetAvailableHeightPx = availableHeightPx;
+            if (sheetParams.height != availableHeightPx) {
+                sheetParams.height = availableHeightPx;
+                sheet.setLayoutParams(sheetParams);
+            }
         }
 
         float density = getResources().getDisplayMetrics().density;
@@ -978,9 +1008,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 }
             }
             collapsedHeightPx = pickStopRestingHeightPx;
+        } else if (displayedStep == TripFlowViewModel.Step.SEARCHING) {
+            // La subasta puede traer varias ofertas y crecer más que la pantalla. Se corta a una
+            // fracción del alto disponible para que el mapa no desaparezca; que haya desbordado es
+            // además lo único que hace arrastrable este paso (ver applySheetDraggable): permitirlo
+            // con una sola oferta en pantalla dejaría medio modal vacío.
+            int measuredPx = sheetContent.getHeight();
+            int maxPeekPx = Math.round((root.getHeight() - sheetTopInsetPx) * SEARCHING_MAX_PEEK_FRACTION);
+            searchingOverflows = maxPeekPx > 0 && measuredPx > maxPeekPx;
+            collapsedHeightPx = searchingOverflows ? maxPeekPx : measuredPx;
         } else {
             collapsedHeightPx = sheetContent.getHeight();
         }
+        // Fuera de las ramas y en cada pase: el arrastre es una consecuencia del paso, no un
+        // efecto secundario de haber medido uno concreto — ver applySheetDraggable().
+        applySheetDraggable();
+        collapsedHeightPx = clampPeek(collapsedHeightPx);
         if (collapsedHeightPx <= 0) {
             return;
         }
@@ -1011,6 +1054,61 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         // Fuera del memo: la tarjeta de ruta aparece con alto 0 y solo queda medida en el pase
         // siguiente, cuando el modal ya no cambió de alto y el memo cortaría la actualización.
         updateMapViewport(collapsedHeightPx);
+    }
+
+    /**
+     * Impide que el corte del modal alcance su propio alto. Si el peek iguala o supera el alto del
+     * modal, colapsado y expandido caen en el mismo punto: el arrastre no tiene recorrido, el
+     * gesto se lo queda el scroll interno del contenido y el modal "deja de responder" para
+     * crecer, que es exactamente el síntoma que aparecía al volver de la pantalla bloqueada.
+     *
+     * <p>Ahí se producía porque las dos medidas del modal —su alto y su corte— solo se reescriben
+     * cuando cambian, y un pase de layout con la ventana a medio restaurar (insets todavía
+     * distintos, alto de la pantalla aún sin asentar) podía dejar guardado un alto más chico que
+     * el corte ya memorizado. Sin nada que volviera a moverlas, el modal se quedaba así hasta
+     * cerrar la app. Este tope lo vuelve imposible por construcción, venga de donde venga la
+     * medida: con {@link #SHEET_MIN_EXPAND_TRAVEL_DP} siempre queda cuánto subir.
+     */
+    /**
+     * Único sitio donde se decide si el modal se arrastra. Lo derivado del paso, y re-afirmado en
+     * cada pase de layout.
+     *
+     * <p>Antes esto vivía repartido: applyStep lo fijaba para el paso nuevo y la rama SEARCHING de
+     * updateSheetStops lo volvía a fijar para el que todavía estaba en pantalla. Como el cambio de
+     * panel va un fundido por detrás (ver swapPanel), al salir de la subasta el orden real era
+     * "arrastrable ← paso nuevo" y enseguida "no arrastrable ← paso viejo", y ninguna rama posterior
+     * lo devolvía: el modal de Inicio se quedaba clavado. Con el arrastre desactivado,
+     * BottomSheetBehavior ignora el gesto y lo hereda el NestedScrollView de dentro — de ahí el
+     * síntoma exacto: el modal ya no sube y el contenido solo hace scroll interno.
+     *
+     * <p>Se lee del ViewModel y no de {@code displayedStep} a propósito: el paso pedido es la
+     * verdad, y el panel en pantalla puede ir un fundido por detrás.
+     */
+    private void applySheetDraggable() {
+        TripFlowViewModel.Step step = viewModel.getStep();
+        boolean draggable;
+        // PICK_STOP se arrastra igual que IDLE: es el único otro paso con buscador propio (ver
+        // PickStopPanel), y bajar el modal con el dedo es una de las formas de cancelar esa
+        // búsqueda, junto al botón "Cancelar búsqueda" de su panel.
+        if (step == TripFlowViewModel.Step.SEARCHING) {
+            // Solo cuando la lista de ofertas no cabe: con una sola oferta, poder subir el modal
+            // dejaría media pantalla vacía.
+            draggable = searchingOverflows;
+        } else {
+            draggable = step == TripFlowViewModel.Step.IDLE
+                    || step == TripFlowViewModel.Step.PICK_STOP;
+        }
+        sheetBehavior.setDraggable(draggable);
+    }
+
+    private int clampPeek(int peekPx) {
+        if (sheetAvailableHeightPx <= 0) {
+            return peekPx;
+        }
+        int minTravelPx = Math.round(
+                SHEET_MIN_EXPAND_TRAVEL_DP * getResources().getDisplayMetrics().density);
+        int maxPeekPx = sheetAvailableHeightPx - minTravelPx;
+        return maxPeekPx > 0 ? Math.min(peekPx, maxPeekPx) : peekPx;
     }
 
     private int idlePeekHeight(View root) {

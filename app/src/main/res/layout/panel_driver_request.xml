@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panel de la solicitud entrante (C3) dentro del modal de DriverHomeActivity. Antes era una
+     MaterialCardView flotante sobre el mapa con márgenes propios; ahora es un paso más del
+     mismo modal, igual que los del pasajero, así que no lleva tarjeta ni márgenes: el modal ya
+     es la superficie.
+
+     Sigue siendo una tarjeta que NO bloquea al conductor — el contrato dice que tras ofertar
+     vuelve al radar y puede seguir recibiendo viajes (ver DriverHomeActivity). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorOutline" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="14dp"
+        android:text="@string/incoming_request_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <!-- Pasajero + oferta: la información con la que se decide, toda en una fila. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/text_incoming_avatar"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="?attr/colorPrimaryContainer"
+            android:gravity="center"
+            android:textColor="?attr/colorOnPrimaryContainer"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="EG" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/text_incoming_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Esteban G." />
+
+            <TextView
+                android:id="@+id/text_incoming_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/drivo_secondary"
+                android:textSize="13sp"
+                tools:text="★ 5.0" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/text_incoming_offer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                tools:text="$ 278.00" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/incoming_request_cash_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Recogida y destino, cada uno con su distancia: las dos cifras que el mockup C3 exige
+         ver antes de aceptar (qué tan lejos está el pasajero y qué tan largo es el viaje). -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_stat_tile"
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp">
+
+        <!-- "Origen" / "Destino" en vez de dejar dos direcciones sueltas: sin etiqueta, la
+             primera línea (que el pasajero manda como "Tu ubicación actual") se leía como si
+             fuera la ubicación del conductor. El punto de color repite el mismo código que los
+             marcadores del mapa — verde origen, dorado destino. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_dot"
+                android:backgroundTint="@color/drivo_success" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:text="@string/incoming_request_origin_label"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_incoming_pickup_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="Av. Oriente 6, Orizaba" />
+
+        <TextView
+            android:id="@+id/text_incoming_pickup_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="13sp"
+            tools:text="A 2.5 km (6 min) del pasajero" />
+
+        <!-- Paradas intermedias, si el viaje las trae: van entre origen y destino porque ese es
+             su orden real en la ruta, y DriverHomeActivity las llena en tiempo de ejecución
+             (pueden ser 0, 1 o varias). -->
+        <LinearLayout
+            android:id="@+id/container_incoming_stops"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_dot"
+                android:backgroundTint="@color/drivo_secondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:text="@string/incoming_request_destination_label"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_incoming_dropoff_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="Plaza Valle, Orizaba" />
+
+        <TextView
+            android:id="@+id/text_incoming_trip_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="Viaje de 14 km" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/text_incoming_counter_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/incoming_request_counter_label"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:id="@+id/container_incoming_counters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal">
+
+        <!-- Rojo (borde y texto) para separarlo de los botones de contraoferta, que son
+             outlined neutros justo encima: los tres se veían iguales y "Ignorar" es la única
+             acción de las tres que descarta el viaje. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_incoming_ignore"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:paddingVertical="14dp"
+            android:text="@string/incoming_request_ignore_button"
+            android:textAllCaps="false"
+            android:textColor="@color/drivo_error"
+            app:cornerRadius="26dp"
+            app:strokeColor="@color/drivo_error" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_incoming_accept"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.6"
+            android:paddingVertical="14dp"
+            android:textAllCaps="false"
+            app:cornerRadius="26dp"
+            tools:text="Aceptar por $278" />
+    </LinearLayout>
+
+    <!-- Cuenta atrás real de expires_at. La barra sola no dice cuánto queda: sin el número, una
+         barra a media asta puede ser medio minuto o cinco segundos. El texto es la señal
+         principal y la barra el refuerzo visual. -->
+    <TextView
+        android:id="@+id/text_incoming_expiry"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="6dp"
+        android:gravity="center"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp"
+        tools:text="Te quedan 0:18 para responder" />
+
+    <ProgressBar
+        android:id="@+id/progress_incoming_expiry"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:max="1000"
+        android:progressBackgroundTint="?attr/colorSurfaceVariant"
+        android:progressTint="@color/drivo_error"
+        tools:progress="600" />
+</LinearLayout>

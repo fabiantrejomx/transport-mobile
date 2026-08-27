@@ -17,6 +17,8 @@ public enum ApiErrorCode {
     OFFER_OUT_OF_RANGE,
     RIDE_IN_PROGRESS,
     ALREADY_OFFERED,
+    /** El conductor ya tiene el máximo de ofertas vivas (max_live_offers_per_driver). */
+    TOO_MANY_LIVE_OFFERS,
     RIDE_ALREADY_TAKEN,
     OFFER_EXPIRED,
     DRIVER_NO_LONGER_AVAILABLE,

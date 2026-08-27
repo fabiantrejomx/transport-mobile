@@ -59,6 +59,21 @@
         android:visibility="gone"
         app:tint="?attr/colorOnSurface" />
 
+    <!-- Los viajes a los que el conductor ya se postuló, apilados bajo la fila de flotantes.
+
+         Van sobre el mapa y no dentro del modal a propósito: ofertar no lo bloquea —sigue
+         recibiendo y evaluando otras solicitudes en el modal— así que sus ofertas en curso tienen
+         que quedarse a la vista sin disputarle ese espacio. Son como mucho tres, el mismo tope que
+         impone el servidor (max_live_offers_per_driver). El margen superior lo fija
+         DriverHomeActivity.applyTopInsets: inset + la fila de botones + un respiro. -->
+    <LinearLayout
+        android:id="@+id/container_offer_banners"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginHorizontal="16dp"
+        android:orientation="vertical" />
+
     <!-- Radar del paso SEARCHING. Se centra en el hueco visible del mapa, no en la pantalla:
          DriverHomeActivity.updateMapViewport le da un margen inferior igual al alto del modal para que no quede medio
          tapado por él. Se oculta en cuanto llega una oferta, que pasa a ser el foco.
@@ -205,13 +220,6 @@
             <include
                 android:id="@+id/panel_driver_request"
                 layout="@layout/panel_driver_request"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/panel_driver_offer_sent"
-                layout="@layout/panel_driver_offer_sent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone" />

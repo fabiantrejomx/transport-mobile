@@ -32,6 +32,16 @@ public interface DriverRepository {
     void reportLocation(double lat, double lng, Double heading, Double accuracyM, ApiCallback<Void> callback);
 
     /** GET /driver/rides/{id} */
+    /**
+     * GET /driver/current-ride — el viaje asignado ahora mismo, o {@code null} si no hay ninguno.
+     *
+     * <p>Es como la app se recupera sola de haber ganado un viaje. Enterarse dependía por completo
+     * del push {@code offer_accepted} y de que el conductor lo tocara; si no llegaba o lo
+     * descartaba, quedaba ocupado en el servidor —y por tanto fuera del radar— sin viaje en
+     * pantalla y sin solicitudes nuevas.
+     */
+    void getCurrentRide(ApiCallback<Ride> callback);
+
     void getIncomingRequest(String rideId, ApiCallback<IncomingRequest> callback);
 
     /** POST /driver/rides/{id}/offer — amount igual a la oferta del pasajero acepta, mayor contraoferta. */

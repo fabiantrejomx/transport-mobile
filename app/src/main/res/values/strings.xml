@@ -314,7 +314,10 @@
     <string name="incoming_request_pickup_label">Mi ubicación actual</string>
     <string name="incoming_request_counter_label">Tu Contraoferta:</string>
     <string name="incoming_request_ignore_button">Ignorar</string>
-    <string name="incoming_request_accept_button_format">Aceptar por %1$s</string>
+    <!-- "Aceptar" mentía: en este punto el conductor se postula y el viaje no es suyo todavía —
+         lo decide el pasajero entre todos los que ofertaron. Creer lo contrario hace que cada vez
+         que no lo eligen lo viva como que se lo quitaron. -->
+    <string name="incoming_request_accept_button_format">Ofertar por %1$s</string>
     <string name="incoming_request_counter_button_format">+ $%1$.0f</string>
     <string name="incoming_request_rating_format">★ %1$.1f</string>
     <string name="incoming_request_rating_new_suffix"> (Nuevo)</string>
@@ -401,9 +404,12 @@
     <!-- Solicitud entrante y oferta enviada -->
     <string name="incoming_request_title">Nueva solicitud de viaje</string>
     <string name="incoming_request_expires_label">La solicitud vence pronto</string>
-    <string name="driver_offer_sent_title">Oferta enviada</string>
-    <string name="driver_offer_sent_accepted_title">Aceptaste el viaje</string>
-    <string name="driver_offer_sent_subtitle_format">Le enviaste %1$s a %2$s. Otros conductores también pueden estar ofertando: el pasajero elige. Si te elige a ti, recibirás una notificación y el viaje se abrirá desde ahí.</string>
+    <string name="driver_offer_sent_toast_format">Ofertaste %1$s · el pasajero decide</string>
+    <string name="driver_banner_offer_sent_format">Ofertaste %1$s · el pasajero decide</string>
+    <string name="driver_banner_won">Te eligieron · abriendo el viaje</string>
+    <string name="driver_banner_gone">Ya no disponible</string>
+    <string name="driver_banner_unknown_destination">Viaje solicitado</string>
+    <string name="driver_too_many_live_offers">Ya tienes el máximo de ofertas esperando respuesta. Espera a que alguna se resuelva.</string>
     <string name="driver_offer_sent_dismiss">Seguir buscando viajes</string>
 
     <!-- Cancelar viaje (conductor) -->

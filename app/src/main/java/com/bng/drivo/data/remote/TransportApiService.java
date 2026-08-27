@@ -120,6 +120,10 @@ public interface TransportApiService {
     @POST("/driver/location")
     Call<Void> reportDriverLocation(@Body DriverLocationRequest body);
 
+    /** 204 sin cuerpo cuando el conductor no trae viaje asignado. */
+    @GET("/driver/current-ride")
+    Call<RideDto> getDriverCurrentRide();
+
     @GET("/driver/rides/{id}")
     Call<IncomingRequestDto> getIncomingRide(@Path("id") String rideId);
 

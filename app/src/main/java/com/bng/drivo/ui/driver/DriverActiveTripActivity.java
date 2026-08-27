@@ -463,9 +463,13 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     }
 
     /**
-     * "Atrás" no puede cerrar la pantalla sin más: el contrato no ofrece cómo retomarla (solo
-     * otro push), así que salir por accidente dejaría al conductor con un viaje asignado y sin
-     * forma de avanzarlo. Antes de IN_PROGRESS ofrece cancelar de verdad; después no hace nada.
+     * "Atrás" no puede cerrar la pantalla sin más: salir por accidente dejaría al conductor con un
+     * viaje asignado y con el pasajero esperando. Antes de IN_PROGRESS ofrece cancelar de verdad;
+     * después no hace nada, porque a partir de ahí el único desenlace es terminarlo.
+     *
+     * <p>Retomarla ya no es el problema que era —{@code GET /driver/current-ride} la reabre al
+     * volver a Inicio—, pero eso arregla el accidente, no lo justifica: irse a medio viaje sigue
+     * sin ser una salida.
      */
     private void setUpBackHandling() {
         backCallback = new OnBackPressedCallback(true) {

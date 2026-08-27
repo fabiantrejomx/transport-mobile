@@ -33,7 +33,9 @@ import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.DriverApplication;
+import com.bng.drivo.data.model.InboxEntry;
 import com.bng.drivo.data.model.IncomingRequest;
+import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.model.Waypoint;
 import com.bng.drivo.data.model.Wallet;
@@ -79,6 +81,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -101,8 +105,18 @@ import java.util.Set;
  *
  * <p>C3 (oferta entrante) vive aquí mismo como un paso del modal, no como una Activity separada —
  * el contrato es explícito (openapi.yaml, POST /driver/rides/{id}/offer): "el conductor no se
- * bloquea, después de ofertar vuelve al radar y puede seguir recibiendo viajes". Por eso ofertar
- * pasa a {@link Step#OFFER_SENT}, que es informativo y no espera respuesta del servidor.
+ * bloquea, después de ofertar vuelve al radar y puede seguir recibiendo viajes".
+ *
+ * <p>Postularse por tanto <b>no ocupa el modal</b>: la oferta se va a un banner sobre el mapa
+ * (ver {@link #bindOfferBanners}) y el modal vuelve al radar, libre para la siguiente solicitud.
+ * Antes había un paso {@code OFFER_SENT} que se quedaba esperando una respuesta que puede tardar
+ * los tres minutos de la subasta entera, y durante los cuales el conductor no podía hacer nada.
+ *
+ * <p>Ganar un viaje llega por dos caminos que se refuerzan: el push {@code offer_accepted} y
+ * {@code GET /driver/current-ride}, que esta pantalla consulta al arrancar, al volver del fondo y
+ * cada vez que una oferta desaparece de la bandeja. El push solo es un atajo — si no llega o el
+ * conductor no lo toca, quedaba ocupado en el servidor y fuera del radar sin nada en pantalla
+ * que se lo dijera.
  */
 public class DriverHomeActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
@@ -116,10 +130,8 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         OFFLINE,
         /** En el radar: mismo panel con otro copy, más los anillos animados sobre el mapa. */
         ONLINE,
-        /** Solicitud entrante con los datos del pasajero, contraofertas y aceptar/ignorar. */
-        REQUEST,
-        /** Ya ofertamos por ese viaje: informativo, el conductor sigue en el radar. */
-        OFFER_SENT
+        /** Solicitud entrante con los datos del pasajero, contraofertas y ofertar/ignorar. */
+        REQUEST
     }
 
     private static final long RADAR_PULSE_DURATION_MS = 1600L;
@@ -131,10 +143,19 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private static final long PANEL_FADE_IN_MS = 190;
     /** Igual que el layout_margin de btn_menu / btn_my_location en activity_driver_home.xml. */
     private static final int FLOATING_BUTTON_MARGIN_DP = 16;
+    /** Alto de esos mismos flotantes: los banners se apilan justo debajo de su fila. */
+    private static final int FLOATING_BUTTON_SIZE_DP = 44;
     /** Tope del corte del modal respecto a su propio alto — mismo criterio que en el pasajero. */
     private static final int SHEET_MIN_EXPAND_TRAVEL_DP = 56;
     /** A partir de aquí la cuenta atrás se pone en rojo. */
     private static final int EXPIRY_WARNING_SECONDS = 10;
+    /**
+     * Cuánto se queda en pantalla un banner ya resuelto antes de irse — y, cuando ganamos, antes
+     * de que se abra el viaje. Es el tiempo de leer qué pasó.
+     */
+    private static final long BANNER_RESOLVED_VISIBLE_MS = 2000;
+    /** Refresco de la cuenta atrás de los banners. */
+    private static final long BANNER_TICK_MS = 500;
 
     private DriverRepository driverRepository;
     private UserRepository userRepository;
@@ -163,9 +184,15 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      * solicitudes, y puede ignorar dos o tres antes de que la primera se resuelva. Las entradas
      * se borran cuando el viaje desaparece de la bandeja (ver {@link #onInboxChanged}).
      */
-    private final Set<String> resolvedRideIds = new HashSet<>();
-    /** Viaje por el que ya ofertamos y seguimos esperando respuesta del pasajero. */
-    private String pendingOfferRideId;
+    private final Set<String> ignoredRideIds = new HashSet<>();
+    /** Banners en pantalla, por id de viaje: las ofertas vivas de este conductor. */
+    private final Map<String, OfferBanner> offerBanners = new LinkedHashMap<>();
+    /** Viajes cuyo banner ya se resolvió (ganado o perdido) y está en su animación de salida. */
+    private final Set<String> closingBanners = new HashSet<>();
+    /** Evita que dos consultas a /driver/current-ride se pisen al resolverse varias ofertas. */
+    private boolean checkingCurrentRide;
+    /** Ya estamos abriendo el viaje ganado: ni volver a abrirlo ni seguir pintando banners. */
+    private boolean openingWonRide;
 
     private boolean online;
     private boolean approved;
@@ -192,11 +219,15 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private BottomSheetBehavior<View> sheetBehavior;
     private View panelConnect;
     private View panelRequest;
-    private View panelOfferSent;
+    private LinearLayout containerOfferBanners;
+    private final Handler bannerHandler = new Handler(Looper.getMainLooper());
+    @Nullable
+    private Runnable bannerTicker;
     private int lastCollapsedHeightPx = -1;
     private int sheetTopInsetPx;
     private int sheetAvailableHeightPx;
     private int lastMapBottomPaddingPx = -1;
+    private int lastMapTopPaddingPx = -1;
     private boolean animateNextPeek;
 
     private TextView textConnectGreeting;
@@ -226,8 +257,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private MaterialButton btnIncomingAccept;
     private ProgressBar progressIncomingExpiry;
 
-    private TextView textOfferSentTitle;
-    private TextView textOfferSentDetail;
 
     private View offlineBanner;
     private View onlineBanner;
@@ -272,7 +301,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         });
         btnConnectToggle.setOnClickListener(v -> toggleConnection());
         btnIncomingIgnore.setOnClickListener(v -> ignoreIncomingRequest());
-        findViewById(R.id.btn_offer_sent_dismiss).setOnClickListener(v -> backToRadar());
 
         startRadarPulse();
         loadGreeting();
@@ -298,7 +326,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         sheetContent = findViewById(R.id.sheet_content);
         panelConnect = findViewById(R.id.panel_driver_connect);
         panelRequest = findViewById(R.id.panel_driver_request);
-        panelOfferSent = findViewById(R.id.panel_driver_offer_sent);
+        containerOfferBanners = findViewById(R.id.container_offer_banners);
 
         textConnectGreeting = findViewById(R.id.text_connect_greeting);
         dotConnectionStatus = findViewById(R.id.dot_connection_status);
@@ -322,8 +350,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         btnIncomingAccept = findViewById(R.id.btn_incoming_accept);
         progressIncomingExpiry = findViewById(R.id.progress_incoming_expiry);
 
-        textOfferSentTitle = findViewById(R.id.text_offer_sent_title);
-        textOfferSentDetail = findViewById(R.id.text_offer_sent_detail);
     }
 
     /**
@@ -382,7 +408,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
 
             @Override
             public void onDrawerClosed(@NonNull View drawerView) {
-                backCallback.setEnabled(step == Step.REQUEST || step == Step.OFFER_SENT);
+                backCallback.setEnabled(step == Step.REQUEST);
             }
         });
     }
@@ -427,8 +453,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         btnMyLocation.setVisibility(gated || target == Step.REQUEST ? View.GONE : View.VISIBLE);
         // El radar late mientras estamos en el radar de verdad — también con una oferta ya
         // enviada, porque el conductor sigue recibiendo viajes (ver el javadoc de la clase).
-        radarContainer.setVisibility(target == Step.ONLINE || target == Step.OFFER_SENT
-                ? View.VISIBLE : View.GONE);
+        radarContainer.setVisibility(target == Step.ONLINE ? View.VISIBLE : View.GONE);
         setDrawerEnabled(!gated && target != Step.REQUEST);
         // Las dos rutas solo tienen sentido con una solicitud en pantalla; en cuanto se resuelve
         // (ofertada o ignorada) el mapa vuelve a estar limpio para la siguiente.
@@ -444,7 +469,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
 
         // "Atrás" solo tiene sentido cuando hay algo que cerrar dentro del modal; en OFFLINE y
         // ONLINE debe salir de la app como siempre.
-        backCallback.setEnabled(target == Step.REQUEST || target == Step.OFFER_SENT);
+        backCallback.setEnabled(target == Step.REQUEST);
         updateSheetStops();
     }
 
@@ -459,7 +484,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             panelConnect.setVisibility(
                     target == Step.OFFLINE || target == Step.ONLINE ? View.VISIBLE : View.GONE);
             panelRequest.setVisibility(target == Step.REQUEST ? View.VISIBLE : View.GONE);
-            panelOfferSent.setVisibility(target == Step.OFFER_SENT ? View.VISIBLE : View.GONE);
             displayedStep = target;
             lastCollapsedHeightPx = -1;
             animateNextPeek = animate;
@@ -490,8 +514,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 }
                 if (step == Step.REQUEST) {
                     ignoreIncomingRequest();
-                } else if (step == Step.OFFER_SENT) {
-                    backToRadar();
                 }
             }
         };
@@ -642,8 +664,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 LoadingButtonHelper.setLoading(btnConnectToggle, false);
                 online = false;
                 displayedRideId = null;
-                resolvedRideIds.clear();
-                pendingOfferRideId = null;
+                ignoredRideIds.clear();
+                // Al desconectarse el servidor deja de ofrecerle viajes, pero sus ofertas siguen
+                // vivas hasta que vencen o alguien las elige. Los banners se van de la pantalla
+                // porque ya no hay bandeja que los mantenga al día; si un pasajero lo elige,
+                // /driver/current-ride lo trae de vuelta al volver.
+                clearOfferBanners();
                 cancelIncomingExpiryTimer();
                 goTo(Step.OFFLINE);
                 updateConnectionUi();
@@ -758,19 +784,30 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      * La bandeja es la única señal en vivo del lado del conductor: un documento aparece cuando un
      * viaje entra a su radar y desaparece cuando sale (lo tomó otro, lo ganó él, o venció).
      *
-     * <p>Que el viaje que ofertamos desaparezca no dice si ganamos o perdimos — el contrato no lo
-     * expone —, así que solo se cierra el panel de "oferta enviada" y se vuelve al radar. Si
-     * ganamos, quien abre el viaje es el push {@code offer_accepted} (ver
-     * DrivoFirebaseMessagingService), que es la única forma que da el contrato de enterarse.
+     * <p>Cada documento dice además si este conductor ya se postuló ({@code my_offer}), y de ahí
+     * sale el reparto: lo ofertado va a los banners sobre el mapa, y lo que queda por decidir al
+     * modal. Que ese estado venga del servidor y no de la memoria del proceso es lo que hace que
+     * los banners sobrevivan a que Android recicle la app con las ofertas todavía vivas.
+     *
+     * <p>Que una oferta desaparezca de la bandeja no dice si ganamos o perdimos — el canal en vivo
+     * no lo distingue —, así que se le pregunta al servidor: {@link #checkCurrentRide}.
      */
-    private void onInboxChanged(List<String> rideIds) {
-        resolvedRideIds.retainAll(rideIds);
-        if (pendingOfferRideId != null && !rideIds.contains(pendingOfferRideId)) {
-            pendingOfferRideId = null;
-            if (step == Step.OFFER_SENT) {
-                backToRadar();
-            }
+    private void onInboxChanged(List<InboxEntry> entries) {
+        if (openingWonRide) {
+            return;
         }
+        List<String> rideIds = new ArrayList<>();
+        for (InboxEntry entry : entries) {
+            rideIds.add(entry.getRideId());
+        }
+        ignoredRideIds.retainAll(rideIds);
+
+        boolean seResolvioAlguna = bindOfferBanners(entries);
+        if (seResolvioAlguna) {
+            // Una de nuestras ofertas se decidió. Solo el servidor sabe si a nuestro favor.
+            checkCurrentRide(false);
+        }
+
         if (displayedRideId != null && !rideIds.contains(displayedRideId)) {
             // Se lo llevó otro conductor o venció mientras lo teníamos en pantalla.
             displayedRideId = null;
@@ -778,14 +815,260 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 backToRadar();
             }
         }
-        // El primero que no hayamos resuelto ya: con una oferta en vuelo el conductor sigue
-        // recibiendo viajes, y el suyo puede seguir ocupando el primer lugar de la lista.
-        for (String rideId : rideIds) {
-            if (!rideId.equals(displayedRideId) && !resolvedRideIds.contains(rideId)) {
-                fetchIncomingRequest(rideId);
+        // Solo se abre una solicitud si el modal está libre: con el conductor leyendo una,
+        // sustituírsela por otra que acaba de entrar le hace decidir sobre algo que no eligió
+        // ver — y la que estaba leyendo se pierde sin que sepa que existió.
+        if (step == Step.REQUEST || step == Step.GATE || step == Step.NOT_APPROVED) {
+            return;
+        }
+        for (InboxEntry entry : entries) {
+            if (!entry.hasOffered() && !ignoredRideIds.contains(entry.getRideId())) {
+                fetchIncomingRequest(entry.getRideId());
                 return;
             }
         }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Banners de ofertas enviadas
+    // ---------------------------------------------------------------------------------------
+
+    /** Un banner vivo y las vistas que hay que refrescar en cada tic. */
+    private static final class OfferBanner {
+        final View view;
+        final TextView countdown;
+        final ProgressBar progress;
+        @Nullable
+        final Long expiresAtMillis;
+        final long totalMs;
+
+        OfferBanner(View view, TextView countdown, ProgressBar progress,
+                    @Nullable Long expiresAtMillis, long totalMs) {
+            this.view = view;
+            this.countdown = countdown;
+            this.progress = progress;
+            this.expiresAtMillis = expiresAtMillis;
+            this.totalMs = totalMs;
+        }
+    }
+
+    /**
+     * Sincroniza los banners con la bandeja.
+     *
+     * @return true si alguna oferta que teníamos en pantalla ya no está — lo que obliga a
+     *         preguntarle al servidor si el desenlace fue a nuestro favor
+     */
+    private boolean bindOfferBanners(List<InboxEntry> entries) {
+        Set<String> vivos = new HashSet<>();
+        for (InboxEntry entry : entries) {
+            if (!entry.hasOffered()) {
+                continue;
+            }
+            vivos.add(entry.getRideId());
+            if (!offerBanners.containsKey(entry.getRideId())) {
+                addOfferBanner(entry);
+            }
+        }
+
+        boolean seResolvioAlguna = false;
+        for (String rideId : new ArrayList<>(offerBanners.keySet())) {
+            if (!vivos.contains(rideId) && !closingBanners.contains(rideId)) {
+                seResolvioAlguna = true;
+                closingBanners.add(rideId);
+            }
+        }
+        startBannerTickerIfNeeded();
+        return seResolvioAlguna;
+    }
+
+    private void addOfferBanner(InboxEntry entry) {
+        View card = LayoutInflater.from(this)
+                .inflate(R.layout.item_offer_banner, containerOfferBanners, false);
+        ((TextView) card.findViewById(R.id.text_banner_destination))
+                .setText(destinationTextOf(entry));
+        ((TextView) card.findViewById(R.id.text_banner_state)).setText(
+                getString(R.string.driver_banner_offer_sent_format,
+                        String.format(Locale.getDefault(), "$%.2f", entry.getMyOffer())));
+
+        Long expiresAt = entry.getExpiresAtMillis();
+        long totalMs = expiresAt == null ? 0 : Math.max(0, expiresAt - System.currentTimeMillis());
+        ProgressBar progress = card.findViewById(R.id.progress_banner_expiry);
+        TextView countdown = card.findViewById(R.id.text_banner_countdown);
+        if (expiresAt == null) {
+            progress.setVisibility(View.GONE);
+            countdown.setVisibility(View.GONE);
+        }
+
+        String rideId = entry.getRideId();
+        // Volver a abrir la solicitud es de lectura: la oferta ya no se puede cambiar (el
+        // servidor responde ALREADY_OFFERED), pero querer repasar a dónde iba es legítimo.
+        card.setOnClickListener(v -> {
+            if (step != Step.REQUEST) {
+                fetchIncomingRequest(rideId);
+            }
+        });
+
+        containerOfferBanners.addView(card);
+        offerBanners.put(rideId, new OfferBanner(card, countdown, progress, expiresAt, totalMs));
+    }
+
+    private String destinationTextOf(InboxEntry entry) {
+        String dropoff = entry.getDropoffText();
+        return dropoff == null || dropoff.trim().isEmpty()
+                ? getString(R.string.driver_banner_unknown_destination) : dropoff;
+    }
+
+    /**
+     * Cierra un banner diciendo qué pasó antes de irse. Si desapareciera en silencio se leería
+     * como un fallo de la app, y es justo el momento en el que el conductor está pendiente.
+     */
+    private void closeOfferBanner(String rideId, boolean won) {
+        OfferBanner banner = offerBanners.remove(rideId);
+        closingBanners.remove(rideId);
+        if (banner == null) {
+            return;
+        }
+        TextView state = banner.view.findViewById(R.id.text_banner_state);
+        state.setText(won ? R.string.driver_banner_won : R.string.driver_banner_gone);
+        state.setTextColor(ContextCompat.getColor(this,
+                won ? R.color.drivo_success : R.color.drivo_error));
+        banner.view.findViewById(R.id.dot_banner_state).setBackgroundTintList(
+                ContextCompat.getColorStateList(this,
+                        won ? R.color.drivo_success : R.color.drivo_error));
+        banner.progress.setVisibility(View.GONE);
+        banner.countdown.setVisibility(View.GONE);
+
+        banner.view.animate().alpha(0f).setStartDelay(BANNER_RESOLVED_VISIBLE_MS)
+                .setDuration(BANNER_FADE_MS)
+                .withEndAction(() -> containerOfferBanners.removeView(banner.view))
+                .start();
+    }
+
+    private void clearOfferBanners() {
+        offerBanners.clear();
+        closingBanners.clear();
+        containerOfferBanners.removeAllViews();
+        stopBannerTicker();
+    }
+
+    /**
+     * Un solo temporizador para todos los banners, no uno por tarjeta: todos corren contra el
+     * mismo reloj —el de la subasta— y con N sueltos era cuestión de tiempo que alguno
+     * sobreviviera a su banner.
+     */
+    private void startBannerTickerIfNeeded() {
+        if (offerBanners.isEmpty()) {
+            stopBannerTicker();
+            return;
+        }
+        if (bannerTicker != null) {
+            return;
+        }
+        // Un Handler y no un CountDownTimer: éste no cuenta hacia un final —vive mientras haya
+        // banners— y CountDownTimer(Long.MAX_VALUE, …) desborda al sumarle el reloj del sistema
+        // y termina en el acto.
+        bannerTicker = new Runnable() {
+            @Override
+            public void run() {
+                tickBanners();
+                bannerHandler.postDelayed(this, BANNER_TICK_MS);
+            }
+        };
+        bannerHandler.post(bannerTicker);
+    }
+
+    private void stopBannerTicker() {
+        bannerHandler.removeCallbacksAndMessages(null);
+        bannerTicker = null;
+    }
+
+    private void tickBanners() {
+        long now = System.currentTimeMillis();
+        for (OfferBanner banner : offerBanners.values()) {
+            if (banner.expiresAtMillis == null || banner.totalMs <= 0) {
+                continue;
+            }
+            long remaining = Math.max(0, banner.expiresAtMillis - now);
+            banner.progress.setProgress((int) (1000 * remaining / banner.totalMs));
+            long seconds = remaining / 1000;
+            banner.countdown.setText(String.format(Locale.getDefault(), "%d:%02d",
+                    seconds / 60, seconds % 60));
+        }
+    }
+
+    /**
+     * Pregunta al servidor si este conductor trae un viaje asignado.
+     *
+     * <p>Es el único camino fiable: el push {@code offer_accepted} puede no llegar, llegar tarde o
+     * quedarse sin tocar, y quedar asignado sin saberlo lo saca del radar —el servidor no ofrece
+     * viajes a quien ya tiene uno— sin nada en pantalla que lo explique. Se consulta al arrancar,
+     * al volver del fondo y cada vez que una oferta se resuelve.
+     *
+     * @param silencioso true en el arranque: si no hay viaje no hay banner que cerrar
+     */
+    private void checkCurrentRide(boolean silencioso) {
+        if (checkingCurrentRide || openingWonRide) {
+            return;
+        }
+        checkingCurrentRide = true;
+        driverRepository.getCurrentRide(new ApiCallback<Ride>() {
+            @Override
+            public void onSuccess(Ride ride) {
+                checkingCurrentRide = false;
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (ride != null && ride.getId() != null) {
+                    openWonRide(ride.getId());
+                    return;
+                }
+                if (!silencioso) {
+                    // Ninguna de las que se resolvieron era nuestra.
+                    for (String rideId : new ArrayList<>(closingBanners)) {
+                        closeOfferBanner(rideId, false);
+                    }
+                    startBannerTickerIfNeeded();
+                }
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                checkingCurrentRide = false;
+                // Se reintenta al siguiente cambio de la bandeja o al volver del fondo. No se
+                // cierran los banners: sin respuesta no sabemos qué pasó, y dar por perdida una
+                // oferta que ganamos es el peor de los dos errores.
+            }
+        });
+    }
+
+    /**
+     * Nos eligieron: el banner lo dice, suena, y el viaje se abre solo.
+     *
+     * <p>La pausa antes de cambiar de pantalla no es decorativa. El conductor puede estar
+     * manejando y mirando el mapa; saltar de golpe a otra pantalla no le explica qué pasó, y este
+     * es justo el momento en que necesita entenderlo.
+     */
+    private void openWonRide(String rideId) {
+        if (openingWonRide) {
+            return;
+        }
+        openingWonRide = true;
+        cancelIncomingExpiryTimer();
+        RideAlert.play(this);
+        for (String otro : new ArrayList<>(offerBanners.keySet())) {
+            // Las demás ofertas las acaba de cancelar el servidor al asignarnos ésta.
+            closeOfferBanner(otro, otro.equals(rideId));
+        }
+        stopBannerTicker();
+
+        Intent intent = new Intent(this, DriverActiveTripActivity.class);
+        intent.putExtra(DriverActiveTripActivity.EXTRA_RIDE_ID, rideId);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed()) {
+                startActivity(intent);
+            }
+            openingWonRide = false;
+        }, BANNER_RESOLVED_VISIBLE_MS);
     }
 
     private void fetchIncomingRequest(String rideId) {
@@ -986,43 +1269,46 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      *                 son el mismo POST /driver/rides/{id}/offer.
      */
     private void submitOffer(String rideId, double amount, String passengerName, boolean accepted) {
-        // Ya decidimos sobre este viaje — si sigue en la bandeja porque otros conductores todavía
-        // están ofertando, no reabrir la misma solicitud.
-        resolvedRideIds.add(rideId);
-        pendingOfferRideId = rideId;
         displayedRideId = null;
         cancelIncomingExpiryTimer();
-
-        textOfferSentTitle.setText(accepted
-                ? R.string.driver_offer_sent_accepted_title : R.string.driver_offer_sent_title);
-        textOfferSentDetail.setText(getString(R.string.driver_offer_sent_subtitle_format,
-                String.format(Locale.getDefault(), "$%.2f", amount), passengerName));
-        goTo(Step.OFFER_SENT);
+        // Vuelve al radar en el acto: postularse no bloquea al conductor y esperar en una pantalla
+        // muerta le costaría los tres minutos de la subasta. El banner con esta oferta lo pinta la
+        // bandeja en cuanto el servidor la marca (ver onInboxChanged).
+        backToRadar();
 
         driverRepository.offerOnRide(rideId, amount, new ApiCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Toast.makeText(DriverHomeActivity.this,
+                        getString(R.string.driver_offer_sent_toast_format,
+                                String.format(Locale.getDefault(), "$%.2f", amount)),
+                        Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onError(ApiException error) {
-                // La oferta no salió: no tiene sentido dejar en pantalla el "enviada".
-                pendingOfferRideId = null;
-                backToRadar();
-                if (error.getCode() == ApiErrorCode.RIDE_ALREADY_TAKEN) {
-                    Toast.makeText(DriverHomeActivity.this, R.string.incoming_request_ride_taken_error,
-                            Toast.LENGTH_SHORT).show();
+                // No salió: como no hay pantalla de espera que desmentir, basta con decirlo. La
+                // solicitud sigue en la bandeja y se puede volver a intentar.
+                ApiErrorCode code = error.getCode();
+                int mensaje;
+                if (code == ApiErrorCode.RIDE_ALREADY_TAKEN) {
+                    mensaje = R.string.incoming_request_ride_taken_error;
+                } else if (code == ApiErrorCode.TOO_MANY_LIVE_OFFERS) {
+                    // No hizo nada mal: ya tiene el máximo de ofertas esperando respuesta.
+                    mensaje = R.string.driver_too_many_live_offers;
                 } else {
-                    Toast.makeText(DriverHomeActivity.this, R.string.incoming_request_offer_error,
-                            Toast.LENGTH_SHORT).show();
+                    mensaje = R.string.incoming_request_offer_error;
                 }
+                Toast.makeText(DriverHomeActivity.this, mensaje, Toast.LENGTH_LONG).show();
             }
         });
     }
 
     private void ignoreIncomingRequest() {
         if (displayedRideId != null) {
-            resolvedRideIds.add(displayedRideId);
+            // Solo del lado del teléfono: para el servidor esa solicitud sigue viva y otros
+            // conductores pueden tomarla. Lo único que dice es "a mí no me la vuelvas a abrir".
+            ignoredRideIds.add(displayedRideId);
         }
         displayedRideId = null;
         cancelIncomingExpiryTimer();
@@ -1192,6 +1478,11 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         setTopMargin(btnMyLocation, topInsetPx + buttonMarginPx);
         setTopMargin(offlineBanner, topInsetPx + buttonMarginPx);
         setTopMargin(onlineBanner, topInsetPx + buttonMarginPx);
+        // Los banners empiezan donde termina la fila de flotantes, para no montarse sobre el
+        // menú ni sobre el aviso de conectividad.
+        int buttonSizePx = Math.round(
+                FLOATING_BUTTON_SIZE_DP * getResources().getDisplayMetrics().density);
+        setTopMargin(containerOfferBanners, topInsetPx + buttonMarginPx * 2 + buttonSizePx);
     }
 
     /**
@@ -1222,9 +1513,14 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      * anillos se centran en la pantalla completa y quedan medio escondidos tras el modal.
      */
     private void updateMapViewport(int sheetHeightPx) {
-        if (googleMap != null && sheetHeightPx != lastMapBottomPaddingPx) {
+        // Los banners también tapan mapa: sin sumarlos, la ruta de una solicitud nueva se
+        // encuadraría por detrás de las ofertas que ya están en pantalla.
+        int topPaddingPx = sheetTopInsetPx + bannersHeightPx();
+        if (googleMap != null
+                && (sheetHeightPx != lastMapBottomPaddingPx || topPaddingPx != lastMapTopPaddingPx)) {
             lastMapBottomPaddingPx = sheetHeightPx;
-            googleMap.setPadding(0, sheetTopInsetPx, 0, sheetHeightPx);
+            lastMapTopPaddingPx = topPaddingPx;
+            googleMap.setPadding(0, topPaddingPx, 0, sheetHeightPx);
             // El panel de la solicitud es más alto que el de conexión, y la ruta se dibuja antes
             // de que el modal termine de crecer: sin este reencuadre quedaría medio tapada.
             if (step == Step.REQUEST && routePainter.isReady()) {
@@ -1232,11 +1528,21 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             }
         }
         ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) radarContainer.getLayoutParams();
-        if (params.topMargin != sheetTopInsetPx || params.bottomMargin != sheetHeightPx) {
-            params.topMargin = sheetTopInsetPx;
+        if (params.topMargin != topPaddingPx || params.bottomMargin != sheetHeightPx) {
+            params.topMargin = topPaddingPx;
             params.bottomMargin = sheetHeightPx;
             radarContainer.setLayoutParams(params);
         }
+    }
+
+    /** Lo que ocupan los banners, contando desde el borde del mapa (incluye su margen superior). */
+    private int bannersHeightPx() {
+        if (containerOfferBanners.getChildCount() == 0) {
+            return 0;
+        }
+        ViewGroup.MarginLayoutParams params =
+                (ViewGroup.MarginLayoutParams) containerOfferBanners.getLayoutParams();
+        return Math.max(0, params.topMargin - sheetTopInsetPx) + containerOfferBanners.getHeight();
     }
 
     // ---------------------------------------------------------------------------------------
@@ -1445,6 +1751,11 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         // Cubre volver de un viaje ya cerrado o de Ganancias: el saldo pudo cambiar.
         if (approved) {
             loadWallet();
+            // Y si mientras no mirábamos un pasajero nos eligió, el viaje se abre aquí. Es lo que
+            // vuelve al push un atajo en vez de la única vía: sin esto, una notificación perdida
+            // dejaba al conductor asignado —y por tanto fuera del radar— sin viaje en pantalla.
+            openingWonRide = false;
+            checkCurrentRide(true);
         }
     }
 
@@ -1456,6 +1767,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             connectivitySubscription = null;
         }
         reconnectedBannerHandler.removeCallbacksAndMessages(null);
+        stopBannerTicker();
         if (online) {
             stopLocationLoop();
             stopInboxListener();
@@ -1470,5 +1782,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             radarAnimator.cancel();
         }
         cancelIncomingExpiryTimer();
+        stopBannerTicker();
     }
 }

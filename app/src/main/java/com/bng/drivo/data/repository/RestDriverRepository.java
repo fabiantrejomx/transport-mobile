@@ -77,6 +77,23 @@ public class RestDriverRepository implements DriverRepository {
     }
 
     @Override
+    public void getCurrentRide(ApiCallback<Ride> callback) {
+        // 204 sin cuerpo es la respuesta normal a "no traigo viaje": mapRide devolvería
+        // null y quien llama no sabría distinguirlo de un fallo, así que se resuelve aquí.
+        ApiCallDispatcher.enqueue(service.getDriverCurrentRide(), new ApiCallback<RideDto>() {
+            @Override
+            public void onSuccess(RideDto dto) {
+                callback.onSuccess(dto == null ? null : toRide(dto));
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    @Override
     public void getIncomingRequest(String rideId, ApiCallback<IncomingRequest> callback) {
         ApiCallDispatcher.enqueue(service.getIncomingRide(rideId), new ApiCallback<IncomingRequestDto>() {
             @Override
@@ -189,21 +206,25 @@ public class RestDriverRepository implements DriverRepository {
         };
     }
 
+    private Ride toRide(RideDto dto) {
+        DriverSummaryDto driver = dto.driver;
+        PlaceDto origin = dto.origin;
+        PlaceDto destination = dto.destination;
+        return new Ride(dto.id, dto.status, dto.agreed_fare,
+                driver != null ? driver.name : null, driver != null ? driver.rating : null,
+                driver != null ? driver.brand : null, driver != null ? driver.model : null,
+                driver != null ? driver.color : null, driver != null ? driver.plate : null,
+                origin != null ? origin.text : null, destination != null ? destination.text : null,
+                origin != null ? origin.lat : null, origin != null ? origin.lng : null,
+                destination != null ? destination.lat : null, destination != null ? destination.lng : null,
+                dto.requested_at, dto.commission);
+    }
+
     private ApiCallback<RideDto> mapRide(ApiCallback<Ride> callback) {
         return new ApiCallback<RideDto>() {
             @Override
             public void onSuccess(RideDto dto) {
-                DriverSummaryDto driver = dto.driver;
-                PlaceDto origin = dto.origin;
-                PlaceDto destination = dto.destination;
-                callback.onSuccess(new Ride(dto.id, dto.status, dto.agreed_fare,
-                        driver != null ? driver.name : null, driver != null ? driver.rating : null,
-                        driver != null ? driver.brand : null, driver != null ? driver.model : null,
-                        driver != null ? driver.color : null, driver != null ? driver.plate : null,
-                        origin != null ? origin.text : null, destination != null ? destination.text : null,
-                        origin != null ? origin.lat : null, origin != null ? origin.lng : null,
-                        destination != null ? destination.lat : null, destination != null ? destination.lng : null,
-                        dto.requested_at, dto.commission));
+                callback.onSuccess(toRide(dto));
             }
 
             @Override

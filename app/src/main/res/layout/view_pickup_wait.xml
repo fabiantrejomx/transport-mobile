@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cronómetro de cortesía: los 5 minutos que el pasajero tiene para salir al vehículo una vez
+     que el conductor marcó "llegué al punto". Se incluye igual en las dos apps (pasajero y
+     conductor) para que ninguno de los dos vea un número distinto del otro; quien lo maneja es
+     PickupWaitTimer, y el ancla es driver_arrived_at (reloj del servidor), no el del teléfono.
+
+     Solo existe en la fase DRIVER_ARRIVED — antes no hay nada que contar y después el viaje ya
+     arrancó. Que se agote todavía no dispara ninguna consecuencia: eso está por definirse. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/group_pickup_wait"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_stat_tile"
+    android:orientation="vertical"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="12dp"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/text_pickup_wait_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.06"
+                android:textAllCaps="true"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp"
+                tools:text="@string/active_trip_wait_label" />
+
+            <TextView
+                android:id="@+id/text_pickup_wait_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="@string/active_trip_wait_hint" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_pickup_wait_countdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            tools:text="4:37" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/progress_pickup_wait"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="10dp"
+        android:max="1000"
+        android:progressBackgroundTint="?attr/colorSurfaceVariant"
+        android:progressTint="@color/drivo_secondary"
+        tools:progress="600" />
+</LinearLayout>

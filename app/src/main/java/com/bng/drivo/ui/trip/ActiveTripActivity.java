@@ -8,10 +8,10 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
-import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
@@ -36,10 +36,19 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Dash;
+import com.google.android.gms.maps.model.Gap;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PatternItem;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -48,6 +57,22 @@ import java.util.Locale;
  * de rides/{id}; la posición del conductor, de trips/{id}/live/driver (un solo doc
  * sobreescrito cada ~5s — se anima el salto entre lecturas, no se traza ruta real). El
  * pasajero nunca cierra el viaje: solo el conductor lo hace vía POST /driver/rides/{id}/complete.
+ *
+ * <p>Qué se ofrece cambia con la fase, no solo qué se dice:
+ *
+ * <ul>
+ *   <li><b>MATCHED / DRIVER_ARRIVED</b>: llamar y enviar mensaje al conductor, y cancelar. Es
+ *       cuando hace falta coordinarse ("estoy en la puerta de atrás") y todavía es válido echarse
+ *       para atrás.</li>
+ *   <li><b>IN_PROGRESS</b>: ya van juntos en el coche, así que llamar y escribir sobran; queda
+ *       compartir el viaje, el S.O.S. y el precio acordado. Cancelar desaparece porque el
+ *       contrato ya no lo permite.</li>
+ * </ul>
+ *
+ * <p>Durante el viaje el pasajero ve además la <b>ruta</b> (origen → parada → destino) con el
+ * coche encima, no solo el coche: poder comparar por dónde va con por dónde debería ir es parte
+ * de la seguridad de ir en el vehículo de un desconocido. Como en el resto de la app la línea es
+ * una guía punteada recta, no un trazado de calles — el cliente no calcula recorrido.
  */
 public class ActiveTripActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
@@ -62,6 +87,9 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     public static final String EXTRA_ORIGIN_LNG = "extra_origin_lng";
     public static final String EXTRA_DESTINATION_LAT = "extra_destination_lat";
     public static final String EXTRA_DESTINATION_LNG = "extra_destination_lng";
+    /** Parada intermedia opcional: (0,0) significa "sin parada" (el flujo admite una sola). */
+    public static final String EXTRA_STOP_LAT = "extra_stop_lat";
+    public static final String EXTRA_STOP_LNG = "extra_stop_lng";
 
     private static final LatLng DEFAULT_POSITION = new LatLng(19.4326, -99.1332);
     private static final long DRIVER_MARKER_ANIMATION_MS = 1200L;
@@ -82,19 +110,24 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     private float price;
     private LatLng originLatLng;
     private LatLng destinationLatLng;
+    @Nullable
+    private LatLng stopLatLng;
 
     private Marker driverMarker;
-    private Marker destinationMarker;
     private LatLng driverPosition;
     private ValueAnimator driverAnimator;
+    private Polyline routePolyline;
 
     private View groupBeforeTrip;
     private View groupTripInProgress;
     private TextView textStatusTitle;
     private TextView textStatusSubtitle;
+    private View btnCall;
+    private View btnMessage;
     private View btnShare;
-    private ImageButton btnCancelTrip;
+    private MaterialButton btnCancelTrip;
     private TextView btnSosBadge;
+    private PickupWaitTimer waitTimer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +144,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         price = getIntent().getFloatExtra(EXTRA_PRICE, 0f);
         originLatLng = readLatLng(EXTRA_ORIGIN_LAT, EXTRA_ORIGIN_LNG);
         destinationLatLng = readLatLng(EXTRA_DESTINATION_LAT, EXTRA_DESTINATION_LNG);
+        stopLatLng = readOptionalLatLng(EXTRA_STOP_LAT, EXTRA_STOP_LNG);
 
         if (rideId == null) {
             finish();
@@ -126,9 +160,14 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         groupTripInProgress = findViewById(R.id.group_trip_in_progress);
         textStatusTitle = findViewById(R.id.text_trip_status_title);
         textStatusSubtitle = findViewById(R.id.text_trip_status_subtitle);
+        btnCall = findViewById(R.id.btn_call_driver);
+        btnMessage = findViewById(R.id.btn_message_driver);
         btnShare = findViewById(R.id.btn_share_trip);
         btnCancelTrip = findViewById(R.id.btn_cancel_trip);
         btnSosBadge = findViewById(R.id.btn_sos_badge);
+        waitTimer = new PickupWaitTimer(findViewById(R.id.group_pickup_wait),
+                R.string.active_trip_wait_label, R.string.active_trip_wait_hint,
+                R.string.active_trip_wait_expired);
 
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -138,9 +177,9 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
 
         btnCancelTrip.setOnClickListener(v -> confirmCancelTrip());
         btnSosBadge.setOnClickListener(v -> sendSos());
-        findViewById(R.id.btn_call_driver).setOnClickListener(v ->
+        btnCall.setOnClickListener(v ->
                 Toast.makeText(this, R.string.active_trip_call_coming_soon, Toast.LENGTH_SHORT).show());
-        findViewById(R.id.btn_message_driver).setOnClickListener(v ->
+        btnMessage.setOnClickListener(v ->
                 Toast.makeText(this, R.string.active_trip_message_coming_soon, Toast.LENGTH_SHORT).show());
         btnShare.setOnClickListener(v ->
                 Toast.makeText(this, R.string.active_trip_share_coming_soon, Toast.LENGTH_SHORT).show());
@@ -153,6 +192,14 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
             return DEFAULT_POSITION;
         }
         return new LatLng(lat, lng);
+    }
+
+    /** Devuelve null cuando el viaje no lleva parada: (0,0) es el valor por defecto del extra. */
+    @Nullable
+    private LatLng readOptionalLatLng(String latExtra, String lngExtra) {
+        double lat = getIntent().getDoubleExtra(latExtra, 0);
+        double lng = getIntent().getDoubleExtra(lngExtra, 0);
+        return lat == 0 && lng == 0 ? null : new LatLng(lat, lng);
     }
 
     @Override
@@ -189,6 +236,12 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
                 .icon(MarkerIconFactory.circle(this, R.color.drivo_success, 16))
                 .anchor(0.5f, 0.5f)
                 .title(getString(R.string.home_origin_placeholder)));
+
+        // El viaje pudo arrancar antes de que el mapa estuviera listo (el estado llega por
+        // Firestore, que no espera a nadie): entonces la ruta se dibuja aquí.
+        if ("IN_PROGRESS".equals(currentStatus)) {
+            drawTripRoute();
+        }
     }
 
     private void onStatusChanged(String status) {
@@ -200,11 +253,11 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         switch (status) {
             case "MATCHED":
                 showBeforeTripUi(R.string.active_trip_status_en_route_title,
-                        R.string.active_trip_status_en_route_subtitle);
+                        R.string.active_trip_status_en_route_subtitle, false);
                 break;
             case "DRIVER_ARRIVED":
                 showBeforeTripUi(R.string.active_trip_status_waiting_title,
-                        R.string.active_trip_status_waiting_subtitle);
+                        R.string.active_trip_status_waiting_subtitle, true);
                 break;
             case "IN_PROGRESS":
                 showTripInProgressUi();
@@ -225,22 +278,69 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         }
     }
 
-    private void showBeforeTripUi(int titleRes, int subtitleRes) {
+    /**
+     * Fases previas al viaje. Llamar y escribir viven aquí y solo aquí: es cuando hay algo que
+     * coordinar con alguien que todavía no llega.
+     *
+     * @param arrived el conductor ya está en el punto — arranca la cuenta de cortesía.
+     */
+    private void showBeforeTripUi(int titleRes, int subtitleRes, boolean arrived) {
         groupBeforeTrip.setVisibility(View.VISIBLE);
         groupTripInProgress.setVisibility(View.GONE);
         textStatusTitle.setText(titleRes);
         textStatusSubtitle.setText(subtitleRes);
 
-        // El contrato solo permite cancelar antes de IN_PROGRESS: "X" visible y tocable,
+        btnCall.setVisibility(View.VISIBLE);
+        btnMessage.setVisibility(View.VISIBLE);
+        btnShare.setVisibility(View.GONE);
+
+        // El contrato solo permite cancelar antes de IN_PROGRESS: botón visible y tocable,
         // S.O.S. todavía no (ver showTripInProgressUi()).
         btnCancelTrip.setVisibility(View.VISIBLE);
         btnCancelTrip.setEnabled(true);
         btnSosBadge.setVisibility(View.GONE);
+
+        if (arrived) {
+            startWaitCountdown();
+        } else {
+            waitTimer.stop();
+        }
+    }
+
+    /**
+     * La hora de llegada la pone el servidor al validar por GPS que el conductor está ahí, así
+     * que se pide en vez de contar desde este teléfono: es la única forma de que los dos lados
+     * vean el mismo número y de que reabrir la pantalla no reinicie la espera. Si la llamada
+     * falla, {@link PickupWaitTimer} se ancla en este momento — aproximado, pero mejor que dejar
+     * al pasajero sin saber cuánto le queda.
+     */
+    private void startWaitCountdown() {
+        waitTimer.start(null);
+        tripRepository.getRideDetail(rideId, new ApiCallback<com.bng.drivo.data.model.Ride>() {
+            @Override
+            public void onSuccess(com.bng.drivo.data.model.Ride ride) {
+                if (!"DRIVER_ARRIVED".equals(currentStatus)) {
+                    return;
+                }
+                waitTimer.start(ride.getDriverArrivedAt());
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                // Se queda con el ancla local que ya arrancó arriba.
+            }
+        });
     }
 
     private void showTripInProgressUi() {
         groupBeforeTrip.setVisibility(View.GONE);
         groupTripInProgress.setVisibility(View.VISIBLE);
+        waitTimer.stop();
+
+        // Ya van juntos en el coche: llamar y escribir dejan de tener sentido y solo queda
+        // compartir el viaje con alguien de fuera.
+        btnCall.setVisibility(View.GONE);
+        btnMessage.setVisibility(View.GONE);
         btnShare.setVisibility(View.VISIBLE);
 
         // Ya no se puede cancelar una vez IN_PROGRESS — se deshabilita, no solo se oculta, y
@@ -249,13 +349,46 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         btnCancelTrip.setEnabled(false);
         btnSosBadge.setVisibility(View.VISIBLE);
 
-        if (destinationMarker == null && googleMap != null) {
-            destinationMarker = googleMap.addMarker(new MarkerOptions()
-                    .position(destinationLatLng)
-                    .icon(MarkerIconFactory.circle(this, R.color.drivo_secondary, 16))
-                    .anchor(0.5f, 0.5f));
-            moveCameraToBounds(originLatLng, destinationLatLng);
+        drawTripRoute();
+    }
+
+    /**
+     * La ruta contratada, con el coche encima: el pasajero puede contrastar por dónde va con por
+     * dónde debería ir. No se dibuja antes de IN_PROGRESS porque hasta ese momento lo que importa
+     * es dónde viene el conductor, no a dónde va el viaje.
+     */
+    private void drawTripRoute() {
+        if (googleMap == null || routePolyline != null) {
+            return;
         }
+        List<LatLng> points = new ArrayList<>();
+        points.add(originLatLng);
+        if (stopLatLng != null) {
+            points.add(stopLatLng);
+        }
+        points.add(destinationLatLng);
+
+        // El origen ya lo pintó onMapReady; aquí se añaden la parada y el destino.
+        if (stopLatLng != null) {
+            addRouteMarker(stopLatLng, R.color.drivo_map_accent);
+        }
+        addRouteMarker(destinationLatLng, R.color.drivo_secondary);
+
+        List<PatternItem> dashed = Arrays.asList(new Dash(20f), new Gap(12f));
+        routePolyline = googleMap.addPolyline(new PolylineOptions()
+                .addAll(points)
+                .width(8f)
+                .color(getColor(R.color.drivo_success))
+                .pattern(dashed));
+
+        frameForCurrentPhase();
+    }
+
+    private void addRouteMarker(LatLng position, int colorRes) {
+        googleMap.addMarker(new MarkerOptions()
+                .position(position)
+                .icon(MarkerIconFactory.circle(this, colorRes, 16))
+                .anchor(0.5f, 0.5f));
     }
 
     private void onDriverLocationChanged(double lat, double lng) {
@@ -272,7 +405,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
                     .flat(true)
                     .title(driverName));
             driverPosition = newPosition;
-            moveCameraToBounds(originLatLng, newPosition);
+            frameForCurrentPhase();
             return;
         }
 
@@ -313,8 +446,27 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         return (Math.toDegrees(Math.atan2(y, x)) + 360) % 360;
     }
 
-    private void moveCameraToBounds(LatLng a, LatLng b) {
-        LatLngBounds bounds = new LatLngBounds.Builder().include(a).include(b).build();
+    /**
+     * Primer encuadre con el coche ya en pantalla. Qué tiene que caber depende de la fase: antes
+     * del viaje, dónde viene el conductor respecto al punto de encuentro; durante el viaje, la
+     * ruta entera con el coche encima — si no, el primer aviso de posición volvería a encerrar la
+     * cámara en origen+coche y se perdería de vista la ruta recién dibujada.
+     */
+    private void frameForCurrentPhase() {
+        LatLngBounds.Builder bounds = new LatLngBounds.Builder().include(originLatLng);
+        if (driverPosition != null) {
+            bounds.include(driverPosition);
+        }
+        if ("IN_PROGRESS".equals(currentStatus)) {
+            if (stopLatLng != null) {
+                bounds.include(stopLatLng);
+            }
+            bounds.include(destinationLatLng);
+        }
+        frameBounds(bounds.build());
+    }
+
+    private void frameBounds(LatLngBounds bounds) {
         try {
             googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 140));
         } catch (IllegalStateException ignored) {
@@ -402,6 +554,9 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         super.onDestroy();
         if (driverAnimator != null) {
             driverAnimator.cancel();
+        }
+        if (waitTimer != null) {
+            waitTimer.stop();
         }
     }
 }

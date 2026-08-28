@@ -189,6 +189,15 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Solo en DRIVER_ARRIVED: los 5 min de cortesía, el mismo número que ve el pasajero.
+         Ver PickupWaitTimer. -->
+    <include
+        android:id="@+id/group_pickup_wait"
+        layout="@layout/view_pickup_wait"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_trip_action"
         android:layout_width="match_parent"

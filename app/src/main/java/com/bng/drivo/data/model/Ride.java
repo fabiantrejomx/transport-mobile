@@ -21,13 +21,21 @@ public class Ride {
     private final Double destinationLat;
     private final Double destinationLng;
     private final String requestedAt;
+    /**
+     * Hora del servidor en la que el conductor marcó "llegué al punto" (ISO-8601), null antes de
+     * eso. Es el ancla del cronómetro de espera de 5 min: se toma de aquí y no del reloj del
+     * teléfono para que los dos lados cuenten lo mismo y para que reabrir la pantalla a mitad de
+     * la espera no reinicie la cuenta.
+     */
+    private final String driverArrivedAt;
     /** Solo viene poblado en la respuesta de POST /driver/rides/{id}/complete. */
     private final Double commission;
 
     public Ride(String id, String status, Double agreedFare, String driverName, Double driverRating,
                 String vehicleBrand, String vehicleModel, String vehicleColor, String vehiclePlate,
                 String originText, String destinationText, Double originLat, Double originLng,
-                Double destinationLat, Double destinationLng, String requestedAt, Double commission) {
+                Double destinationLat, Double destinationLng, String requestedAt,
+                String driverArrivedAt, Double commission) {
         this.id = id;
         this.status = status;
         this.agreedFare = agreedFare;
@@ -44,6 +52,7 @@ public class Ride {
         this.destinationLat = destinationLat;
         this.destinationLng = destinationLng;
         this.requestedAt = requestedAt;
+        this.driverArrivedAt = driverArrivedAt;
         this.commission = commission;
     }
 
@@ -109,6 +118,10 @@ public class Ride {
 
     public String getRequestedAt() {
         return requestedAt;
+    }
+
+    public String getDriverArrivedAt() {
+        return driverArrivedAt;
     }
 
     public Double getCommission() {

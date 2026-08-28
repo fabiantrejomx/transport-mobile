@@ -214,9 +214,9 @@
     <string name="active_trip_call_label">Llamar</string>
     <string name="active_trip_message_label">Mensaje</string>
     <string name="active_trip_share_label">Compartir</string>
-    <string name="active_trip_cancel_description">Cancelar viaje</string>
+    <string name="active_trip_cancel_button">Cancelar viaje</string>
     <string name="active_trip_cancel_title">¿Cancelar viaje?</string>
-    <string name="active_trip_cancel_message">Se cancelará la solicitud del viaje.</string>
+    <string name="active_trip_cancel_message">El conductor recibirá el aviso de que cancelaste y dejará de ir por ti. Podrás pedir otro viaje enseguida.</string>
     <string name="active_trip_cancel_positive">Sí, cancelar</string>
     <string name="active_trip_cancel_negative">No</string>
     <string name="active_trip_cancelled_toast">Viaje cancelado</string>
@@ -228,6 +228,9 @@
     <string name="active_trip_status_en_route_subtitle">Sigue su ubicación en el mapa</string>
     <string name="active_trip_status_waiting_title">Tu conductor te está esperando</string>
     <string name="active_trip_status_waiting_subtitle">En el punto de encuentro acordado</string>
+    <string name="active_trip_wait_label">Tiempo de cortesía</string>
+    <string name="active_trip_wait_hint">Sal al vehículo antes de que se agote</string>
+    <string name="active_trip_wait_expired">Se agotó el tiempo de cortesía</string>
 
     <!-- Registro de conductor (C1) -->
     <string name="driver_reg_title">Registro de Conductor</string>
@@ -414,6 +417,9 @@
 
     <!-- Cancelar viaje (conductor) -->
     <string name="driver_trip_action_cancel">Cancelar viaje</string>
+    <string name="driver_trip_wait_label">Espera al pasajero</string>
+    <string name="driver_trip_wait_hint">Tiempo de cortesía para que el pasajero salga al vehículo</string>
+    <string name="driver_trip_wait_expired">Se agotó el tiempo de espera</string>
     <string name="driver_trip_cancel_title">¿Cancelar este viaje?</string>
     <string name="driver_trip_cancel_message">El pasajero recibirá un aviso de que cancelaste y el viaje volverá a buscar conductor. Cancelar seguido puede afectar tu cuenta.</string>
     <string name="driver_trip_cancel_positive">Sí, cancelar</string>

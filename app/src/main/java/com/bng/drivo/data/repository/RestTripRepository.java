@@ -239,6 +239,6 @@ public class RestTripRepository implements TripRepository {
                 origin != null ? origin.text : null, destination != null ? destination.text : null,
                 origin != null ? origin.lat : null, origin != null ? origin.lng : null,
                 destination != null ? destination.lat : null, destination != null ? destination.lng : null,
-                dto.requested_at, dto.commission);
+                dto.requested_at, dto.driver_arrived_at, dto.commission);
     }
 }

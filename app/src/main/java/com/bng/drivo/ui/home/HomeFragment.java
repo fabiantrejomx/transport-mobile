@@ -677,6 +677,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 destination != null ? destination.latitude : 0);
         intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION_LNG,
                 destination != null ? destination.longitude : 0);
+        // La parada no viaja en GET /rides/{id}: sin pasarla aquí, la ruta que el pasajero ve
+        // durante el viaje saltaría del origen al destino ignorando su propia parada.
+        Waypoint stop = viewModel.getStop();
+        intent.putExtra(ActiveTripActivity.EXTRA_STOP_LAT, stop != null ? stop.getLat() : 0);
+        intent.putExtra(ActiveTripActivity.EXTRA_STOP_LNG, stop != null ? stop.getLng() : 0);
         startActivity(intent);
         returnToIdle();
     }

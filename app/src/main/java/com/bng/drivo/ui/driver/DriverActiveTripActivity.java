@@ -40,6 +40,7 @@ import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.ui.map.DriverRoutePainter;
 import com.bng.drivo.ui.map.MapStyler;
+import com.bng.drivo.ui.trip.PickupWaitTimer;
 import com.bng.drivo.util.ColorUtils;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.PlaceTextResolver;
@@ -63,10 +64,15 @@ import java.util.Locale;
 
 /**
  * C4/C7 del flujo de conductor: viaje activo desde MATCHED hasta el cobro y calificación tras
- * COMPLETED. Se abre solo por el push {@code offer_accepted} (ver DrivoFirebaseMessagingService)
- * — el contrato no tiene un "GET mi viaje activo", así que el detalle inicial (pasajero,
- * puntos, tarifa) se obtiene reutilizando GET /driver/rides/{id}, y el estado real avanza por
- * el mismo canal rides/{id} de Firestore que ya usa ActiveTripActivity del pasajero.
+ * COMPLETED. Se abre por el push {@code offer_accepted} (ver DrivoFirebaseMessagingService) o
+ * porque DriverHomeActivity la reabre al ver un viaje vivo en {@code GET /driver/current-ride}.
+ * El detalle inicial (pasajero, puntos, tarifa) se obtiene de GET /driver/rides/{id}, y el estado
+ * real avanza por el mismo canal rides/{id} de Firestore que ya usa ActiveTripActivity del
+ * pasajero.
+ *
+ * <p>Llamar y escribir al pasajero solo existen hasta que el viaje arranca —con él a bordo no hay
+ * nada que coordinar— y en DRIVER_ARRIVED aparece el cronómetro de cortesía de 5 min
+ * ({@link PickupWaitTimer}), el mismo que el pasajero ve del otro lado.
  *
  * Los 3 pasos del contrato (arrived/start/complete) son intencionalmente 3 taps distintos,
  * aunque el mockup C4 solo tenga un botón "Finalizar Viaje" — CLAUDE.md exige "Llegué al
@@ -139,6 +145,11 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private TextView textTripSecondaryStatValue;
     private MaterialButton btnTripAction;
     private MaterialButton btnTripCancel;
+    private View btnTripCall;
+    private View btnTripMessage;
+    private PickupWaitTimer waitTimer;
+    /** Evita repetir GET /driver/current-ride: showPickupPhase se repinta varias veces por fase. */
+    private boolean waitAnchorRequested;
 
     private View panelCobro;
     private TextView textCobroAmount;
@@ -178,6 +189,10 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textTripSecondaryStatValue = findViewById(R.id.text_trip_secondary_stat_value);
         btnTripAction = findViewById(R.id.btn_trip_action);
         btnTripCancel = findViewById(R.id.btn_trip_cancel);
+        btnTripCall = findViewById(R.id.btn_trip_call);
+        btnTripMessage = findViewById(R.id.btn_trip_message);
+        waitTimer = new PickupWaitTimer(panelTrip, R.string.driver_trip_wait_label,
+                R.string.driver_trip_wait_hint, R.string.driver_trip_wait_expired);
         textCobroAmount = findViewById(R.id.text_cobro_amount);
         textCobroCommissionNote = findViewById(R.id.text_cobro_commission_note);
         textCobroRatingPrompt = findViewById(R.id.text_cobro_rating_prompt);
@@ -190,8 +205,8 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         btnCobroClose.setOnClickListener(v -> submitRating());
         // Llamada y chat dentro de la app todavía no existen en el contrato; el aviso es honesto
         // en vez de un botón muerto.
-        findViewById(R.id.btn_trip_call).setOnClickListener(v -> showContactComingSoon());
-        findViewById(R.id.btn_trip_message).setOnClickListener(v -> showContactComingSoon());
+        btnTripCall.setOnClickListener(v -> showContactComingSoon());
+        btnTripMessage.setOnClickListener(v -> showContactComingSoon());
         setUpCobroStars();
         setUpBottomSheet();
         setUpBackHandling();
@@ -358,6 +373,15 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         showPanel(panelTrip);
         // Antes de arrancar el viaje todavía se puede cancelar (POST /driver/rides/{id}/cancel).
         btnTripCancel.setVisibility(View.VISIBLE);
+        // Llamar y escribir al pasajero solo sirven mientras no está en el coche.
+        btnTripCall.setVisibility(View.VISIBLE);
+        btnTripMessage.setVisibility(View.VISIBLE);
+
+        if (arrived) {
+            startWaitCountdown();
+        } else {
+            waitTimer.stop();
+        }
 
         textTripActionTitle.setText(getString(R.string.driver_trip_pickup_title_format, passengerName));
         double pickupKm = pickupDistanceM != null ? pickupDistanceM / 1000.0 : 0;
@@ -384,6 +408,10 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         showPanel(panelTrip);
         // Ya arrancó: la única salida es finalizarlo, igual que del lado del pasajero.
         btnTripCancel.setVisibility(View.GONE);
+        // El pasajero ya va a bordo: no hay a quién llamar ni nada que coordinar por escrito.
+        btnTripCall.setVisibility(View.GONE);
+        btnTripMessage.setVisibility(View.GONE);
+        waitTimer.stop();
 
         textTripActionTitle.setText(getString(R.string.driver_trip_dropoff_title_format, passengerName));
         long tripKm = tripDistanceM != null ? Math.round(tripDistanceM / 1000.0) : 0;
@@ -402,6 +430,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
 
     private void showCobroRatingPhase(Ride completedRide) {
         showPanel(panelCobro);
+        waitTimer.stop();
 
         double agreedFare = completedRide.getAgreedFare() != null ? completedRide.getAgreedFare() : fare;
         textCobroAmount.setText(String.format(Locale.getDefault(), "$%.0f", agreedFare));
@@ -410,6 +439,37 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textCobroCommissionNote.setText(commission != null
                 ? getString(R.string.driver_cobro_commission_note_format, commission) : "");
         textCobroRatingPrompt.setText(getString(R.string.driver_cobro_rating_prompt_format, passengerName));
+    }
+
+    /**
+     * Los 5 min de cortesía que el pasajero tiene para salir. El ancla es {@code driver_arrived_at}
+     * —la hora que el servidor guardó al validar por GPS esta misma llegada—, no el momento del
+     * tap: así el conductor y el pasajero cuentan lo mismo, y volver a abrir la pantalla a media
+     * espera no regala minutos. Se pide por {@code GET /driver/current-ride} porque sirve para los
+     * dos casos, el tap y la pantalla reabierta.
+     */
+    private void startWaitCountdown() {
+        waitTimer.start(null);
+        if (waitAnchorRequested) {
+            return;
+        }
+        waitAnchorRequested = true;
+        driverRepository.getCurrentRide(new ApiCallback<Ride>() {
+            @Override
+            public void onSuccess(Ride ride) {
+                if (ride == null || !rideId.equals(ride.getId())
+                        || !"DRIVER_ARRIVED".equals(currentStatus)) {
+                    return;
+                }
+                waitTimer.start(ride.getDriverArrivedAt());
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                // Se queda con el ancla local que ya arrancó arriba.
+                waitAnchorRequested = false;
+            }
+        });
     }
 
     /** Cambia el panel visible del modal y deja que se remida solo en el siguiente pase. */
@@ -770,7 +830,13 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        routePainter.detach();
+        // Pueden ser null: sin rideId, onCreate se va por finish() antes de construirlos.
+        if (routePainter != null) {
+            routePainter.detach();
+        }
+        if (waitTimer != null) {
+            waitTimer.stop();
+        }
     }
 
     private String initialsFor(String name) {

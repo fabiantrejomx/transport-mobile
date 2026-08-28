@@ -12,20 +12,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <ImageButton
-        android:id="@+id/btn_cancel_trip"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_gravity="top|start"
-        android:layout_margin="16dp"
-        android:background="@drawable/bg_dot"
-        android:backgroundTint="?attr/colorSurface"
-        android:contentDescription="@string/active_trip_cancel_description"
-        android:elevation="4dp"
-        android:padding="10dp"
-        android:src="@drawable/ic_close"
-        app:tint="?attr/colorOnSurface" />
-
     <TextView
         android:id="@+id/btn_sos_badge"
         android:layout_width="wrap_content"
@@ -222,6 +208,28 @@
                         android:textSize="12sp"
                         tools:text="@string/active_trip_status_waiting_subtitle" />
                 </LinearLayout>
+
+                <!-- Solo en DRIVER_ARRIVED: los 5 min de cortesía. Ver PickupWaitTimer. -->
+                <include
+                    android:id="@+id/group_pickup_wait"
+                    layout="@layout/view_pickup_wait"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp" />
+
+                <!-- Cancelar solo existe antes de IN_PROGRESS (lo que permite el contrato), y
+                     siempre pasa por el diálogo de confirmación. Botón de texto para que no
+                     compita con nada: es una salida, no una acción del viaje. -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_cancel_trip"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/active_trip_cancel_button"
+                    android:textAllCaps="false"
+                    android:textColor="@color/drivo_error"
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <!-- Fase "viaje en curso": precio acordado + S.O.S. + finalizar. -->

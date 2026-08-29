@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Igual que bg_pill_surface.xml pero con el par de color invertido (drivo_inverse_surface):
+     para "Navegar con Waze", que necesita destacar sobre el mapa sin importar si el tema activo
+     es claro u oscuro — un botón que se mezcla con el tema se pierde contra el mapa. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/drivo_inverse_surface" />
+    <corners android:radius="22dp" />
+</shape>

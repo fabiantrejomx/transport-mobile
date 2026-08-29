@@ -1,12 +1,10 @@
 package com.bng.drivo.ui.search;
 
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.animation.LinearInterpolator;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -69,9 +67,15 @@ public class SearchingPanel {
 
         /** Solicitud cancelada (o imposible de mantener): el host vuelve a Home. */
         void onSearchCancelled();
+
+        /**
+         * El radar debe mostrarse u ocultarse — el host es quien lo dibuja (ver
+         * HomeFragment.setRadarVisible()): vive como overlay real del mapa (Circle anclado al
+         * punto de recogida), no como View propia de este panel.
+         */
+        void setRadarVisible(boolean visible);
     }
 
-    private static final long RADAR_PULSE_DURATION_MS = 1600L;
     private static final long EXPIRY_TICK_MS = 200L;
     /**
      * Cada cuánto se relee la subasta por HTTP. Corto porque es la ventana en la que el pasajero
@@ -83,7 +87,6 @@ public class SearchingPanel {
     private static final int STATUS_POLL_EVERY_N_TICKS = 2;
 
     private final View panel;
-    private final View radarOverlay;
     private final TripFlowViewModel viewModel;
     private final TripRepository tripRepository;
     private final RideRealtimeRepository realtimeRepository;
@@ -119,8 +122,6 @@ public class SearchingPanel {
     private RealtimeSubscription offersSubscription;
     @Nullable
     private RealtimeSubscription statusSubscription;
-    @Nullable
-    private ValueAnimator radarAnimator;
     /** Una tarjeta por oferta viva; se usa para refrescar sus barras y bloquearlas en bloque. */
     private final List<OfferCard> cards = new ArrayList<>();
     private final Handler expiryHandler = new Handler(Looper.getMainLooper());
@@ -145,12 +146,11 @@ public class SearchingPanel {
     /** Ya salimos por un estado terminal; evita repetir el aviso si llegan más eventos. */
     private boolean leaving;
 
-    public SearchingPanel(@NonNull View panel, @NonNull View radarOverlay,
+    public SearchingPanel(@NonNull View panel,
                           @NonNull TripFlowViewModel viewModel, @NonNull TripRepository tripRepository,
                           @NonNull RideRealtimeRepository realtimeRepository,
                           @NonNull Callbacks callbacks) {
         this.panel = panel;
-        this.radarOverlay = radarOverlay;
         this.viewModel = viewModel;
         this.tripRepository = tripRepository;
         this.realtimeRepository = realtimeRepository;
@@ -180,15 +180,14 @@ public class SearchingPanel {
         LoadingButtonHelper.setLoading(btnCancelSearch, false);
         bindYourOffer();
         showWaitingForOffers();
-        startRadarPulse();
         subscribe();
     }
 
-    /** Salida del paso, por la razón que sea: deja de escuchar y para las animaciones. */
+    /** Salida del paso, por la razón que sea: deja de escuchar y apaga el radar. */
     public void hide() {
         active = false;
         unsubscribe();
-        stopRadarPulse();
+        callbacks.setRadarVisible(false);
         clearCards();
     }
 
@@ -198,14 +197,12 @@ public class SearchingPanel {
      */
     public void onHostStart() {
         if (active) {
-            startRadarPulse();
             subscribe();
         }
     }
 
     public void onHostStop() {
         unsubscribe();
-        stopRadarPulse();
         stopExpiryTicker();
     }
 
@@ -429,7 +426,7 @@ public class SearchingPanel {
         textStillLooking.setVisibility(View.GONE);
         textTitle.setText(R.string.searching_message);
         textSubtitle.setText(R.string.searching_subtitle);
-        radarOverlay.setVisibility(active ? View.VISIBLE : View.GONE);
+        callbacks.setRadarVisible(active);
     }
 
     /**
@@ -439,7 +436,7 @@ public class SearchingPanel {
      */
     private void showOffers(List<Offer> sorted) {
         clearCards();
-        radarOverlay.setVisibility(View.GONE);
+        callbacks.setRadarVisible(false);
 
         textTitle.setText(sorted.size() == 1
                 ? context().getString(R.string.searching_offers_title_one)
@@ -685,43 +682,6 @@ public class SearchingPanel {
                 Toast.makeText(context(), R.string.active_trip_cancel_error, Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    /** Animación puramente decorativa (dos anillos que laten) — no depende de ningún dato. */
-    private void startRadarPulse() {
-        if (radarAnimator != null) {
-            return;
-        }
-        View outer = radarOverlay.findViewById(R.id.radar_ring_outer);
-        View inner = radarOverlay.findViewById(R.id.radar_ring_inner);
-
-        radarAnimator = ValueAnimator.ofFloat(0f, 1f);
-        radarAnimator.setDuration(RADAR_PULSE_DURATION_MS);
-        radarAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        radarAnimator.setInterpolator(new LinearInterpolator());
-        radarAnimator.addUpdateListener(animation -> {
-            float fraction = (float) animation.getAnimatedValue();
-            float scale = 0.85f + fraction * 0.3f;
-            outer.setScaleX(scale);
-            outer.setScaleY(scale);
-            outer.setAlpha(0.2f * (1f - fraction));
-            float innerFraction = (fraction + 0.5f) % 1f;
-            float innerScale = 0.85f + innerFraction * 0.3f;
-            inner.setScaleX(innerScale);
-            inner.setScaleY(innerScale);
-            inner.setAlpha(0.3f * (1f - innerFraction));
-        });
-        radarAnimator.start();
-    }
-
-    private void stopRadarPulse() {
-        if (radarAnimator != null) {
-            radarAnimator.cancel();
-            radarAnimator = null;
-        }
-        if (!active) {
-            radarOverlay.setVisibility(View.GONE);
-        }
     }
 
     /** Compartidas con el host, que arma con ellas los extras del viaje activo. */

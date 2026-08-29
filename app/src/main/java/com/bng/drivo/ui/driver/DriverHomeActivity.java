@@ -70,6 +70,8 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.button.MaterialButton;
@@ -135,6 +137,16 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     }
 
     private static final long RADAR_PULSE_DURATION_MS = 1600L;
+    /**
+     * Radio base de los anillos del radar, en metros — no en dp. Al vivir como Circle sobre el
+     * mapa (anclados a lastKnownLocation) en vez de como View en pantalla, su tamaño ya no es fijo:
+     * escala con el zoom real de la cámara, igual que cualquier otro overlay del mapa. Estos
+     * valores están calibrados para verse como los anillos antiguos (160dp/100dp con animación
+     * 0.85x-1.15x) al zoom 16, el que usa animateCamera al centrar — a otros zooms se ven
+     * proporcionalmente más grandes o chicos, que es el comportamiento esperado.
+     */
+    private static final double RADAR_OUTER_BASE_RADIUS_METERS = 180.0;
+    private static final double RADAR_INNER_BASE_RADIUS_METERS = 112.5;
     private static final long LOCATION_INTERVAL_IDLE_MS = 12000L;
     private static final long BANNER_FADE_MS = 200;
     private static final long RECONNECTED_BANNER_VISIBLE_MS = 2500;
@@ -171,12 +183,25 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     @Nullable
     private LatLng lastKnownLocation;
     private ValueAnimator radarAnimator;
+    /** Anillos del radar anclados a lastKnownLocation — null hasta que el mapa está listo. */
+    @Nullable
+    private Circle radarRingOuter;
+    @Nullable
+    private Circle radarRingInner;
+    /** El paso puede pedir visibilidad antes de que el mapa (y por tanto los Circle) exista. */
+    private boolean radarVisibleRequested;
     private RealtimeSubscription inboxSubscription;
     @Nullable
     private RealtimeSubscription connectivitySubscription;
     private LocationCallback locationCallback;
     private CountDownTimer incomingExpiryTimer;
     private String displayedRideId;
+    /**
+     * true si displayedRideId se abrió desde un banner de oferta ya enviada: el panel se pinta de
+     * solo lectura (sin contraoferta ni botón de ofertar) porque el servidor ya no deja cambiar
+     * esa oferta (ALREADY_OFFERED) — ver showIncomingRequest().
+     */
+    private boolean displayedRideReadOnly;
     /**
      * Viajes sobre los que este conductor ya decidió (ignorados u ofertados) y que siguen en su
      * bandeja porque otros conductores todavía están ofertando. Es un conjunto y no un solo id
@@ -206,7 +231,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private int navHeaderBasePaddingPx;
     private View btnMenu;
     private View btnMyLocation;
-    private View radarContainer;
     private View cardNotApproved;
     private ImageView iconNotApproved;
     private TextView textNotApprovedTitle;
@@ -241,6 +265,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private TextView textNavBalance;
     private TextView textNavTripsToday;
 
+    private TextView textIncomingTitle;
     private TextView textIncomingAvatar;
     private TextView textIncomingName;
     private TextView textIncomingRating;
@@ -300,7 +325,8 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             }
         });
         btnConnectToggle.setOnClickListener(v -> toggleConnection());
-        btnIncomingIgnore.setOnClickListener(v -> ignoreIncomingRequest());
+        // btnIncomingIgnore no tiene listener fijo: showIncomingRequest() se lo pone en cada
+        // apertura, distinto según sea una solicitud nueva o una oferta ya enviada (solo lectura).
 
         startRadarPulse();
         loadGreeting();
@@ -312,7 +338,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         navView = findViewById(R.id.nav_view);
         btnMenu = findViewById(R.id.btn_menu);
         btnMyLocation = findViewById(R.id.btn_my_location);
-        radarContainer = findViewById(R.id.layout_radar);
         cardNotApproved = findViewById(R.id.card_not_approved);
         iconNotApproved = findViewById(R.id.icon_not_approved);
         textNotApprovedTitle = findViewById(R.id.text_not_approved_title);
@@ -334,6 +359,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         textConnectionHint = findViewById(R.id.text_connection_hint);
         btnConnectToggle = findViewById(R.id.btn_connect_toggle);
 
+        textIncomingTitle = findViewById(R.id.text_incoming_title);
         textIncomingAvatar = findViewById(R.id.text_incoming_avatar);
         textIncomingName = findViewById(R.id.text_incoming_name);
         textIncomingRating = findViewById(R.id.text_incoming_rating);
@@ -453,7 +479,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         btnMyLocation.setVisibility(gated || target == Step.REQUEST ? View.GONE : View.VISIBLE);
         // El radar late mientras estamos en el radar de verdad — también con una oferta ya
         // enviada, porque el conductor sigue recibiendo viajes (ver el javadoc de la clase).
-        radarContainer.setVisibility(target == Step.ONLINE ? View.VISIBLE : View.GONE);
+        setRadarVisible(target == Step.ONLINE);
         setDrawerEnabled(!gated && target != Step.REQUEST);
         // Las dos rutas solo tienen sentido con una solicitud en pantalla; en cuanto se resuelve
         // (ofertada o ignorada) el mapa vuelve a estar limpio para la siguiente.
@@ -900,11 +926,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         }
 
         String rideId = entry.getRideId();
+        double myOffer = entry.getMyOffer();
         // Volver a abrir la solicitud es de lectura: la oferta ya no se puede cambiar (el
         // servidor responde ALREADY_OFFERED), pero querer repasar a dónde iba es legítimo.
         card.setOnClickListener(v -> {
             if (step != Step.REQUEST) {
-                fetchIncomingRequest(rideId);
+                fetchIncomingRequest(rideId, myOffer);
             }
         });
 
@@ -1072,10 +1099,19 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     }
 
     private void fetchIncomingRequest(String rideId) {
+        fetchIncomingRequest(rideId, null);
+    }
+
+    /**
+     * @param myOfferedAmount no nulo cuando se abre desde un banner de oferta ya enviada: pinta
+     *                        el panel de solo lectura con ese monto en vez del de una solicitud
+     *                        nueva — ver showIncomingRequest().
+     */
+    private void fetchIncomingRequest(String rideId, @Nullable Double myOfferedAmount) {
         driverRepository.getIncomingRequest(rideId, new ApiCallback<IncomingRequest>() {
             @Override
             public void onSuccess(IncomingRequest request) {
-                showIncomingRequest(request);
+                showIncomingRequest(request, myOfferedAmount);
             }
 
             @Override
@@ -1086,8 +1122,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         });
     }
 
-    private void showIncomingRequest(IncomingRequest request) {
+    private void showIncomingRequest(IncomingRequest request, @Nullable Double myOfferedAmount) {
         displayedRideId = request.getRideId();
+        boolean readOnly = myOfferedAmount != null;
+        displayedRideReadOnly = readOnly;
+        textIncomingTitle.setText(readOnly
+                ? R.string.incoming_request_title_offered : R.string.incoming_request_title);
 
         textIncomingAvatar.setText(initialsFor(request.getPassengerName()));
         textIncomingName.setText(request.getPassengerName());
@@ -1101,7 +1141,11 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         }
         textIncomingRating.setText(ratingText);
 
-        textIncomingOffer.setText(String.format(Locale.getDefault(), "$ %.2f", request.getOffer()));
+        // De solo lectura muestra lo que este conductor ya ofertó (puede ser una contraoferta,
+        // distinta de request.getOffer(), que es el precio del pasajero); si no, el precio a
+        // ofertar es ese mismo precio del pasajero.
+        textIncomingOffer.setText(String.format(Locale.getDefault(), "$ %.2f",
+                readOnly ? myOfferedAmount : request.getOffer()));
         textIncomingDropoffText.setText(request.getDropoffText());
         // El pasajero manda su origen como "Tu ubicación actual" — desde aquí eso no dice nada, o
         // peor, se lee como la ubicación del conductor. Ver PlaceTextResolver.
@@ -1139,19 +1183,33 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         }
 
         bindStops(request);
-        bindCounterOffers(request);
+        bindCounterOffers(request, readOnly);
 
-        String offerText = String.format(Locale.getDefault(), "$%.2f", request.getOffer());
-        btnIncomingAccept.setText(getString(R.string.incoming_request_accept_button_format, offerText));
-        btnIncomingAccept.setOnClickListener(v ->
-                submitOffer(request.getRideId(), request.getOffer(), request.getPassengerName(), true));
+        // Ofertar/contraofertar ya no aplica: el servidor no deja cambiar una oferta ya enviada
+        // (ALREADY_OFFERED). "Ignorar" tampoco tiene sentido — no es una solicitud nueva que
+        // descartar, solo se está repasando una ya enviada — así que se convierte en "Cerrar".
+        btnIncomingAccept.setVisibility(readOnly ? View.GONE : View.VISIBLE);
+        if (readOnly) {
+            btnIncomingIgnore.setText(R.string.incoming_request_close_button);
+            btnIncomingIgnore.setOnClickListener(v -> closeDisplayedRequest());
+        } else {
+            String offerText = String.format(Locale.getDefault(), "$%.2f", request.getOffer());
+            btnIncomingAccept.setText(getString(R.string.incoming_request_accept_button_format, offerText));
+            btnIncomingAccept.setOnClickListener(v ->
+                    submitOffer(request.getRideId(), request.getOffer(), request.getPassengerName(), true));
+            btnIncomingIgnore.setText(R.string.incoming_request_ignore_button);
+            btnIncomingIgnore.setOnClickListener(v -> ignoreIncomingRequest());
+        }
 
         goTo(Step.REQUEST);
         drawRequestRoutes(request);
         startIncomingExpiryCountdown(request.getExpiresAt());
-        // Con la app abierta el push no suena (el sistema no pinta la notificación), y un
-        // conductor manejando no está viendo la pantalla — ver RideAlert.
-        RideAlert.play(this);
+        if (!readOnly) {
+            // Con la app abierta el push no suena (el sistema no pinta la notificación), y un
+            // conductor manejando no está viendo la pantalla — ver RideAlert. Al repasar una
+            // oferta ya enviada no hay nada nuevo que avisar.
+            RideAlert.play(this);
+        }
     }
 
     /**
@@ -1232,8 +1290,13 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 .addOnFailureListener(e -> consumer.accept(lastKnownLocation));
     }
 
-    private void bindCounterOffers(IncomingRequest request) {
+    private void bindCounterOffers(IncomingRequest request, boolean readOnly) {
         containerIncomingCounters.removeAllViews();
+        if (readOnly) {
+            // Ya no hay nada que contraofertar sobre una oferta ya enviada.
+            textIncomingCounterLabel.setVisibility(View.GONE);
+            return;
+        }
         List<Double> increments = request.getCounterIncrements();
         boolean hasIncrements = increments != null && !increments.isEmpty();
         textIncomingCounterLabel.setVisibility(hasIncrements ? View.VISIBLE : View.GONE);
@@ -1310,6 +1373,15 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             // conductores pueden tomarla. Lo único que dice es "a mí no me la vuelvas a abrir".
             ignoredRideIds.add(displayedRideId);
         }
+        closeDisplayedRequest();
+    }
+
+    /**
+     * Cierra el panel sin marcar nada como ignorado — para la vista de solo lectura de una oferta
+     * ya enviada, donde "Ignorar" no aplica (ver showIncomingRequest): no es una solicitud nueva
+     * que descartar, solo se estaba repasando una ya en curso.
+     */
+    private void closeDisplayedRequest() {
         displayedRideId = null;
         cancelIncomingExpiryTimer();
         backToRadar();
@@ -1319,6 +1391,31 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private void backToRadar() {
         cancelIncomingExpiryTimer();
         goTo(online ? Step.ONLINE : Step.OFFLINE);
+        // drawRequestRoutes aleja la cámara para que quepa la ruta completa de la solicitud; al
+        // salir (ofertada, ignorada o vencida) no hay nada que seguir mostrando ahí, así que la
+        // cámara vuelve a acercarse a donde está el conductor.
+        recenterMapOnDriver();
+    }
+
+    @SuppressLint("MissingPermission")
+    private void recenterMapOnDriver() {
+        if (googleMap == null) {
+            return;
+        }
+        if (lastKnownLocation != null) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+            return;
+        }
+        if (!hasLocationPermission()) {
+            return;
+        }
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location == null || googleMap == null) {
+                return;
+            }
+            lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+        });
     }
 
     private void startIncomingExpiryCountdown(String expiresAtIso) {
@@ -1352,9 +1449,14 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 progressIncomingExpiry.setProgress(0);
                 textIncomingExpiry.setText(R.string.incoming_request_expired);
                 // Venció mientras el conductor lo tenía en pantalla: se cierra solo en vez de
-                // dejar una solicitud muerta con la que ya no se puede hacer nada.
+                // dejar una solicitud muerta con la que ya no se puede hacer nada. En modo
+                // solo lectura no hay nada que ignorar —no era una solicitud nueva—, solo cerrar.
                 if (step == Step.REQUEST) {
-                    ignoreIncomingRequest();
+                    if (displayedRideReadOnly) {
+                        closeDisplayedRequest();
+                    } else {
+                        ignoreIncomingRequest();
+                    }
                 }
             }
         };
@@ -1509,8 +1611,10 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     }
 
     /**
-     * Le dice al mapa cuánto le tapa el modal y centra el radar en lo que queda. Sin esto los
-     * anillos se centran en la pantalla completa y quedan medio escondidos tras el modal.
+     * Le dice al mapa cuánto le tapa el modal, para que su centro lógico (y el encuadre de
+     * animateCamera/reframe) caiga en el hueco visible en vez de en la pantalla completa. El
+     * radar ya no necesita nada de esto: al ser Circle anclados a lastKnownLocation, el SDK los
+     * dibuja en su posición geográfica real sin importar cuánto padding tenga el mapa.
      */
     private void updateMapViewport(int sheetHeightPx) {
         // Los banners también tapan mapa: sin sumarlos, la ruta de una solicitud nueva se
@@ -1526,12 +1630,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             if (step == Step.REQUEST && routePainter.isReady()) {
                 routePainter.reframe();
             }
-        }
-        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) radarContainer.getLayoutParams();
-        if (params.topMargin != topPaddingPx || params.bottomMargin != sheetHeightPx) {
-            params.topMargin = topPaddingPx;
-            params.bottomMargin = sheetHeightPx;
-            radarContainer.setLayoutParams(params);
         }
     }
 
@@ -1579,9 +1677,60 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map_container);
         routePainter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
+        createRadarCircles();
         if (hasLocationPermission()) {
             enableMyLocation();
         }
+    }
+
+    /**
+     * Los anillos del radar como overlays reales del mapa (Circle), no como View sobre pantalla.
+     * Nacen invisibles y sin centro útil: setRadarVisible()/updateRadarCenter() los ponen al día
+     * en cuanto hay paso ONLINE y/o ubicación conocida.
+     */
+    private void createRadarCircles() {
+        if (googleMap == null || radarRingOuter != null) {
+            return;
+        }
+        LatLng center = lastKnownLocation != null ? lastKnownLocation : new LatLng(0, 0);
+        int successColor = ContextCompat.getColor(this, R.color.drivo_success);
+        radarRingOuter = googleMap.addCircle(new CircleOptions()
+                .center(center)
+                .radius(RADAR_OUTER_BASE_RADIUS_METERS)
+                .strokeWidth(0f)
+                .fillColor(withAlpha(successColor, 0.15f))
+                .visible(false));
+        radarRingInner = googleMap.addCircle(new CircleOptions()
+                .center(center)
+                .radius(RADAR_INNER_BASE_RADIUS_METERS)
+                .strokeWidth(0f)
+                .fillColor(withAlpha(successColor, 0.25f))
+                .visible(false));
+        setRadarVisible(radarVisibleRequested);
+    }
+
+    private void setRadarVisible(boolean visible) {
+        radarVisibleRequested = visible;
+        if (radarRingOuter != null) {
+            radarRingOuter.setVisible(visible);
+        }
+        if (radarRingInner != null) {
+            radarRingInner.setVisible(visible);
+        }
+    }
+
+    private void updateRadarCenter(LatLng latLng) {
+        if (radarRingOuter != null) {
+            radarRingOuter.setCenter(latLng);
+        }
+        if (radarRingInner != null) {
+            radarRingInner.setCenter(latLng);
+        }
+    }
+
+    private static int withAlpha(int colorArgb, float alpha) {
+        int a = Math.round(alpha * 255) << 24;
+        return (colorArgb & 0x00FFFFFF) | a;
     }
 
     @SuppressLint("MissingPermission")
@@ -1598,6 +1747,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 return;
             }
             lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            updateRadarCenter(lastKnownLocation);
             // Con una solicitud en pantalla manda su encuadre: recentrar aquí desharía la vista
             // de las dos rutas justo después de dibujarlas.
             if (googleMap != null && step != Step.REQUEST) {
@@ -1673,6 +1823,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                     return;
                 }
                 lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                updateRadarCenter(lastKnownLocation);
                 if (step == Step.REQUEST && routePainter.isReady()) {
                     routePainter.updateDriverPosition(lastKnownLocation);
                 }
@@ -1700,11 +1851,14 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         }
     }
 
-    /** Animación puramente decorativa (dos anillos que laten) — mismo patrón que el radar del pasajero. */
+    /**
+     * Animación puramente decorativa (dos anillos que laten) — mismo patrón que el radar del
+     * pasajero. Arranca en onCreate() aunque los Circle todavía no existan (nacen en
+     * createRadarCircles(), cuando el mapa está listo): cada frame revisa null antes de tocarlos,
+     * así que el animador simplemente no pinta nada hasta que el mapa aparece.
+     */
     private void startRadarPulse() {
-        View outer = findViewById(R.id.radar_ring_outer);
-        View inner = findViewById(R.id.radar_ring_inner);
-
+        int successColor = ContextCompat.getColor(this, R.color.drivo_success);
         radarAnimator = ValueAnimator.ofFloat(0f, 1f);
         radarAnimator.setDuration(RADAR_PULSE_DURATION_MS);
         radarAnimator.setRepeatCount(ValueAnimator.INFINITE);
@@ -1712,14 +1866,16 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         radarAnimator.addUpdateListener(animation -> {
             float fraction = (float) animation.getAnimatedValue();
             float scale = 0.85f + fraction * 0.3f;
-            outer.setScaleX(scale);
-            outer.setScaleY(scale);
-            outer.setAlpha(0.2f * (1f - fraction));
+            if (radarRingOuter != null) {
+                radarRingOuter.setRadius(RADAR_OUTER_BASE_RADIUS_METERS * scale);
+                radarRingOuter.setFillColor(withAlpha(successColor, 0.2f * (1f - fraction)));
+            }
             float innerFraction = (fraction + 0.5f) % 1f;
             float innerScale = 0.85f + innerFraction * 0.3f;
-            inner.setScaleX(innerScale);
-            inner.setScaleY(innerScale);
-            inner.setAlpha(0.3f * (1f - innerFraction));
+            if (radarRingInner != null) {
+                radarRingInner.setRadius(RADAR_INNER_BASE_RADIUS_METERS * innerScale);
+                radarRingInner.setFillColor(withAlpha(successColor, 0.3f * (1f - innerFraction)));
+            }
         });
         radarAnimator.start();
     }

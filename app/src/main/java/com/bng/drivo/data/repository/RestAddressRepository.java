@@ -10,6 +10,7 @@ import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.remote.TransportApiService;
 import com.bng.drivo.data.remote.dto.FavoriteCreateRequest;
 import com.bng.drivo.data.remote.dto.FavoriteDto;
+import com.bng.drivo.data.remote.dto.FavoritePatchRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +49,23 @@ public class RestAddressRepository implements AddressRepository {
         String idempotencyKey = UUID.randomUUID().toString();
         FavoriteCreateRequest body = new FavoriteCreateRequest(label, addressText, lat, lng);
         ApiCallDispatcher.enqueue(service.createFavorite(idempotencyKey, body), new ApiCallback<FavoriteDto>() {
+            @Override
+            public void onSuccess(FavoriteDto result) {
+                callback.onSuccess(toSavedAddress(result));
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    @Override
+    public void update(String id, String label, String addressText, Double lat, Double lng,
+                        ApiCallback<SavedAddress> callback) {
+        FavoritePatchRequest body = new FavoritePatchRequest(label, addressText, lat, lng);
+        ApiCallDispatcher.enqueue(service.updateFavorite(id, body), new ApiCallback<FavoriteDto>() {
             @Override
             public void onSuccess(FavoriteDto result) {
                 callback.onSuccess(toSavedAddress(result));

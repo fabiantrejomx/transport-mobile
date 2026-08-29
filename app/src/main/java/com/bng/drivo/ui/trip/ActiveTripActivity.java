@@ -126,7 +126,8 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     private View btnMessage;
     private View btnShare;
     private MaterialButton btnCancelTrip;
-    private TextView btnSosBadge;
+    private View btnSosBadge;
+    private TextView textSosBadgeLabel;
     private PickupWaitTimer waitTimer;
 
     @Override
@@ -155,6 +156,8 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         ((TextView) findViewById(R.id.text_driver_name)).setText(driverName);
         ((TextView) findViewById(R.id.text_driver_details)).setText(driverDetails);
         ((TextView) findViewById(R.id.text_trip_price)).setText(String.format(Locale.getDefault(), "$%.2f", price));
+        ((TextView) findViewById(R.id.text_trip_destination))
+                .setText(getIntent().getStringExtra(EXTRA_DESTINATION));
 
         groupBeforeTrip = findViewById(R.id.group_before_trip);
         groupTripInProgress = findViewById(R.id.group_trip_in_progress);
@@ -165,6 +168,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         btnShare = findViewById(R.id.btn_share_trip);
         btnCancelTrip = findViewById(R.id.btn_cancel_trip);
         btnSosBadge = findViewById(R.id.btn_sos_badge);
+        textSosBadgeLabel = findViewById(R.id.text_sos_badge_label);
         waitTimer = new PickupWaitTimer(findViewById(R.id.group_pickup_wait),
                 R.string.active_trip_wait_label, R.string.active_trip_wait_hint,
                 R.string.active_trip_wait_expired);
@@ -514,7 +518,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
 
     @SuppressLint("MissingPermission")
     private void sendSos() {
-        LoadingButtonHelper.setLoading(btnSosBadge, true);
+        LoadingButtonHelper.setLoading(textSosBadgeLabel, true);
         if (hasLocationPermission()) {
             fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
                 LatLng at = location != null ? new LatLng(location.getLatitude(), location.getLongitude())
@@ -530,13 +534,13 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         tripRepository.sendSos(rideId, at.latitude, at.longitude, new ApiCallback<String>() {
             @Override
             public void onSuccess(String trackingUrl) {
-                LoadingButtonHelper.setLoading(btnSosBadge, false);
+                LoadingButtonHelper.setLoading(textSosBadgeLabel, false);
                 Toast.makeText(ActiveTripActivity.this, R.string.active_trip_sos_sent, Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onError(ApiException error) {
-                LoadingButtonHelper.setLoading(btnSosBadge, false);
+                LoadingButtonHelper.setLoading(textSosBadgeLabel, false);
                 Toast.makeText(ActiveTripActivity.this, R.string.active_trip_sos_error, Toast.LENGTH_LONG).show();
             }
         });

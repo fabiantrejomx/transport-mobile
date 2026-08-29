@@ -74,49 +74,13 @@
         android:layout_marginHorizontal="16dp"
         android:orientation="vertical" />
 
-    <!-- Radar del paso SEARCHING. Se centra en el hueco visible del mapa, no en la pantalla:
-         DriverHomeActivity.updateMapViewport le da un margen inferior igual al alto del modal para que no quede medio
-         tapado por él. Se oculta en cuanto llega una oferta, que pasa a ser el foco.
-
-         Sin fondo ni contenedor con padding a propósito: los anillos flotan directamente sobre el
-         mapa. Antes había un velo blanco redondeado detrás, y como los anillos crecen al animarse
-         (hasta 1.15x = 184dp) mientras el velo medía lo mismo que su estado en reposo, la onda se
-         "cortaba" contra ese borde justo antes de desvanecerse. Por eso el contenedor mide 200dp
-         y los anillos 160dp: la onda cabe entera en su punto más grande y termina de desvanecerse
-         sin tocar ningún borde. Si se cambia la escala máxima de la animación, hay que subir
-         también este 200dp. -->
-    <FrameLayout
-        android:id="@+id/layout_radar"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:layout_gravity="center"
-        android:visibility="gone">
-
-        <View
-            android:id="@+id/radar_ring_outer"
-            android:layout_width="160dp"
-            android:layout_height="160dp"
-            android:layout_gravity="center"
-            android:alpha="0.15"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/drivo_success" />
-
-        <View
-            android:id="@+id/radar_ring_inner"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:layout_gravity="center"
-            android:alpha="0.25"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/drivo_success" />
-
-        <View
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/drivo_success" />
-    </FrameLayout>
+    <!-- El radar del paso SEARCHING ya NO es una View aquí: eran dos anillos centrados en la
+         pantalla (layout_gravity="center") que se desacoplaban del dot azul de ubicación en
+         cuanto se arrastraba o hacía zoom al mapa, porque el dot vive en coordenadas de mapa
+         (LatLng, reproyectado solo por el SDK) y esta View vivía en coordenadas de pantalla.
+         Ahora son dos Circle de Google Maps anclados a lastKnownLocation — ver
+         DriverHomeActivity.createRadarCircles()/startRadarPulse(): al estar en el mismo espacio
+         de coordenadas que el dot, el SDK los reproyecta juntos con cualquier pan/zoom. -->
 
     <!-- Estados no aprobados (borrador / en revisión / rechazado / suspendido). No usa el modal:
          en estos estados no hay mapa detrás que valga la pena dejar a la vista, y una tarjeta

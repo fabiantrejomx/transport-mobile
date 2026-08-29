@@ -39,4 +39,11 @@
 
     <!-- Scrim tras texto sobre el mapa (ej. radar de búsqueda) — mismo tono que la superficie, semitransparente -->
     <color name="drivo_scrim">#E6FFFFFF</color>
+
+    <!-- Superficie invertida: literalmente el par surface/on_surface del OTRO tema (ver
+         values-night/colors.xml). Para botones flotantes sobre el mapa que necesitan contrastar
+         a propósito contra el tema activo en vez de mezclarse con él — hoy solo "Navegar con
+         Waze" (bg_pill_inverse.xml). -->
+    <color name="drivo_inverse_surface">#142130</color>
+    <color name="drivo_inverse_on_surface">#E7EDF3</color>
 </resources>

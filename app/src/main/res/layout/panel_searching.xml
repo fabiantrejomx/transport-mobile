@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Panel del paso SEARCHING dentro del modal de HomeFragment. El radar animado NO vive aquí:
-     se queda como capa centrada sobre el mapa (layout_radar en fragment_home.xml), que es donde
-     tiene sentido — el modal solo lleva el texto de estado, la oferta del conductor de turno y
-     el cancelar.
+     son dos Circle sobre el propio mapa, anclados al punto de recogida (ver
+     HomeFragment.createRadarCircles()), que es donde tiene sentido — el modal solo lleva el
+     texto de estado, la oferta del conductor de turno y el cancelar.
 
      container_drivers muestra una sola tarjeta a la vez, la de menor queue_position: el contrato
      es un radar 1 a 1, nunca una lista de ofertas simultáneas (ver openapi.yaml). -->

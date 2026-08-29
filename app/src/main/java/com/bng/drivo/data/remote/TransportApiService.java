@@ -10,6 +10,7 @@ import com.bng.drivo.data.remote.dto.DriverLocationRequest;
 import com.bng.drivo.data.remote.dto.DriverOfferRequest;
 import com.bng.drivo.data.remote.dto.FavoriteCreateRequest;
 import com.bng.drivo.data.remote.dto.FavoriteDto;
+import com.bng.drivo.data.remote.dto.FavoritePatchRequest;
 import com.bng.drivo.data.remote.dto.IncomingRequestDto;
 import com.bng.drivo.data.remote.dto.MeDto;
 import com.bng.drivo.data.remote.dto.OfferCardDto;
@@ -93,6 +94,9 @@ public interface TransportApiService {
     @POST("/favorites")
     Call<FavoriteDto> createFavorite(@Header("Idempotency-Key") String idempotencyKey,
                                       @Body FavoriteCreateRequest body);
+
+    @PATCH("/favorites/{id}")
+    Call<FavoriteDto> updateFavorite(@Path("id") String favoriteId, @Body FavoritePatchRequest body);
 
     @DELETE("/favorites/{id}")
     Call<Void> deleteFavorite(@Path("id") String favoriteId);

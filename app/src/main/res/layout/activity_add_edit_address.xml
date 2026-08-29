@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Alta y edición de una dirección guardada. Sigue siendo una Activity aparte a propósito (es
+     una responsabilidad distinta a la de pedir un viaje), pero adopta el mismo esqueleto que el
+     resto del rediseño: un solo mapa a pantalla completa, flotantes redondos arriba y un modal
+     abajo — en vez de la MaterialToolbar con fondo sólido y la tarjeta suelta con márgenes que
+     tenía antes, que partían el mapa en dos y no seguían a los insets.
+
+     El modal se comporta como el de Inicio: en reposo enseña el formulario entero, y al enfocar
+     el buscador o el nombre sube a pantalla completa tiñendo la status bar (scrim_status_bar),
+     para que el teclado no tape lo que se está escribiendo. Ver AddEditAddressActivity. -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -10,7 +20,11 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Pin fijo: el mapa se arrastra debajo. Se centra en el hueco visible, no en la pantalla
+         (AddEditAddressActivity.centerPinInViewport), porque el punto que de verdad se guarda es
+         el target de la cámara, y ése lo decide el padding del mapa. -->
     <ImageView
+        android:id="@+id/img_address_pin"
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:layout_gravity="center"
@@ -19,117 +33,305 @@
         android:translationY="-18dp"
         app:tint="@color/drivo_secondary" />
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:layout_gravity="top"
-        android:background="?attr/colorSurface"
-        android:elevation="2dp"
-        android:fitsSystemWindows="true"
-        app:navigationIcon="@drawable/ic_back"
-        app:navigationIconTint="?attr/colorOnSurface"
-        app:title="@string/address_edit_title_new"
-        app:titleTextColor="?attr/colorOnSurface" />
-
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+    <!-- Mismos dos flotantes que Inicio, en la misma fila y con el mismo estilo redondo: volver
+         a la izquierda y centrar en mi ubicación a la derecha (el botón nativo del SDK queda
+         desactivado). El margen superior se lo pone applyTopInsets. -->
+    <ImageButton
+        android:id="@+id/btn_back"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|start"
         android:layout_margin="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
-        app:cardBackgroundColor="?attr/colorSurface">
+        android:background="@drawable/bg_dot_outlined"
+        android:contentDescription="@string/address_edit_back_description"
+        android:elevation="4dp"
+        android:padding="10dp"
+        android:src="@drawable/ic_back"
+        app:tint="?attr/colorOnSurface" />
 
+    <ImageButton
+        android:id="@+id/btn_my_location"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_dot_outlined"
+        android:contentDescription="@string/home_my_location_description"
+        android:elevation="4dp"
+        android:padding="10dp"
+        android:src="@drawable/ic_my_location"
+        app:tint="?attr/colorOnSurface" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/sheet_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_sheet_top_rounded"
+        android:elevation="12dp"
+        app:layout_behavior="@string/bottom_sheet_behavior">
+
+        <!-- focusableInTouchMode: hace de "suelo" del foco. Sin él, arrancar la pantalla le da el
+             foco al primer EditText —abriendo el buscador solo— y clearFocus() se lo pasaría al
+             siguiente campo, volviendo a abrirlo. Con esto el foco cae aquí, que no hace nada. -->
         <LinearLayout
+            android:id="@+id/sheet_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingBottom="20dp">
 
-            <TextView
-                android:id="@+id/text_search_address"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:background="?attr/selectableItemBackground"
-                android:text="@string/address_edit_search"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chip_group_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:singleSelection="true">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_casa"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checkable="true"
-                    android:text="@string/address_label_casa" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_trabajo"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checkable="true"
-                    android:text="@string/address_label_trabajo" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_otro"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checkable="true"
-                    android:text="@string/address_label_otro" />
-            </com.google.android.material.chip.ChipGroup>
-
-            <com.google.android.material.textfield.TextInputLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:boxCornerRadiusBottomEnd="10dp"
-                app:boxCornerRadiusBottomStart="10dp"
-                app:boxCornerRadiusTopEnd="10dp"
-                app:boxCornerRadiusTopStart="10dp"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                android:orientation="vertical"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/input_address"
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="4dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/bg_dot"
+                    android:backgroundTint="?attr/colorOutline" />
+
+                <TextView
+                    android:id="@+id/text_address_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    tools:text="@string/address_edit_title_new" />
+
+                <!-- Mismo buscador que el de Inicio (row_search_destination): píldora sobre
+                     colorSurfaceVariant con lupa y botón de limpiar. -->
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/address_edit_address_hint"
-                    android:inputType="text"
-                    android:maxLines="2" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    app:cardBackgroundColor="?attr/colorSurfaceVariant"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_save_address"
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="14dp">
+
+                        <ImageView
+                            android:id="@+id/icon_search_leading"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="12dp"
+                            android:clickable="true"
+                            android:contentDescription="@string/home_search_icon_description"
+                            android:focusable="true"
+                            android:src="@drawable/ic_search"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/input_search_address"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@null"
+                            android:hint="@string/address_edit_search_hint"
+                            android:imeOptions="actionSearch"
+                            android:inputType="text"
+                            android:maxLines="1"
+                            android:padding="0dp"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textColorHint="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp" />
+
+                        <ImageView
+                            android:id="@+id/btn_clear_search"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginStart="8dp"
+                            android:clickable="true"
+                            android:contentDescription="@string/home_search_clear_description"
+                            android:focusable="true"
+                            android:src="@drawable/ic_close"
+                            android:visibility="gone"
+                            app:tint="?attr/colorOnSurfaceVariant" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- La dirección del punto que se va a guardar: resultado, no campo. La escribe el
+                 mapa (pin + geocodificación inversa) o la sugerencia elegida, nunca el teclado, así
+                 que ponerla en un input solo prometía una edición que el primer arrastre del mapa
+                 se llevaba por delante. Como texto cabe entera y con saltos de línea — dentro del
+                 EditText salía cortada. Vive pegada al buscador para que se lea la relación:
+                 arriba se busca, aquí sale lo que quedó. -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:paddingTop="14dp"
-                android:paddingBottom="14dp"
-                android:text="@string/address_edit_save"
-                android:textAllCaps="false"
-                app:cornerRadius="10dp" />
+                android:baselineAligned="false"
+                android:orientation="horizontal"
+                android:paddingHorizontal="20dp"
+                android:paddingTop="14dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_delete_address"
-                style="@style/Widget.Material3.Button.TextButton"
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="10dp"
+                    android:layout_marginTop="1dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_map_pin"
+                    app:tint="@color/drivo_secondary" />
+
+                <TextView
+                    android:id="@+id/text_address"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="@string/address_edit_address_empty"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant"
+                    android:textSize="14sp"
+                    tools:text="C. 18 1904, Las Lomas, 94570 Córdoba, Ver." />
+            </LinearLayout>
+
+            <!-- Sustituye al formulario mientras se escribe en el buscador. -->
+            <LinearLayout
+                android:id="@+id/container_predictions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/address_edit_delete"
-                android:textAllCaps="false"
-                android:textColor="@color/drivo_error"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingTop="8dp"
                 android:visibility="gone" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
 
-</FrameLayout>
+            <LinearLayout
+                android:id="@+id/group_address_form"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp">
+
+                <TextView
+                    android:id="@+id/text_label_section"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/address_edit_label_section"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chip_group_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_casa"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/address_label_casa" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_trabajo"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/address_label_trabajo" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_otro"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/address_label_otro" />
+                </com.google.android.material.chip.ChipGroup>
+
+                <!-- Solo con "Otro" marcado: Casa y Trabajo ya traen su nombre puesto. -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layout_label_name"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/address_edit_name_hint"
+                    android:visibility="gone"
+                    app:boxCornerRadiusBottomEnd="10dp"
+                    app:boxCornerRadiusBottomStart="10dp"
+                    app:boxCornerRadiusTopEnd="10dp"
+                    app:boxCornerRadiusTopStart="10dp"
+                    app:helperText="@string/address_edit_name_helper"
+                    tools:visibility="visible">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/input_label_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:imeOptions="actionDone"
+                        android:inputType="textCapWords"
+                        android:maxLength="30"
+                        android:maxLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_save_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:paddingVertical="14dp"
+                    android:text="@string/address_edit_save"
+                    android:textAllCaps="false"
+                    android:textSize="15sp"
+                    app:cornerRadius="28dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_cancel_address"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/address_edit_cancel"
+                    android:textAllCaps="false"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_delete_address"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/address_edit_delete"
+                    android:textAllCaps="false"
+                    android:textColor="@color/drivo_error"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Mismo velo que en Inicio: tiñe la status bar del color del modal conforme éste llega
+         arriba, para que expandido se lea como pantalla completa. Va después del sheet y con su
+         misma elevación para tapar la sombra que éste proyecta hacia arriba. -->
+    <View
+        android:id="@+id/scrim_status_bar"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_gravity="top"
+        android:alpha="0"
+        android:background="?attr/colorSurface"
+        android:elevation="12dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

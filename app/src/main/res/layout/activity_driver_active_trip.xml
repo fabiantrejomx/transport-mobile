@@ -35,18 +35,21 @@
         android:textSize="13sp"
         android:textStyle="bold" />
 
+    <!-- Fondo invertido a propósito (drivo_inverse_surface, no colorSurface): a diferencia de los
+         demás flotantes, este necesita destacar sobre el mapa sin importar el tema activo — con
+         colorSurface se mimetiza con el propio tema y pierde contraste contra el mapa. -->
     <TextView
         android:id="@+id/btn_trip_waze"
         android:layout_width="wrap_content"
         android:layout_height="44dp"
         android:layout_gravity="top|end"
         android:layout_margin="16dp"
-        android:background="@drawable/bg_pill_surface"
+        android:background="@drawable/bg_pill_inverse"
         android:elevation="4dp"
         android:gravity="center"
         android:paddingHorizontal="18dp"
         android:text="@string/driver_trip_waze_button"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="@color/drivo_inverse_on_surface"
         android:textSize="13sp"
         android:textStyle="bold" />
 

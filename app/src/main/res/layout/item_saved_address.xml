@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/row_address"
     android:layout_width="match_parent"
@@ -40,7 +41,7 @@
 
         <TextView
             android:id="@+id/text_address_line"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
@@ -48,4 +49,29 @@
             android:textSize="12sp"
             tools:text="Calle Reforma 22" />
     </LinearLayout>
+
+    <!-- Las acciones de la fila viven detrás de este botón y no sueltas en ella: borrar es
+         irreversible y la fila entera ya es tocable, así que un icono de basura permanente dentro
+         de esa misma zona se acaba pulsando sin querer. 40dp de zona táctil con el icono a 20dp:
+         se acierta sin que el punto pese visualmente en la lista.
+
+         Oculto por defecto, y lo enciende solo AddressListActivity. Esta fila se reutiliza en el
+         modal de Inicio y en el buscador de paradas, y ahí es un acceso directo para elegir a
+         dónde vas: administrar las direcciones no pinta nada en medio de pedir un viaje. El
+         defecto seguro es "sin acciones", para que reutilizarla otra vez no vuelva a colar un
+         borrado donde no toca. -->
+    <ImageView
+        android:id="@+id/btn_address_menu"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:contentDescription="@string/address_list_row_menu_description"
+        android:focusable="true"
+        android:padding="10dp"
+        android:src="@drawable/ic_more_vert"
+        android:visibility="gone"
+        app:tint="?attr/colorOnSurfaceVariant"
+        tools:visibility="visible" />
 </LinearLayout>

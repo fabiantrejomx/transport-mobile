@@ -1,6 +1,7 @@
 package com.bng.drivo.ui.home;
 
 import android.Manifest;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -17,6 +18,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -74,6 +76,8 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.libraries.places.api.model.AutocompletePrediction;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -117,6 +121,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private static final long PANEL_FADE_IN_MS = 190;
     /** Fundido del ícono del botón de navegación al alternar entre menú y atrás. */
     private static final long NAV_ICON_FADE_MS = 90;
+    private static final long RADAR_PULSE_DURATION_MS = 1600L;
+    /**
+     * Radio base de los anillos del radar, en metros — no en dp. Al vivir como Circle sobre el
+     * mapa (anclados al punto de recogida) en vez de como View en pantalla, su tamaño ya no es
+     * fijo: escala con el zoom real de la cámara, igual que cualquier otro overlay del mapa.
+     * Calibrados para verse como los anillos antiguos (160dp/100dp, animación 0.85x-1.15x) al
+     * zoom 16 — mismo criterio que DriverHomeActivity, que tiene el mismo radar del otro lado.
+     */
+    private static final double RADAR_OUTER_BASE_RADIUS_METERS = 180.0;
+    private static final double RADAR_INNER_BASE_RADIUS_METERS = 112.5;
 
     private FusedLocationProviderClient fusedLocationClient;
     private GoogleMap googleMap;
@@ -140,7 +154,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private View routeCard;
     private View pickLocationPin;
     private View pickStopPin;
-    private View radarOverlay;
+    /** Anillos del radar de SEARCHING, anclados a viewModel.getOrigin() — null hasta que el mapa está listo. */
+    @Nullable
+    private Circle radarRingOuter;
+    @Nullable
+    private Circle radarRingInner;
+    private ValueAnimator radarAnimator;
+    /** El panel puede pedir visibilidad antes de que el mapa (y por tanto los Circle) exista. */
+    private boolean radarVisibleRequested;
 
     private AddressRepository addressRepository;
     private ConnectivityRepository connectivityRepository;
@@ -228,7 +249,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         routeCard = view.findViewById(R.id.card_route_summary);
         pickLocationPin = view.findViewById(R.id.img_pick_location_pin);
         pickStopPin = view.findViewById(R.id.img_pick_stop_pin);
-        radarOverlay = view.findViewById(R.id.layout_radar);
 
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
@@ -237,6 +257,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         }
 
         setUpPanels(view);
+        startRadarPulse();
         setUpBackHandling(view);
         setUpBottomSheet(view);
         setUpDestinationSearch(view);
@@ -345,7 +366,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             }
         });
 
-        searchingPanel = new SearchingPanel(panelSearching, radarOverlay, viewModel, tripRepository,
+        searchingPanel = new SearchingPanel(panelSearching, viewModel, tripRepository,
                 new FirestoreRideRealtimeRepository(), new SearchingPanel.Callbacks() {
             @Override
             public void onOfferAccepted(@NonNull Ride ride) {
@@ -359,6 +380,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 if (isAdded()) {
                     returnToIdle();
                 }
+            }
+
+            @Override
+            public void setRadarVisible(boolean visible) {
+                HomeFragment.this.setRadarVisible(visible);
             }
         });
     }
@@ -722,6 +748,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         mapPresenter.detach();
         searchDebounceHandler.removeCallbacksAndMessages(null);
         reconnectedBannerHandler.removeCallbacksAndMessages(null);
+        if (radarAnimator != null) {
+            radarAnimator.cancel();
+            radarAnimator = null;
+        }
+        radarRingOuter = null;
+        radarRingInner = null;
         googleMap = null;
     }
 
@@ -741,6 +773,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (root != null) {
             lastCollapsedHeightPx = -1;
             root.requestLayout();
+            // Mismo problema de fondo: Direcciones guardadas se edita en otra Activity (menú ->
+            // Ajustes -> Direcciones), y por el mismo patrón show/hide volver de ahí no recrea
+            // este Fragment. savedAddressesLoaded solo evita reintentos tras un fallo de red —
+            // aquí sí hay que repetir la carga aunque ya hubiera cargado bien antes, o un borrado
+            // o una edición no se ven hasta cerrar y reabrir la app.
+            loadSavedAddresses(root);
         }
     }
 
@@ -1129,9 +1167,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     }
 
     /**
-     * Le dice al mapa cuánto le tapan la tarjeta de ruta y el modal, y centra el radar en lo que
-     * queda. Aquí es donde deja de hacer falta ajustar márgenes a mano en cada pantalla: el
-     * encuadre de la ruta lo resuelve el SDK contra esta zona útil, no contra la pantalla entera.
+     * Le dice al mapa cuánto le tapan la tarjeta de ruta y el modal, y centra los pines de "elegir
+     * en el mapa" en lo que queda. Aquí es donde deja de hacer falta ajustar márgenes a mano en
+     * cada pantalla: el encuadre de la ruta lo resuelve el SDK contra esta zona útil, no contra la
+     * pantalla entera. El radar de SEARCHING ya no pasa por aquí: al ser Circle anclados a
+     * viewModel.getOrigin() (ver createRadarCircles()), el SDK los dibuja en su posición
+     * geográfica real sin importar cuánto padding tenga el mapa.
      */
     private void updateMapViewport(int sheetHeightPx) {
         int topPaddingPx = sheetTopInsetPx;
@@ -1142,10 +1183,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         mapPresenter.setContentPadding(topPaddingPx, sheetHeightPx);
 
         // Centrado en el hueco visible, no en la pantalla: en un CoordinatorLayout la gravedad
-        // "center" se aplica sobre el rectángulo del padre ya recortado por los márgenes. El pin
-        // de PICK_LOCATION comparte el mismo cálculo — nunca están visibles a la vez, pero no
-        // cuesta nada mantener los dos al día nada más pedirlo el mapa.
-        centerInViewport(radarOverlay, topPaddingPx, sheetHeightPx);
+        // "center" se aplica sobre el rectángulo del padre ya recortado por los márgenes.
         centerInViewport(pickLocationPin, topPaddingPx, sheetHeightPx);
         centerInViewport(pickStopPin, topPaddingPx, sheetHeightPx);
     }
@@ -1478,6 +1516,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
         mapPresenter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
+        createRadarCircles();
         mapPresenter.setGesturesEnabled(viewModel.getStep() != TripFlowViewModel.Step.SEARCHING);
         // Volver a este paso con el mapa recién listo (rotación a mitad del flujo): la ruta la
         // dibuja el panel al mostrarse, pero el mapa aún no existía cuando eso pasó.
@@ -1488,6 +1527,96 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (hasLocationPermission()) {
             showMyLocation();
         }
+    }
+
+    /**
+     * Los anillos del radar de SEARCHING como overlays reales del mapa (Circle), no como View
+     * sobre pantalla. Nacen invisibles y centrados donde se pueda (el origen del viaje si ya
+     * existe, si no la última ubicación conocida) — setRadarVisible() los pone al día en cuanto
+     * el paso SEARCHING los pide.
+     */
+    private void createRadarCircles() {
+        if (googleMap == null || radarRingOuter != null) {
+            return;
+        }
+        LatLng origin = viewModel.getOrigin();
+        LatLng center = origin != null ? origin : originLocation;
+        int successColor = ContextCompat.getColor(requireContext(), R.color.drivo_success);
+        radarRingOuter = googleMap.addCircle(new CircleOptions()
+                .center(center)
+                .radius(RADAR_OUTER_BASE_RADIUS_METERS)
+                .strokeWidth(0f)
+                .fillColor(withAlpha(successColor, 0.15f))
+                .visible(false));
+        radarRingInner = googleMap.addCircle(new CircleOptions()
+                .center(center)
+                .radius(RADAR_INNER_BASE_RADIUS_METERS)
+                .strokeWidth(0f)
+                .fillColor(withAlpha(successColor, 0.25f))
+                .visible(false));
+        setRadarVisible(radarVisibleRequested);
+    }
+
+    /** Único punto que SearchingPanel toca del radar — ver SearchingPanel.Callbacks#setRadarVisible. */
+    private void setRadarVisible(boolean visible) {
+        radarVisibleRequested = visible;
+        if (visible) {
+            // El punto de recogida no cambia mientras se busca conductor: basta con fijarlo cada
+            // vez que el radar se enciende, no hace falta escuchar más eventos.
+            LatLng origin = viewModel.getOrigin();
+            if (origin != null) {
+                updateRadarCenter(origin);
+            }
+        }
+        if (radarRingOuter != null) {
+            radarRingOuter.setVisible(visible);
+        }
+        if (radarRingInner != null) {
+            radarRingInner.setVisible(visible);
+        }
+    }
+
+    private void updateRadarCenter(LatLng latLng) {
+        if (radarRingOuter != null) {
+            radarRingOuter.setCenter(latLng);
+        }
+        if (radarRingInner != null) {
+            radarRingInner.setCenter(latLng);
+        }
+    }
+
+    /**
+     * Animación puramente decorativa (dos anillos que laten) — mismo patrón que el radar del
+     * conductor. Arranca en onViewCreated() aunque los Circle todavía no existan (nacen en
+     * createRadarCircles(), cuando el mapa está listo): cada frame revisa null antes de tocarlos,
+     * así que el animador simplemente no pinta nada hasta que el mapa aparece.
+     */
+    private void startRadarPulse() {
+        int successColor = ContextCompat.getColor(requireContext(), R.color.drivo_success);
+        radarAnimator = ValueAnimator.ofFloat(0f, 1f);
+        radarAnimator.setDuration(RADAR_PULSE_DURATION_MS);
+        radarAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        radarAnimator.setInterpolator(new LinearInterpolator());
+        radarAnimator.addUpdateListener(animation -> {
+            float fraction = (float) animation.getAnimatedValue();
+            float scale = 0.85f + fraction * 0.3f;
+            if (radarRingOuter != null) {
+                radarRingOuter.setRadius(RADAR_OUTER_BASE_RADIUS_METERS * scale);
+                radarRingOuter.setFillColor(withAlpha(successColor, 0.2f * (1f - fraction)));
+            }
+            float innerFraction = (fraction + 0.5f) % 1f;
+            float innerScale = 0.85f + innerFraction * 0.3f;
+            if (radarRingInner != null) {
+                radarRingInner.setRadius(RADAR_INNER_BASE_RADIUS_METERS * innerScale);
+                radarRingInner.setFillColor(withAlpha(successColor, 0.3f * (1f - innerFraction)));
+            }
+        });
+        radarAnimator.start();
+    }
+
+    private static int withAlpha(int colorArgb, float alpha) {
+        int a = Math.round(alpha * 255) << 24;
+        return (colorArgb & 0x00FFFFFF) | a;
     }
 
     private CameraPosition readCachedCameraPosition() {

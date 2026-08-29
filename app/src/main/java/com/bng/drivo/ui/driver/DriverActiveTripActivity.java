@@ -50,6 +50,7 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.Priority;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -113,6 +114,14 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private String rideId;
     private String currentStatus;
     private boolean terminalStateHandled;
+    /**
+     * true entre que se toca "Finalizar viaje" y que responde POST /driver/rides/{id}/complete.
+     * El canal en vivo (statusSubscription) suele enterarse del COMPLETED antes que esa misma
+     * respuesta HTTP llegue —el push va por un canal más rápido que la petición que lo originó—,
+     * y sin esta bandera onStatusChanged cerraba la pantalla de golpe (finish()) justo antes de
+     * que attemptComplete() alcanzara a pintar el cobro/calificación o recentrar el mapa.
+     */
+    private boolean completeInFlight;
 
     private String passengerName;
     private double fare;
@@ -138,9 +147,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private TextView textTripAvatar;
     private TextView textTripPassengerName;
     private TextView textTripPassengerRating;
+    private TextView textTripStatusBadge;
     private TextView textTripActionTitle;
+    private TextView textTripDestinationLabel;
     private TextView textTripActionSubtitle;
     private TextView textTripFare;
+    private View tileTripSecondaryStat;
     private TextView textTripSecondaryStatLabel;
     private TextView textTripSecondaryStatValue;
     private MaterialButton btnTripAction;
@@ -182,9 +194,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textTripAvatar = findViewById(R.id.text_trip_avatar);
         textTripPassengerName = findViewById(R.id.text_trip_passenger_name);
         textTripPassengerRating = findViewById(R.id.text_trip_passenger_rating);
+        textTripStatusBadge = findViewById(R.id.text_trip_status_badge);
         textTripActionTitle = findViewById(R.id.text_trip_action_title);
+        textTripDestinationLabel = findViewById(R.id.text_trip_destination_label);
         textTripActionSubtitle = findViewById(R.id.text_trip_action_subtitle);
         textTripFare = findViewById(R.id.text_trip_fare);
+        tileTripSecondaryStat = findViewById(R.id.tile_trip_secondary_stat);
         textTripSecondaryStatLabel = findViewById(R.id.text_trip_secondary_stat_label);
         textTripSecondaryStatValue = findViewById(R.id.text_trip_secondary_stat_value);
         btnTripAction = findViewById(R.id.btn_trip_action);
@@ -350,6 +365,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 showInProgressPhase();
                 break;
             case "COMPLETED":
+                if (completeInFlight) {
+                    // attemptComplete() ya está esperando esa misma respuesta HTTP, que es quien
+                    // debe pintar el cobro real (trae la comisión) y recentrar el mapa — este
+                    // push solo se adelantó por ir en un canal más rápido. Nada que hacer aquí.
+                    break;
+                }
                 // Llegamos aquí sin pasar por attemptComplete() (p. ej. la app se cerró justo
                 // al tocar "Finalizar" y se reabrió después) — sin la respuesta de
                 // POST /driver/rides/{id}/complete no sabemos la comisión real, así que no
@@ -383,11 +404,17 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
             waitTimer.stop();
         }
 
+        // El badge y la etiqueta "Destino" son solo de IN_PROGRESS — aquí el tile de abajo ya
+        // hace ese trabajo con datos reales ("Llegada en").
+        textTripStatusBadge.setVisibility(View.GONE);
+        textTripDestinationLabel.setVisibility(View.GONE);
+
         textTripActionTitle.setText(getString(R.string.driver_trip_pickup_title_format, passengerName));
         double pickupKm = pickupDistanceM != null ? pickupDistanceM / 1000.0 : 0;
         textTripActionSubtitle.setText(
                 getString(R.string.driver_trip_pickup_subtitle_format, pickupText, pickupKm));
 
+        tileTripSecondaryStat.setVisibility(View.VISIBLE);
         textTripSecondaryStatLabel.setText(R.string.driver_trip_eta_stat_label);
         textTripSecondaryStatValue.setText(pickupEtaMin != null
                 ? getString(R.string.searching_eta_min, pickupEtaMin) : "--");
@@ -413,13 +440,21 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         btnTripMessage.setVisibility(View.GONE);
         waitTimer.stop();
 
+        // El estado ("En curso") se muestra junto al nombre, no ya en el tile de abajo.
+        textTripStatusBadge.setText(R.string.driver_trip_progress_stat_value);
+        textTripStatusBadge.setVisibility(View.VISIBLE);
+        textTripDestinationLabel.setVisibility(View.VISIBLE);
+
         textTripActionTitle.setText(getString(R.string.driver_trip_dropoff_title_format, passengerName));
         long tripKm = tripDistanceM != null ? Math.round(tripDistanceM / 1000.0) : 0;
         textTripActionSubtitle.setText(
                 getString(R.string.driver_trip_dropoff_subtitle_format, dropoffText, tripKm));
 
-        textTripSecondaryStatLabel.setText(R.string.driver_trip_progress_stat_label);
-        textTripSecondaryStatValue.setText(R.string.driver_trip_progress_stat_value);
+        // El tile queda listo para el ETA real del tramo (label ya puesto), pero sin ese dato
+        // todavía se oculta en vez de mostrar algo vacío o inventado — ver
+        // driver_trip_dropoff_eta_stat_label.
+        textTripSecondaryStatLabel.setText(R.string.driver_trip_dropoff_eta_stat_label);
+        tileTripSecondaryStat.setVisibility(View.GONE);
 
         btnTripAction.setText(R.string.driver_trip_action_complete);
         btnTripAction.setEnabled(true);
@@ -663,22 +698,50 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
 
     private void attemptComplete() {
         LoadingButtonHelper.setLoading(btnTripAction, true);
+        completeInFlight = true;
         driverRepository.completeRide(rideId, new ApiCallback<Ride>() {
             @Override
             public void onSuccess(Ride result) {
+                completeInFlight = false;
                 LoadingButtonHelper.setLoading(btnTripAction, false);
                 terminalStateHandled = true;
                 currentStatus = "COMPLETED";
                 stopLocationLoop();
                 showCobroRatingPhase(result);
+                // La ruta del viaje que se acaba de cerrar ya no importa: el mapa vuelve a
+                // centrarse en el conductor, como al entrar a Home, en vez de quedarse en el
+                // último encuadre del tramo recién terminado.
+                recenterMapOnDriver();
             }
 
             @Override
             public void onError(ApiException error) {
+                completeInFlight = false;
                 LoadingButtonHelper.setLoading(btnTripAction, false);
                 Toast.makeText(DriverActiveTripActivity.this, R.string.driver_trip_complete_error, Toast.LENGTH_SHORT)
                         .show();
             }
+        });
+    }
+
+    @SuppressLint("MissingPermission")
+    private void recenterMapOnDriver() {
+        if (googleMap == null) {
+            return;
+        }
+        if (lastKnownLocation != null) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+            return;
+        }
+        if (!hasLocationPermission()) {
+            return;
+        }
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location == null || googleMap == null) {
+                return;
+            }
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                    new LatLng(location.getLatitude(), location.getLongitude()), 16f));
         });
     }
 

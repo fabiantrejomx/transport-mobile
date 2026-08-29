@@ -34,6 +34,8 @@ public enum ApiErrorCode {
     DOCUMENT_NOT_REQUIRED,
     FORBIDDEN_PATH,
     FAVORITE_NOT_FOUND,
+    /** Ya hay otro lugar guardado con ese nombre (el servidor los exige únicos por usuario). */
+    FAVORITE_LABEL_TAKEN,
     ROUTING_UNAVAILABLE,
     /** No hay respuesta del servidor (sin red, timeout, DNS, etc.) — no es un código del contrato. */
     NETWORK_ERROR,

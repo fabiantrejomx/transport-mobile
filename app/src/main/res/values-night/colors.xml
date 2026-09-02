@@ -32,6 +32,17 @@
          es lo que de verdad se lee sobre el mapa oscuro. -->
     <color name="drivo_map_accent">#A9C7E8</color>
 
+    <!-- Ver el comentario en values/colors.xml. Aquí todo se invierte: carrocería clara (un blanco
+         roto, no puro, para que los realces del techo no se pierdan) y detalles en gris azulado,
+         que es lo que le devuelve al coche las ventanas y las llantas sobre el mapa oscuro. -->
+    <color name="drivo_vehicle_body">#E9EEF4</color>
+    <color name="drivo_vehicle_outline">#FF44586D</color>
+    <color name="drivo_vehicle_roof">#241B2836</color>
+    <color name="drivo_vehicle_glass">#8C33455A</color>
+    <color name="drivo_vehicle_glass_soft">#7333455A</color>
+    <color name="drivo_vehicle_wheel">#B31B2836</color>
+    <color name="drivo_vehicle_mirror">#8C1B2836</color>
+
     <color name="drivo_scrim">#E6142130</color>
 
     <!-- Ver el comentario en values/colors.xml: aquí es el par surface/on_surface del tema claro. -->

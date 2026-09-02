@@ -217,7 +217,7 @@
 
     <!-- Viaje activo -->
     <string name="active_trip_price_label">Precio Acordado (Efectivo)</string>
-    <string name="active_trip_sos">🛡️ S.O.S</string>
+    <string name="active_trip_sos">S.O.S</string>
     <string name="active_trip_sos_sent">Alerta enviada. Comparte tu ubicación con alguien de confianza.</string>
     <string name="active_trip_sos_error">No se pudo enviar la alerta. Intenta de nuevo o llama al 911.</string>
     <string name="active_trip_call_coming_soon">Llamar — próximamente</string>

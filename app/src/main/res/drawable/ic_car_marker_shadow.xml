@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="34dp"
+    android:viewportWidth="22"
+    android:viewportHeight="34">
+    <!-- Sombra de contacto, sin teñir: se dibuja debajo del cuerpo, igual en tema claro u oscuro. -->
+    <path
+        android:fillColor="#2E000000"
+        android:pathData="M2.7,17.6 C2.7,8.984 6.416,2 11,2 C15.584,2 19.3,8.984 19.3,17.6 C19.3,26.216 15.584,33.2 11,33.2 C6.416,33.2 2.7,26.216 2.7,17.6 Z" />
+</vector>

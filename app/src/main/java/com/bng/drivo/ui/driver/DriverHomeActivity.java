@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -56,6 +57,7 @@ import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.ui.map.DriverRoutePainter;
 import com.bng.drivo.ui.map.MapStyler;
+import com.bng.drivo.ui.map.MarkerIconFactory;
 import com.bng.drivo.util.DrawerInsets;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.PlaceTextResolver;
@@ -73,6 +75,8 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.navigation.NavigationView;
@@ -147,7 +151,18 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      */
     private static final double RADAR_OUTER_BASE_RADIUS_METERS = 180.0;
     private static final double RADAR_INNER_BASE_RADIUS_METERS = 112.5;
-    private static final long LOCATION_INTERVAL_IDLE_MS = 12000L;
+    /**
+     * Cadencia con la que se refresca el coche en el mapa. Son los mismos 5 s que pedía la capa
+     * "mi ubicación" del SDK de Maps mientras existía el punto azul: el coche lo reemplaza, así
+     * que hereda su ritmo — con los 12 s de antes se veía dar saltos, no moverse.
+     */
+    private static final long LOCATION_INTERVAL_IDLE_MS = 5000L;
+    /**
+     * Cada cuánto se le manda la posición al servidor. Se mantiene en los 12 s de siempre aunque
+     * el mapa se refresque más seguido: acelerar el dibujo no es razón para triplicar el tráfico
+     * ni el consumo de datos del conductor — ver el filtro por tiempo en startLocationLoop().
+     */
+    private static final long LOCATION_REPORT_INTERVAL_MS = 12000L;
     private static final long BANNER_FADE_MS = 200;
     private static final long RECONNECTED_BANNER_VISIBLE_MS = 2500;
     /** Fundido del contenido del modal al cambiar de paso (mitad de salida, mitad de entrada). */
@@ -190,10 +205,23 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private Circle radarRingInner;
     /** El paso puede pedir visibilidad antes de que el mapa (y por tanto los Circle) exista. */
     private boolean radarVisibleRequested;
+    /**
+     * El coche del conductor mismo, visible desde que hay ubicación conocida — reemplaza al
+     * punto azul de Maps (apagado en {@link #enableMyLocation()}) para que se vea igual que el
+     * resto de la app. Se oculta solo durante {@link Step#REQUEST}: ahí el mismo coche ya lo
+     * pinta {@link #routePainter} sobre el tramo de recogida, y tener los dos duplicaría el ícono.
+     */
+    @Nullable
+    private Marker selfMarker;
     private RealtimeSubscription inboxSubscription;
     @Nullable
     private RealtimeSubscription connectivitySubscription;
     private LocationCallback locationCallback;
+    /**
+     * Cuándo se le habló al servidor por última vez ({@link SystemClock#elapsedRealtime()}, que no
+     * salta si cambia la hora del sistema). Separa el ritmo del dibujo del ritmo del reporte.
+     */
+    private long lastLocationReportAtMs;
     private CountDownTimer incomingExpiryTimer;
     private String displayedRideId;
     /**
@@ -294,6 +322,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             new ActivityResultContracts.RequestMultiplePermissions(), grants -> {
                 if (hasLocationPermission() && googleMap != null) {
                     enableMyLocation();
+                    startLocationLoop();
                 }
             });
 
@@ -480,6 +509,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         // El radar late mientras estamos en el radar de verdad — también con una oferta ya
         // enviada, porque el conductor sigue recibiendo viajes (ver el javadoc de la clase).
         setRadarVisible(target == Step.ONLINE);
+        updateSelfMarkerVisibility();
         setDrawerEnabled(!gated && target != Step.REQUEST);
         // Las dos rutas solo tienen sentido con una solicitud en pantalla; en cuanto se resuelve
         // (ofertada o ignorada) el mapa vuelve a estar limpio para la siguiente.
@@ -660,7 +690,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 online = true;
                 goTo(Step.ONLINE);
                 updateConnectionUi();
-                startLocationLoop();
                 startInboxListener();
             }
 
@@ -699,7 +728,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 cancelIncomingExpiryTimer();
                 goTo(Step.OFFLINE);
                 updateConnectionUi();
-                stopLocationLoop();
                 stopInboxListener();
                 loadWallet();
             }
@@ -1678,6 +1706,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map_container);
         routePainter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
         createRadarCircles();
+        createSelfMarker();
         if (hasLocationPermission()) {
             enableMyLocation();
         }
@@ -1733,14 +1762,47 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         return (colorArgb & 0x00FFFFFF) | a;
     }
 
+    /**
+     * Nace invisible y sin posición útil, igual que los Circle del radar — se revela en cuanto
+     * hay ubicación real (ver {@link #updateSelfMarkerPosition}), nunca en (0,0).
+     */
+    private void createSelfMarker() {
+        if (googleMap == null || selfMarker != null) {
+            return;
+        }
+        selfMarker = googleMap.addMarker(new MarkerOptions()
+                .position(new LatLng(0, 0))
+                .icon(MarkerIconFactory.carMarker(this, R.color.drivo_vehicle_body))
+                .anchor(0.5f, 0.5f)
+                .flat(true)
+                .visible(false));
+    }
+
+    private void updateSelfMarkerPosition(LatLng position, @Nullable Double headingDegrees) {
+        if (selfMarker == null) {
+            return;
+        }
+        selfMarker.setPosition(position);
+        if (headingDegrees != null) {
+            selfMarker.setRotation(headingDegrees.floatValue());
+        }
+        updateSelfMarkerVisibility();
+    }
+
+    /** Oculto solo durante REQUEST: ahí el mismo coche ya lo pinta routePainter. */
+    private void updateSelfMarkerVisibility() {
+        if (selfMarker == null || lastKnownLocation == null) {
+            return;
+        }
+        selfMarker.setVisible(step != Step.REQUEST);
+    }
+
     @SuppressLint("MissingPermission")
     private void enableMyLocation() {
         if (googleMap == null) {
             return;
         }
-        googleMap.setMyLocationEnabled(true);
-        // El botón redondo propio (btn_my_location) reemplaza al del SDK para que comparta estilo
-        // con el de menú — el del SDK se queda apagado a propósito.
+        // El coche propio (selfMarker) reemplaza al punto azul del SDK — se queda apagado.
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
         fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
             if (location == null) {
@@ -1748,6 +1810,8 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             }
             lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
             updateRadarCenter(lastKnownLocation);
+            Double heading = location.hasBearing() ? (double) location.getBearing() : null;
+            updateSelfMarkerPosition(lastKnownLocation, heading);
             // Con una solicitud en pantalla manda su encuadre: recentrar aquí desharía la vista
             // de las dos rutas justo después de dibujarlas.
             if (googleMap != null && step != Step.REQUEST) {
@@ -1809,10 +1873,25 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 RECONNECTED_BANNER_VISIBLE_MS);
     }
 
+    /**
+     * Corre siempre que la pantalla está visible, sin importar online/offline — antes de
+     * selfMarker esto lo resolvía gratis el punto azul del SDK, que sigue a la ubicación real
+     * incluso desconectado; al quitarlo, si este loop se quedaba atado a online (como el
+     * reporte al servidor, que sí debe seguir estándolo) el coche se congelaba en offline. Idem
+     * y protegido contra permiso ausente porque ahora se llama desde onStart() sin ese filtro.
+     */
     @SuppressLint("MissingPermission")
     private void startLocationLoop() {
+        if (locationCallback != null || !hasLocationPermission()) {
+            return;
+        }
+        // HIGH_ACCURACY y no BALANCED: BALANCED se resuelve por el proveedor de red, que puede
+        // estar apagado o no existir (en el emulador lo está), y entonces la petición nunca llega
+        // al GPS y no entra ni una sola lectura — el coche se queda clavado donde apareció.
+        // El punto azul que este marcador reemplaza pedía exactamente HIGH_ACCURACY cada 5 s, así
+        // que igualarlo no es gastar de más: es dejar de depender de él para lo mismo.
         LocationRequest request = new LocationRequest.Builder(LOCATION_INTERVAL_IDLE_MS)
-                .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                 .setMinUpdateIntervalMillis(LOCATION_INTERVAL_IDLE_MS)
                 .build();
         locationCallback = new LocationCallback() {
@@ -1824,10 +1903,23 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 }
                 lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
                 updateRadarCenter(lastKnownLocation);
+                Double heading = location.hasBearing() ? (double) location.getBearing() : null;
                 if (step == Step.REQUEST && routePainter.isReady()) {
                     routePainter.updateDriverPosition(lastKnownLocation);
+                } else {
+                    updateSelfMarkerPosition(lastKnownLocation, heading);
                 }
-                Double heading = location.hasBearing() ? (double) location.getBearing() : null;
+                // El reporte al servidor sí se queda solo para online: un conductor desconectado
+                // no debe ocupar el radar de nadie ni dejar rastro en el backend.
+                if (!online) {
+                    return;
+                }
+                // El mapa se refresca a 5 s, pero al servidor se le sigue hablando cada 12 s.
+                long nowMs = SystemClock.elapsedRealtime();
+                if (nowMs - lastLocationReportAtMs < LOCATION_REPORT_INTERVAL_MS) {
+                    return;
+                }
+                lastLocationReportAtMs = nowMs;
                 Double accuracy = location.hasAccuracy() ? (double) location.getAccuracy() : null;
                 driverRepository.reportLocation(location.getLatitude(), location.getLongitude(), heading, accuracy,
                         new ApiCallback<Void>() {
@@ -1888,8 +1980,10 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     protected void onStart() {
         super.onStart();
         connectivitySubscription = connectivityRepository.observe(this::onConnectivityChanged);
+        // El coche propio se sigue moviendo online u offline (ver el javadoc de
+        // startLocationLoop()); la bandeja de solicitudes sí es exclusiva de online.
+        startLocationLoop();
         if (online) {
-            startLocationLoop();
             startInboxListener();
         }
     }
@@ -1924,8 +2018,8 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         }
         reconnectedBannerHandler.removeCallbacksAndMessages(null);
         stopBannerTicker();
+        stopLocationLoop();
         if (online) {
-            stopLocationLoop();
             stopInboxListener();
         }
     }

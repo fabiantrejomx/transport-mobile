@@ -404,7 +404,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         if (driverMarker == null) {
             driverMarker = googleMap.addMarker(new MarkerOptions()
                     .position(newPosition)
-                    .icon(MarkerIconFactory.carMarker(this, R.color.drivo_primary))
+                    .icon(MarkerIconFactory.carMarker(this, R.color.drivo_vehicle_body))
                     .anchor(0.5f, 0.5f)
                     .flat(true)
                     .title(driverName));

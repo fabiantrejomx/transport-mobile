@@ -238,11 +238,10 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     public void onMapReady(GoogleMap map) {
         googleMap = map;
         MapStyler.apply(this, googleMap);
+        // El coche propio (dibujado por routePainter en cada fase) reemplaza al punto azul del
+        // SDK — igual que en DriverHomeActivity.
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
         googleMap.setPadding(0, sheetTopInsetPx, 0, Math.max(lastSheetHeightPx, 0));
-        if (hasLocationPermission()) {
-            googleMap.setMyLocationEnabled(true);
-        }
         Fragment mapFragment = getSupportFragmentManager().findFragmentById(R.id.map);
         routePainter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
         drawTripMap();
@@ -305,16 +304,19 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
             return;
         }
         if ("IN_PROGRESS".equals(currentStatus) && dropoffLatLng != null) {
-            routePainter.showTripLeg(pickupLatLng, stops, dropoffLatLng);
-            return;
+            routePainter.showTripLeg(lastKnownLocation, pickupLatLng, stops, dropoffLatLng);
+        } else {
+            routePainter.showPickupLeg(lastKnownLocation, pickupLatLng);
         }
-        routePainter.showPickupLeg(lastKnownLocation, pickupLatLng);
+        // Sin esto el coche del conductor no aparecería hasta la siguiente lectura del loop de
+        // ubicación (unos segundos) — con la misma primera posición de sesión que ya usaba el
+        // tramo de recogida, ahora también para el tramo del viaje.
         if (lastKnownLocation == null) {
             requestLastLocation();
         }
     }
 
-    /** Primera posición de la sesión: sin ella el tramo de recogida saldría sin punto de partida. */
+    /** Primera posición de la sesión: sin ella el mapa saldría sin el coche del conductor. */
     @SuppressLint("MissingPermission")
     private void requestLastLocation() {
         if (!hasLocationPermission()) {
@@ -325,9 +327,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 return;
             }
             lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
-            if (!"IN_PROGRESS".equals(currentStatus) && pickupLatLng != null && routePainter.isReady()) {
-                routePainter.showPickupLeg(lastKnownLocation, pickupLatLng);
-            }
+            drawTripMap();
         });
     }
 

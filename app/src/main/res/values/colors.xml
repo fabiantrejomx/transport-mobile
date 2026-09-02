@@ -37,13 +37,30 @@
          sirve aquí. Se referencia siempre como @color, nunca como ?attr. -->
     <color name="drivo_map_accent">#0F2C4C</color>
 
+    <!-- Marcador de vehículo (MarkerIconFactory.carMarker) — el coche del conductor, tanto el
+         suyo propio como el que ve el pasajero. Se invierte con el tema para destacar sobre el
+         mapa: carrocería oscura sobre el mapa claro y clara sobre el oscuro (ver values-night).
+
+         Los detalles NO pueden ser un color fijo: son lo que dibuja parabrisas, techo y llantas
+         encima de la carrocería, así que tienen que contrastar contra ella y por tanto invertirse
+         con el tema igual que ella. Con blanco fijo, en tema oscuro quedaban blanco sobre blanco
+         y el coche se veía como una mancha sin detalle. -->
+    <color name="drivo_vehicle_body">#142130</color>
+    <color name="drivo_vehicle_outline">#FFFFFFFF</color>
+    <color name="drivo_vehicle_roof">#2EFFFFFF</color>
+    <color name="drivo_vehicle_glass">#A6FFFFFF</color>
+    <color name="drivo_vehicle_glass_soft">#8CFFFFFF</color>
+    <color name="drivo_vehicle_wheel">#8C000000</color>
+    <color name="drivo_vehicle_mirror">#66000000</color>
+
     <!-- Scrim tras texto sobre el mapa (ej. radar de búsqueda) — mismo tono que la superficie, semitransparente -->
     <color name="drivo_scrim">#E6FFFFFF</color>
 
     <!-- Superficie invertida: literalmente el par surface/on_surface del OTRO tema (ver
-         values-night/colors.xml). Para botones flotantes sobre el mapa que necesitan contrastar
-         a propósito contra el tema activo en vez de mezclarse con él — hoy solo "Navegar con
-         Waze" (bg_pill_inverse.xml). -->
+         values-night/colors.xml). Para elementos flotantes sobre el mapa que necesitan contrastar
+         a propósito contra el tema activo en vez de mezclarse con él: "Navegar con Waze"
+         (bg_pill_inverse.xml) y la carrocería de MarkerIconFactory.carMarker(), que además ya
+         trae su propio borde blanco (ic_car_marker_detail.xml) para no perderse contra el mapa. -->
     <color name="drivo_inverse_surface">#142130</color>
     <color name="drivo_inverse_on_surface">#E7EDF3</color>
 </resources>

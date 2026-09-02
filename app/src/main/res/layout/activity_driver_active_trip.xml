@@ -27,13 +27,16 @@
         android:layout_gravity="top|start"
         android:layout_margin="16dp"
         android:background="@drawable/bg_pill_error"
+        android:drawableStart="@drawable/ic_shield"
+        android:drawablePadding="6dp"
         android:elevation="4dp"
         android:gravity="center"
         android:paddingHorizontal="18dp"
         android:text="@string/active_trip_sos"
         android:textColor="@android:color/white"
         android:textSize="13sp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        app:drawableTint="@android:color/white" />
 
     <!-- Fondo invertido a propósito (drivo_inverse_surface, no colorSurface): a diferencia de los
          demás flotantes, este necesita destacar sobre el mapa sin importar el tema activo — con

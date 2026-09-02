@@ -69,8 +69,15 @@ public class DriverRoutePainter {
     /** Últimos puntos encuadrados, para poder rehacer el encuadre si cambia el hueco visible. */
     private final List<LatLng> framedPoints = new ArrayList<>();
 
+    /**
+     * Guarda el contexto que le pasan (el de la Activity), no el de aplicación: los colores del
+     * coche tienen variante en values-night, y el selector Sistema/Claro/Oscuro se aplica con
+     * {@code AppCompatDelegate}, que reescribe la configuración de la Activity pero no la del
+     * contexto de aplicación — con este último, un tema forzado a mano se pintaría con los colores
+     * del otro. No hay fuga: quien lo construye es la Activity y lo guarda como campo suyo.
+     */
     public DriverRoutePainter(Context context) {
-        this.context = context.getApplicationContext();
+        this.context = context;
     }
 
     public void attach(@NonNull GoogleMap map, @Nullable View mapView) {
@@ -126,15 +133,23 @@ public class DriverRoutePainter {
         frame(framed);
     }
 
-    /** Fase "viaje en curso": solo el tramo que pidió el pasajero, con sus paradas. */
-    public void showTripLeg(@NonNull LatLng pickup, @NonNull List<LatLng> stops,
-                             @NonNull LatLng dropoff) {
+    /**
+     * Fase "viaje en curso": el tramo que pidió el pasajero, con sus paradas, más el coche del
+     * conductor — visible en todo momento, no solo mientras va por el pasajero. No entra al
+     * encuadre a propósito: es el mismo criterio que el resto de este archivo, reencuadrar cada
+     * vez que se mueve le quitaría al conductor el control de la cámara.
+     */
+    public void showTripLeg(@Nullable LatLng driver, @NonNull LatLng pickup,
+                             @NonNull List<LatLng> stops, @NonNull LatLng dropoff) {
         clear();
         if (map == null) {
             return;
         }
         List<LatLng> framed = new ArrayList<>();
         addTripLeg(pickup, stops, dropoff, framed);
+        if (driver != null) {
+            addDriverMarker(driver);
+        }
         frame(framed);
     }
 
@@ -154,12 +169,16 @@ public class DriverRoutePainter {
         if (driver == null) {
             return;
         }
-        driverMarker = map.addMarker(new MarkerOptions().position(driver)
-                .icon(MarkerIconFactory.carMarker(context, R.color.drivo_map_accent))
-                .anchor(0.5f, 0.5f)
-                .flat(true));
+        addDriverMarker(driver);
         framed.add(driver);
         addLine(driver, pickup, R.color.drivo_map_accent);
+    }
+
+    private void addDriverMarker(LatLng driver) {
+        driverMarker = map.addMarker(new MarkerOptions().position(driver)
+                .icon(MarkerIconFactory.carMarker(context, R.color.drivo_vehicle_body))
+                .anchor(0.5f, 0.5f)
+                .flat(true));
     }
 
     /**

@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="34dp"
+    android:viewportWidth="22"
+    android:viewportHeight="34">
+    <!--
+        Sedán 4 puertas visto desde arriba (nariz apuntando al norte / 0°): rectángulo redondeado
+        y alargado (proporción ancho:largo ≈ 1:1.55, no cuadrado — un coche real no es cuadrado
+        desde arriba). El color es un marcador de posición: MarkerIconFactory la tiñe en tiempo de
+        ejecución. Las llantas, el parabrisas y el resto de lo que realmente lo hace leerse como
+        "coche" y no como una silueta genérica viven en ic_car_marker_detail.xml, sin teñir —
+        verificado compuesto sobre una captura real del mapa antes de integrarlo, no solo aislado.
+    -->
+    <path
+        android:fillColor="#FF757575"
+        android:pathData="M8,2 L14,2 A4,4 0 0 1 18,6 L18,26 A4,4 0 0 1 14,30 L8,30 A4,4 0 0 1 4,26 L4,6 A4,4 0 0 1 8,2 Z" />
+</vector>

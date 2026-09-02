@@ -2,6 +2,7 @@ package com.bng.drivo.data.repository;
 
 import android.content.Context;
 
+import com.bng.drivo.data.model.NearbyUnit;
 import com.bng.drivo.data.model.Offer;
 import com.bng.drivo.data.model.Quote;
 import com.bng.drivo.data.model.Ride;
@@ -15,6 +16,8 @@ import com.bng.drivo.data.remote.TransportApiService;
 import com.bng.drivo.data.remote.dto.CreateRideRequest;
 import com.bng.drivo.data.remote.dto.DriverSummaryDto;
 import com.bng.drivo.data.remote.dto.LatLngDto;
+import com.bng.drivo.data.remote.dto.NearbyDriversDto;
+import com.bng.drivo.data.remote.dto.NearbyUnitDto;
 import com.bng.drivo.data.remote.dto.OfferCardDto;
 import com.bng.drivo.data.remote.dto.OfferIdRequest;
 import com.bng.drivo.data.remote.dto.PlaceDto;
@@ -38,6 +41,29 @@ public class RestTripRepository implements TripRepository {
 
     public RestTripRepository(Context context) {
         this.service = ApiClient.getService(context);
+    }
+
+    @Override
+    public void getNearbyDrivers(double lat, double lng, ApiCallback<List<NearbyUnit>> callback) {
+        ApiCallDispatcher.enqueue(service.getNearbyDrivers(lat, lng), new ApiCallback<NearbyDriversDto>() {
+            @Override
+            public void onSuccess(NearbyDriversDto result) {
+                List<NearbyUnit> units = new ArrayList<>();
+                if (result != null && result.drivers != null) {
+                    for (NearbyUnitDto dto : result.drivers) {
+                        units.add(new NearbyUnit(dto.lat, dto.lng, dto.eta_min));
+                    }
+                }
+                // Lista vacía, no null: "no hay unidades" es un resultado legítimo del contrato y
+                // quien lo consume no tiene por qué distinguirlo de un cuerpo mal formado.
+                callback.onSuccess(units);
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                callback.onError(error);
+            }
+        });
     }
 
     @Override

@@ -62,6 +62,7 @@ import com.bng.drivo.ui.destination.PickLocationPanel;
 import com.bng.drivo.ui.destination.PickStopPanel;
 import com.bng.drivo.ui.map.MapPresenter;
 import com.bng.drivo.ui.map.MapStyler;
+import com.bng.drivo.ui.map.NearbyDriversPresenter;
 import com.bng.drivo.ui.price.ConfirmPricePanel;
 import com.bng.drivo.ui.search.SearchingPanel;
 import com.bng.drivo.ui.trip.ActiveTripActivity;
@@ -141,6 +142,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
     private TripFlowViewModel viewModel;
     private MapPresenter mapPresenter;
+    private NearbyDriversPresenter nearbyDriversPresenter;
+    /**
+     * Falso mientras {@link #originLocation} siga siendo el valor por defecto (CDMX). Sin él, las
+     * unidades cercanas se consultarían alrededor de una ciudad en la que el pasajero no está: la
+     * respuesta llegaría vacía y el estado de texto afirmaría "no hay unidades cerca de ti" sobre
+     * un punto inventado.
+     */
+    private boolean realLocationKnown;
     private PickLocationPanel pickLocationPanel;
     private PickStopPanel pickStopPanel;
     private ConfirmPricePanel confirmPricePanel;
@@ -239,6 +248,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         viewModel = new ViewModelProvider(requireActivity()).get(TripFlowViewModel.class);
         mapPresenter = new MapPresenter(requireContext());
+        nearbyDriversPresenter = new NearbyDriversPresenter(requireContext(),
+                new RestTripRepository(requireContext()), this::onNearbyStatusChanged);
 
         panelHome = view.findViewById(R.id.panel_home);
         panelPickLocation = view.findViewById(R.id.panel_pick_location);
@@ -512,6 +523,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         mapPresenter.setGesturesEnabled(step != TripFlowViewModel.Step.SEARCHING
                 && step != TripFlowViewModel.Step.CONFIRM_PRICE);
 
+        // Las unidades cercanas acompañan a todo el armado del viaje —inicio, elegir origen o
+        // parada, confirmar tarifa— y se apagan en SEARCHING, tal como pide el contrato: desde ahí
+        // manda el matching del servidor y el radar dice lo que hay que decir.
+        nearbyDriversPresenter.setEnabled(step != TripFlowViewModel.Step.SEARCHING);
+        refreshNearbyAnchor();
+
         if (step != TripFlowViewModel.Step.SEARCHING) {
             searchingPanel.hide();
         }
@@ -726,6 +743,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         super.onStart();
         connectivitySubscription = connectivityRepository.observe(this::onConnectivityChanged);
         searchingPanel.onHostStart();
+        // isHidden(): volver de segundo plano estando en Viajes o Ajustes dispara este onStart
+        // igual, porque los tres Fragment viven a la vez y solo se alternan con show/hide.
+        if (!isHidden()) {
+            nearbyDriversPresenter.onHostStart();
+        }
     }
 
     @Override
@@ -737,6 +759,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         }
         reconnectedBannerHandler.removeCallbacksAndMessages(null);
         searchingPanel.onHostStop();
+        nearbyDriversPresenter.onHostStop();
+    }
+
+    /**
+     * Cambiar de pestaña (Inicio/Viajes/Ajustes) no pasa por onStart/onStop: HomeActivity alterna
+     * los tres Fragment con show/hide sobre las mismas instancias. Sin esto, el mapa de Inicio
+     * seguiría consultando unidades cercanas cada 15 s desde una pantalla que nadie está viendo.
+     */
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (hidden) {
+            nearbyDriversPresenter.onHostStop();
+        } else {
+            nearbyDriversPresenter.onHostStart();
+        }
     }
 
     @Override
@@ -746,6 +784,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         viewModel.setStepListener(null);
         searchingPanel.hide();
         mapPresenter.detach();
+        nearbyDriversPresenter.detach();
         searchDebounceHandler.removeCallbacksAndMessages(null);
         reconnectedBannerHandler.removeCallbacksAndMessages(null);
         if (radarAnimator != null) {
@@ -1505,6 +1544,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 pickStopPanel.onCameraMoveStarted();
             }
         });
+        // Ningún marcador de este mapa es interactivo: los de la ruta son puntos de referencia y
+        // las unidades cercanas son anónimas (el contrato no manda ni id ni nombre), así que no hay
+        // nada que enseñar al tocarlas. Consumirlo no es cosmético: el comportamiento por defecto
+        // del SDK ante un toque en un marcador es volar la cámara hasta él, y en PICK_LOCATION la
+        // dirección elegida sale justo de dónde queda la cámara al detenerse — un toque casual
+        // sobre un coche cambiaría el punto de recogida sin que nadie lo pidiera.
+        googleMap.setOnMarkerClickListener(marker -> true);
         googleMap.setOnCameraIdleListener(() -> {
             saveCameraPosition();
             if (lastCameraMoveWasGesture) {
@@ -1516,6 +1562,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
         mapPresenter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
+        nearbyDriversPresenter.attach(googleMap);
         createRadarCircles();
         mapPresenter.setGesturesEnabled(viewModel.getStep() != TripFlowViewModel.Step.SEARCHING);
         // Volver a este paso con el mapa recién listo (rotación a mitad del flujo): la ruta la
@@ -1574,6 +1621,43 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (radarRingInner != null) {
             radarRingInner.setVisible(visible);
         }
+    }
+
+    /**
+     * Punto alrededor del que se preguntan las unidades cercanas: en Home, dónde está el pasajero;
+     * armando el viaje, el punto de recogida que está negociando, que es el que de verdad importa
+     * al mirar la tarifa.
+     *
+     * <p>La preferencia se invierte en IDLE a propósito: {@code clearTrip()} conserva el origen al
+     * volver a Home (lo recalcula la siguiente solicitud), así que seguir anclado a él dejaría los
+     * coches alrededor de un punto de recogida ya descartado mientras la cámara vuelve a la
+     * ubicación real — dos sitios distintos en la misma pantalla.
+     *
+     * <p>Nunca {@link #DEFAULT_POSITION}: ver {@link #realLocationKnown}.
+     */
+    private void refreshNearbyAnchor() {
+        LatLng origin = viewModel.getOrigin();
+        boolean preferRealLocation = viewModel.getStep() == TripFlowViewModel.Step.IDLE;
+        if (realLocationKnown && (preferRealLocation || origin == null)) {
+            nearbyDriversPresenter.setAnchor(originLocation);
+        } else if (origin != null) {
+            nearbyDriversPresenter.setAnchor(origin);
+        }
+    }
+
+    /**
+     * La única regla del contrato para {@code GET /nearby-drivers}: lista vacía, estado de texto —
+     * nunca un mapa vacío, que comunica "aquí no hay nadie" mucho más fuerte que una frase. Con
+     * unidades en pantalla la línea sobra: ya lo dicen los coches, y dejarla puesta le quitaría
+     * alto al mapa en el paso donde más se mira.
+     */
+    private void onNearbyStatusChanged(NearbyDriversPresenter.Status status) {
+        View root = getView();
+        if (root == null) {
+            return;
+        }
+        root.findViewById(R.id.text_nearby_status).setVisibility(
+                status == NearbyDriversPresenter.Status.NONE_NEARBY ? View.VISIBLE : View.GONE);
     }
 
     private void updateRadarCenter(LatLng latLng) {
@@ -1700,6 +1784,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 return;
             }
             originLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            realLocationKnown = true;
+            refreshNearbyAnchor();
             // Con un viaje en curso la cámara la manda la ruta, no la ubicación: recentrar aquí
             // desharía el encuadre justo después de haberlo hecho.
             if (viewModel.getStep() == TripFlowViewModel.Step.IDLE) {

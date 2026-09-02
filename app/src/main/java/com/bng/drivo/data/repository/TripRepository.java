@@ -1,5 +1,6 @@
 package com.bng.drivo.data.repository;
 
+import com.bng.drivo.data.model.NearbyUnit;
 import com.bng.drivo.data.model.Offer;
 import com.bng.drivo.data.model.Quote;
 import com.bng.drivo.data.model.Ride;
@@ -10,6 +11,17 @@ import com.bng.drivo.data.remote.ApiCallback;
 import java.util.List;
 
 public interface TripRepository {
+
+    /**
+     * GET /nearby-drivers — hasta tres unidades disponibles alrededor del punto, para que el mapa
+     * de inicio no se vea muerto antes de que el pasajero escriba su destino.
+     *
+     * <p>Es una foto, no un radar: los puntos vienen redondeados a una celda de 150 m, sin
+     * identidad de ningún tipo, y pueden traer hasta minuto y medio de antigüedad. Una lista vacía
+     * es una respuesta normal —no hay nadie en el radio, o hay menos unidades que el mínimo que el
+     * servidor considera útil mostrar—, nunca un error.
+     */
+    void getNearbyDrivers(double lat, double lng, ApiCallback<List<NearbyUnit>> callback);
 
     /** POST /quotes — {@code waypoints} puede venir null/vacío (sin parada). */
     void createQuote(double originLat, double originLng, double destLat, double destLng,

@@ -61,12 +61,22 @@ public final class MarkerIconFactory {
      * que se lean igual en cualquier contexto (tu conductor, una unidad anónima cercana).
      */
     /**
-     * Ancho base del sprite. Antes era un cuadrado de 36dp con una silueta que apenas llenaba el
-     * lienzo — a ese tamaño se veía como una mancha, no como un coche (reporte del usuario sobre
-     * un dispositivo real). Un sedán real no es cuadrado desde arriba: el alto sale de la misma
-     * proporción 22:34 del viewport de los vectores, no de un segundo número inventado aparte.
+     * Ancho base del sprite. El alto sale de la misma proporción 22:34 del viewport de los
+     * vectores, no de un segundo número inventado aparte: un sedán no es cuadrado visto desde
+     * arriba, y era justo eso lo que hacía que un lienzo cuadrado de 36dp con la silueta perdida
+     * dentro se leyera como una mancha en vez de como un coche.
+     *
+     * <p>Calibrado contra el mobiliario del propio mapa, que es lo que da la escala: a 34dp el
+     * coche medía más del doble de alto que un pin de sitio de Google y se salía de la retícula de
+     * calles; a 24dp mide alrededor de vez y media el pin, que es la proporción con la que se lee
+     * como un vehículo puesto sobre la calzada. Los parabrisas y las llantas siguen resolviéndose
+     * a este tamaño — a 450dpi son 67x104 píxeles reales, no hay pérdida de detalle.
+     *
+     * <p>Un único número para los tres usos (el propio coche del conductor, el conductor asignado
+     * que ve el pasajero y las unidades cercanas del mapa de inicio): son el mismo objeto en el
+     * mismo mapa y tienen que medir lo mismo.
      */
-    private static final int CAR_WIDTH_DP = 34;
+    private static final int CAR_WIDTH_DP = 24;
     private static final int CAR_HEIGHT_DP = Math.round(CAR_WIDTH_DP * 34f / 22f);
 
     public static BitmapDescriptor carMarker(Context context, @ColorRes int colorRes) {

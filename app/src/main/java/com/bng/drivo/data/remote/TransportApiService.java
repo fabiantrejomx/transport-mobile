@@ -13,6 +13,7 @@ import com.bng.drivo.data.remote.dto.FavoriteDto;
 import com.bng.drivo.data.remote.dto.FavoritePatchRequest;
 import com.bng.drivo.data.remote.dto.IncomingRequestDto;
 import com.bng.drivo.data.remote.dto.MeDto;
+import com.bng.drivo.data.remote.dto.NearbyDriversDto;
 import com.bng.drivo.data.remote.dto.OfferCardDto;
 import com.bng.drivo.data.remote.dto.OfferIdRequest;
 import com.bng.drivo.data.remote.dto.QuoteDto;
@@ -59,6 +60,13 @@ public interface TransportApiService {
     Call<Void> registerDevice(@Body DeviceRegisterRequest body);
 
     // ----------------------------------------------------------------------------- Pasajero
+
+    /**
+     * Foto aproximada de la zona (hasta tres unidades), no un radar: no hay difusión en vivo de
+     * los conductores libres. Un {@code drivers} vacío es una respuesta normal, no un error.
+     */
+    @GET("/nearby-drivers")
+    Call<NearbyDriversDto> getNearbyDrivers(@Query("lat") double lat, @Query("lng") double lng);
 
     @POST("/quotes")
     Call<QuoteDto> createQuote(@Body QuoteRequest body);

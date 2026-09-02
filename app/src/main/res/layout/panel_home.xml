@@ -130,6 +130,23 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
+
+        <!-- Estado de texto de las unidades cercanas. Nace GONE y solo aparece cuando
+             GET /nearby-drivers responde sin unidades — ver HomeFragment.onNearbyStatusChanged().
+             Va dentro de group_peek_content para que se vea con el modal colapsado, que es donde
+             el pasajero está mirando el mapa; su alto entra en el corte del modal, y como este se
+             mide en cada pase de layout (updateSheetStops) aparecer y desaparecer no lo descuadra. -->
+        <TextView
+            android:id="@+id/text_nearby_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="6dp"
+            android:text="@string/home_nearby_empty"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
     </LinearLayout>
 
     <!-- Reemplaza a group_default_lists mientras se escribe en input_destination —

@@ -60,6 +60,10 @@
     <string name="home_greeting_default">¡Hola!</string>
     <string name="home_search_hint">¿A dónde vamos hoy?</string>
     <string name="home_pick_on_map">Elegir en el mapa</string>
+    <!-- Solo se ve cuando GET /nearby-drivers responde sin unidades: el contrato pide que ese caso
+         se resuelva con una frase y no dejando el mapa vacío, que dice "aquí no hay nadie" mucho
+         más fuerte. Cuando sí hay unidades, hablan los coches del mapa y esta línea desaparece. -->
+    <string name="home_nearby_empty">Por ahora no hay unidades cerca de ti</string>
     <string name="home_saved_addresses">Direcciones guardadas</string>
     <string name="home_recent_trips">Últimos viajes</string>
     <string name="home_load_error">No se pudo cargar tu información</string>

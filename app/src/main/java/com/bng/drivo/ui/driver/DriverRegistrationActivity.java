@@ -351,9 +351,11 @@ public class DriverRegistrationActivity extends AuthenticatedActivity {
                 year, isOwner, new ApiCallback<DriverApplication>() {
                     @Override
                     public void onSuccess(DriverApplication result) {
-                        // El contrato no devuelve estos datos en ningún GET; se guardan aquí para
-                        // que el conductor pueda revisar después qué fue lo que envió a revisión
-                        // (ver SubmittedApplicationCache y DriverSettingsActivity).
+                        // El contrato no devuelve estos datos en ningún GET, así que se guardan
+                        // aquí: es la única copia que queda de lo que se envió a revisión. Hoy
+                        // nadie la lee —Configuración ya no muestra vehículo ni documentos—, pero
+                        // se sigue escribiendo porque perderla dejaría esa pantalla sin nada que
+                        // enseñar el día que se retome (ver SubmittedApplicationCache).
                         SubmittedApplicationCache.save(DriverRegistrationActivity.this, modality, curp,
                                 rfc.isEmpty() ? null : rfc, brand, model, color, plate, year, isOwner);
                         uploadDocuments(requiredTypes);

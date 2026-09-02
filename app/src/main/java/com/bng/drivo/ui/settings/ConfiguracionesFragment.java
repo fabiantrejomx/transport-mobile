@@ -13,6 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.SavedAddress;
 import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.remote.ApiCallback;
@@ -21,6 +22,7 @@ import com.bng.drivo.data.repository.AddressRepository;
 import com.bng.drivo.data.repository.AuthRepository;
 import com.bng.drivo.data.repository.FirebaseAuthRepository;
 import com.bng.drivo.data.repository.RestAddressRepository;
+import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.address.AddressListActivity;
@@ -38,6 +40,9 @@ import java.util.List;
  * Lugares y Seguridad se quedan como pantallas completas (ya tienen su propio flujo).
  */
 public class ConfiguracionesFragment extends Fragment {
+
+    /** De sobra para contar los viajes de un pasajero del piloto sin traer el historial entero. */
+    private static final int TRIP_COUNT_LIMIT = 100;
 
     private AuthRepository authRepository;
     private UserRepository userRepository;
@@ -63,6 +68,7 @@ public class ConfiguracionesFragment extends Fragment {
 
         loadProfile(view);
         loadAddressCount(view);
+        loadTripCount(view);
 
         view.findViewById(R.id.btn_edit_profile).setOnClickListener(v ->
                 EditProfileBottomSheet.present(getChildFragmentManager()));
@@ -88,6 +94,7 @@ public class ConfiguracionesFragment extends Fragment {
         if (getView() != null) {
             loadProfile(getView());
             loadAddressCount(getView());
+            loadTripCount(getView());
         }
     }
 
@@ -101,6 +108,7 @@ public class ConfiguracionesFragment extends Fragment {
                 ((TextView) view.findViewById(R.id.text_avatar)).setText(profile.getInitials());
                 ((TextView) view.findViewById(R.id.text_name)).setText(profile.getName());
                 ((TextView) view.findViewById(R.id.text_phone)).setText(profile.getPhone());
+                showRating(view, profile.getRating());
             }
 
             @Override
@@ -117,19 +125,70 @@ public class ConfiguracionesFragment extends Fragment {
             @Override
             public void onSuccess(List<SavedAddress> addresses) {
                 if (isAdded()) {
-                    ((TextView) view.findViewById(R.id.text_addresses_count))
-                            .setText(getString(R.string.perfil_addresses_count, addresses.size()));
+                    showAddressCount(view, addresses.size());
                 }
             }
 
             @Override
             public void onError(ApiException error) {
+                // Sin respuesta no se escribe un cero: antes la fila decía "(0 guardados)" cuando
+                // solo se había caído la red, y eso es afirmar que no tienes lugares. El renglón
+                // se queda como "Mis Lugares" y sigue abriendo la pantalla, que es lo que importa.
                 if (isAdded()) {
-                    ((TextView) view.findViewById(R.id.text_addresses_count))
-                            .setText(getString(R.string.perfil_addresses_count, 0));
+                    showAddressCount(view, 0);
                 }
             }
         });
+    }
+
+    /** Cero y "no se sabe" se dibujan igual: sin número. Ver el comentario del layout. */
+    private void showAddressCount(View view, int count) {
+        TextView badge = view.findViewById(R.id.text_addresses_count);
+        badge.setText(String.valueOf(count));
+        badge.setVisibility(count > 0 ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * La calificación es la que manda {@code /me}. Si llega null se queda el guion del layout: el
+     * backend todavía puede no exponer el campo, y un 5.0 inventado sería peor que un "sin dato".
+     */
+    private void showRating(View view, Double rating) {
+        if (rating == null) {
+            return;
+        }
+        ((TextView) view.findViewById(R.id.text_stat_rating))
+                .setText(getString(R.string.rating_star_format, rating));
+    }
+
+    /**
+     * Viajes completados contados del historial, y no el {@code trips} de {@code /me}: ese campo
+     * cuenta calificaciones recibidas, que es otra cosa — quien viajó y nadie lo calificó sigue en
+     * cero. Es además el mismo criterio que usa la Configuración del conductor, así que las dos
+     * pantallas no pueden contradecirse.
+     */
+    private void loadTripCount(View view) {
+        new RestTripRepository(requireContext()).getRideHistory(TRIP_COUNT_LIMIT,
+                new ApiCallback<List<RideSummary>>() {
+                    @Override
+                    public void onSuccess(List<RideSummary> rides) {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        int completed = 0;
+                        for (RideSummary ride : rides) {
+                            if ("COMPLETED".equals(ride.getStatus())) {
+                                completed++;
+                            }
+                        }
+                        ((TextView) view.findViewById(R.id.text_stat_trips))
+                                .setText(String.valueOf(completed));
+                    }
+
+                    @Override
+                    public void onError(ApiException error) {
+                        // Se queda el guion: mejor "no lo sé" que un cero que parece un hecho.
+                    }
+                });
     }
 
     private void logout() {

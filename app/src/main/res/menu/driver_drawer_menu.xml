@@ -15,13 +15,13 @@
             android:id="@+id/nav_driver_earnings"
             android:icon="@drawable/ic_nav_trips"
             android:title="@string/driver_nav_earnings" />
+        <!-- Seguridad no está aquí a propósito, igual que en el cajón del pasajero: se llega por
+             su fila dentro de Configuración y por ninguna otra puerta. Un mismo destino con dos
+             entradas obliga a decidir cuál de las dos queda marcada al abrir el menú. -->
+        <!-- Última, como en el cajón del pasajero: Configuración cierra la lista en los dos lados. -->
         <item
             android:id="@+id/nav_driver_settings"
             android:icon="@drawable/ic_settings"
             android:title="@string/nav_configuraciones" />
-        <item
-            android:id="@+id/nav_driver_security"
-            android:icon="@drawable/ic_shield"
-            android:title="@string/driver_nav_security" />
     </group>
 </menu>

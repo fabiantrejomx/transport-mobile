@@ -113,7 +113,7 @@
     <string name="perfil_edit_description">Editar perfil</string>
     <string name="perfil_section_account">CUENTA</string>
     <string name="perfil_section_preferences">PREFERENCIAS</string>
-    <string name="perfil_addresses_count">Mis Lugares (%1$d guardados)</string>
+    <string name="perfil_addresses">Mis Lugares</string>
     <string name="perfil_payment_methods">Métodos de Pago</string>
     <string name="perfil_security">Seguridad y Emergencias</string>
     <string name="perfil_notifications">Notificaciones</string>
@@ -121,6 +121,9 @@
     <string name="perfil_appearance_system">Sistema</string>
     <string name="perfil_appearance_light">Claro</string>
     <string name="perfil_appearance_dark">Oscuro</string>
+    <!-- Contraparte de driver_settings_rating_hint: cambia quién califica a quién, y por eso no
+         puede ser la misma cadena que la del conductor. -->
+    <string name="perfil_rating_hint">Tu calificación es el promedio de las estrellas que te dejan los conductores al terminar cada viaje.</string>
     <string name="perfil_logout">Cerrar sesión</string>
     <string name="perfil_edit_name_hint">Nombre completo</string>
     <string name="perfil_edit_email_hint">Correo (opcional)</string>
@@ -133,7 +136,7 @@
 
     <!-- Centro de Seguridad -->
     <string name="security_title">Centro de Seguridad</string>
-    <string name="security_sos_title">Emergencia S.O.S</string>
+    <string name="security_sos_title">Seguridad y Emergencias</string>
     <string name="security_sos_subtitle">Llama al 911 y comparte tu ubicación en tiempo real.</string>
     <string name="security_call_911">LLAMAR AL 911</string>
     <string name="security_quick_help">ASISTENCIA RÁPIDA</string>
@@ -338,7 +341,13 @@
          que no lo eligen lo viva como que se lo quitaron. -->
     <string name="incoming_request_accept_button_format">Ofertar por %1$s</string>
     <string name="incoming_request_counter_button_format">+ $%1$.0f</string>
-    <string name="incoming_request_rating_format">★ %1$.1f</string>
+    <!-- Único formato de calificación de la app: la estrella dice que el número son estrellas, y
+         un decimal porque lo que manda el backend es un promedio (4.9), no las estrellas de un
+         viaje suelto (que son enteros del 1 al 5). Lo usan las tres pantallas del conductor. -->
+    <string name="rating_star_format">★ %1$.1f</string>
+    <!-- Pastilla de la cabecera del cajón cuando aún no hay estrellas que promediar. Sin estrella
+         a propósito: la estrella significa "esto es una calificación", y aquí todavía no la hay. -->
+    <string name="nav_rating_new">Nuevo</string>
     <string name="incoming_request_rating_new_suffix"> (Nuevo)</string>
     <string name="incoming_request_pickup_distance_km_format">A %1$.1f km (%2$d min) del pasajero</string>
     <string name="incoming_request_pickup_distance_no_eta_format">A %1$.1f km del pasajero</string>
@@ -391,20 +400,13 @@
 
     <!-- Configuración del conductor (C6) -->
     <string name="driver_settings_title">Configuración</string>
-    <string name="driver_settings_preferences_header">PREFERENCIAS</string>
-    <string name="driver_settings_row_vehicle">Mi Vehículo</string>
-    <string name="driver_settings_row_documents">Mis Documentos</string>
     <string name="driver_settings_row_wallet">Wallet y Recargas</string>
-    <string name="driver_settings_row_security">Seguridad y S.O.S</string>
-    <string name="driver_settings_row_appearance">Apariencia</string>
     <string name="driver_settings_logout">Cerrar Sesión</string>
     <string name="driver_settings_account_active">Cuenta Activa</string>
     <string name="driver_settings_account_status_draft">Registro incompleto</string>
     <string name="driver_settings_account_status_pending_review">En revisión</string>
     <string name="driver_settings_account_status_rejected">Solicitud rechazada</string>
     <string name="driver_settings_account_status_suspended">Cuenta suspendida</string>
-    <string name="driver_settings_documents_complete">Todos tus documentos están completos.</string>
-    <string name="driver_settings_documents_missing_format">Documentos pendientes: %1$s</string>
     <string name="driver_settings_wallet_message">Para recargar tu saldo, transfiere por SPEI a la cuenta de LibreGO y envía tu comprobante. Durante el piloto se acredita a mano.</string>
     <string name="driver_settings_load_error">No se pudo cargar tu información.</string>
 
@@ -456,35 +458,17 @@
     <string name="driver_trip_contact_coming_soon">La llamada y el chat dentro de la app llegan en una próxima versión.</string>
 
     <!-- Ajustes del conductor: desempeño y solicitud enviada -->
-    <string name="driver_settings_performance_header">Mi desempeño</string>
-    <string name="driver_settings_stat_rating">Calificación</string>
-    <string name="driver_settings_stat_trips">Viajes completados</string>
+    <string name="settings_performance_header">Mi desempeño</string>
+    <string name="stat_label_rating">Calificación</string>
+    <string name="stat_label_trips">Viajes completados</string>
     <string name="driver_settings_stat_balance">Saldo</string>
-    <string name="driver_settings_stat_empty">—</string>
+    <string name="stat_empty">—</string>
     <string name="driver_settings_rating_hint">Tu calificación es el promedio de las estrellas que te dejan los pasajeros al terminar cada viaje.</string>
-    <string name="driver_settings_row_application">Mi solicitud enviada</string>
-    <string name="driver_settings_application_status_label">Estado</string>
-    <string name="driver_settings_application_modality_label">Modalidad</string>
-    <string name="driver_settings_application_modality_particular">Auto particular</string>
-    <string name="driver_settings_application_modality_taxi">Taxi</string>
-    <string name="driver_settings_application_documents_label">Documentos</string>
-    <string name="driver_settings_application_doc_ok_format">✓ %1$s</string>
-    <string name="driver_settings_application_doc_missing_format">✗ %1$s (falta)</string>
-    <string name="driver_settings_application_rejection_label">Motivo del rechazo</string>
-    <string name="driver_settings_application_none">Todavía no enviaste una solicitud.</string>
-    <string name="driver_settings_vehicle_year_label">Año</string>
-    <string name="driver_settings_vehicle_plate_label">Placas</string>
-    <string name="driver_settings_vehicle_owner_yes">Eres el propietario del vehículo</string>
-    <string name="driver_settings_vehicle_owner_no">El vehículo está a nombre de otra persona</string>
-    <string name="driver_settings_vehicle_unknown">No tenemos guardados los datos del vehículo en este teléfono. Se guardan al enviar el registro desde esta app.</string>
-    <string name="driver_settings_curp_label">CURP</string>
-    <string name="driver_settings_rfc_label">RFC</string>
 
     <!-- Drawer del conductor -->
     <string name="driver_nav_earnings">Ganancias</string>
     <string name="driver_nav_header_role">Conductor</string>
     <string name="driver_nav_header_hint">Toca para ver el detalle de tus ganancias</string>
-    <string name="driver_nav_security">Seguridad</string>
 
     <!-- Etiquetas de la ruta en la solicitud entrante -->
     <string name="incoming_request_origin_label">Origen</string>

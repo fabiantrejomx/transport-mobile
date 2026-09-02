@@ -48,6 +48,7 @@ public class RestUserRepository implements UserRepository {
     }
 
     private UserProfile toUserProfile(MeDto dto) {
-        return new UserProfile(dto.id, dto.name, dto.email, dto.phone, dto.photo_url);
+        return new UserProfile(dto.id, dto.name, dto.email, dto.phone, dto.photo_url,
+                dto.rating, dto.trips);
     }
 }

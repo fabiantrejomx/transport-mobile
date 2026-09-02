@@ -69,9 +69,15 @@ public interface DriverRepository {
     void getRideHistory(int limit, ApiCallback<List<RideSummary>> callback);
 
     /**
-     * GET /rides/{id} — el detalle trae el bloque {@code driver}, y ahí viene la calificación
-     * del propio conductor: es el único punto del contrato donde ese número existe (no hay
-     * "GET mi calificación" ni viene en /me). Ver DriverSettingsActivity.
+     * GET /rides/{id} — el detalle trae el bloque {@code driver}, y ahí viene la calificación del
+     * propio conductor: es el único punto del contrato donde ese número existe (no hay "GET mi
+     * calificación", ni viene en /me, ni en el expediente de /admin/drivers/{id}).
+     *
+     * <p>Es el <b>promedio</b> que mantiene el backend, no las estrellas de ese viaje: el campo es
+     * decimal (4.9) y {@code stars} de POST /rides/{id}/rating es un entero del 1 al 5. Se ve igual
+     * en {@code PassengerSummary}, donde el propio contrato lo ejemplifica con {@code rating: 5.0}
+     * y {@code trips: 0} — un valor por omisión para quien todavía no tiene viajes. Ver
+     * DriverSettingsActivity.
      */
     void getRideDetail(String rideId, ApiCallback<Ride> callback);
 }

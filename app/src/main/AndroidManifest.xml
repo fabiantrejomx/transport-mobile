@@ -110,7 +110,7 @@
             android:name=".ui.driver.DriverSecurityActivity"
             android:exported="false"
             android:label="@string/security_title"
-            android:parentActivityName=".ui.driver.DriverHomeActivity"
+            android:parentActivityName=".ui.driver.DriverSettingsActivity"
             android:theme="@style/Theme.Drivo" />
 
         <activity

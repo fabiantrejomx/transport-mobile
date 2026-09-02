@@ -26,18 +26,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/text_nav_avatar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="14dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="?attr/colorPrimaryContainer"
-            android:gravity="center"
-            android:textColor="?attr/colorOnPrimaryContainer"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            tools:text="AG" />
+        <include layout="@layout/part_nav_avatar_rating" />
 
         <LinearLayout
             android:layout_width="0dp"

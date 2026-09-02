@@ -82,8 +82,6 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.navigation.NavigationView;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -288,10 +286,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private TextView textConnectionHint;
     private MaterialButton btnConnectToggle;
 
-    private TextView textNavAvatar;
-    private TextView textNavName;
-    private TextView textNavBalance;
-    private TextView textNavTripsToday;
 
     private TextView textIncomingTitle;
     private TextView textIncomingAvatar;
@@ -409,17 +403,13 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
 
     /**
      * Menú general de la app, no de esta pantalla: por eso es un cajón lateral y no un modal,
-     * igual que en el lado del pasajero. La diferencia es que aquí las otras tres secciones son
+     * igual que en el lado del pasajero. La diferencia es que aquí las otras dos secciones son
      * Activities propias, así que solo "Inicio" queda marcado — las demás abren su pantalla y al
      * volver seguimos en Inicio.
      */
     private void setUpDrawer() {
         navHeader = navView.getHeaderView(0);
         navHeaderBasePaddingPx = navHeader.getPaddingTop();
-        textNavAvatar = navHeader.findViewById(R.id.text_nav_avatar);
-        textNavName = navHeader.findViewById(R.id.text_nav_name);
-        textNavBalance = navHeader.findViewById(R.id.text_nav_balance);
-        textNavTripsToday = navHeader.findViewById(R.id.text_nav_trips_today);
         // La cabecera resume el dinero; el detalle real (libro contable) vive en Ganancias.
         navHeader.setOnClickListener(v -> {
             drawerLayout.closeDrawer(GravityCompat.START);
@@ -437,11 +427,9 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 startActivity(new Intent(this, DriverEarningsActivity.class));
             } else if (id == R.id.nav_driver_settings) {
                 startActivity(new Intent(this, DriverSettingsActivity.class));
-            } else if (id == R.id.nav_driver_security) {
-                startActivity(new Intent(this, DriverSecurityActivity.class));
             }
             // false a propósito: NavigationView solo marca el item cuando el listener devuelve
-            // true, y estas tres opciones abren una Activity aparte — no son "dónde estás". Con
+            // true, y estas dos opciones abren una Activity aparte — no son "dónde estás". Con
             // true se quedaban resaltadas al volver con el botón atrás, señalando una sección en
             // la que ya no estabas. Inicio, que sí vive en esta Activity, sigue devolviendo true.
             return false;
@@ -764,8 +752,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             public void onSuccess(UserProfile profile) {
                 String firstName = profile.getName() != null ? profile.getName().split("\\s+")[0] : "";
                 textConnectGreeting.setText(getString(R.string.driver_home_greeting, firstName));
-                textNavAvatar.setText(profile.getInitials());
-                textNavName.setText(profile.getName());
+                DriverNavHeader.applyProfile(navHeader, profile, driverRepository);
             }
 
             @Override
@@ -777,42 +764,21 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
 
     /**
      * Saldo y viajes de hoy para la cabecera del drawer. El wallet es el único origen real de
-     * dinero del contrato: los viajes de hoy se cuentan por sus filas {@code commission} (una por
-     * viaje cerrado), el mismo criterio que DriverEarningsActivity para que las dos pantallas no
-     * se contradigan.
+     * dinero del contrato. El formato lo pone {@link DriverNavHeader}, compartido con las tres
+     * secciones: la cabecera es la misma en las cuatro pantallas y tiene que decir lo mismo.
      */
     private void loadWallet() {
         driverRepository.getWallet(new ApiCallback<Wallet>() {
             @Override
             public void onSuccess(Wallet wallet) {
-                textNavBalance.setText(String.format(Locale.getDefault(),
-                        getString(R.string.driver_home_wallet_balance_format), wallet.getBalance()));
-                textNavTripsToday.setText(getString(R.string.driver_home_trips_today_value,
-                        countTripsToday(wallet)));
+                DriverNavHeader.applyWallet(DriverHomeActivity.this, navHeader, wallet);
             }
 
             @Override
             public void onError(ApiException error) {
-                textNavBalance.setText(R.string.driver_home_wallet_unavailable);
-                textNavTripsToday.setText(R.string.driver_settings_stat_empty);
+                DriverNavHeader.applyWalletError(DriverHomeActivity.this, navHeader);
             }
         });
-    }
-
-    private int countTripsToday(Wallet wallet) {
-        LocalDate today = LocalDate.now();
-        int trips = 0;
-        for (Wallet.WalletEntry entry : wallet.getEntries()) {
-            if (!"commission".equals(entry.getType())) {
-                continue;
-            }
-            Long millis = parseInstantMillis(entry.getCreatedAt());
-            if (millis != null && Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
-                    .toLocalDate().equals(today)) {
-                trips++;
-            }
-        }
-        return trips;
     }
 
     // ---------------------------------------------------------------------------------------
@@ -1161,8 +1127,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         textIncomingName.setText(request.getPassengerName());
 
         String ratingText = request.getPassengerRating() != null
-                ? String.format(Locale.getDefault(), getString(R.string.incoming_request_rating_format),
-                        request.getPassengerRating())
+                ? getString(R.string.rating_star_format, request.getPassengerRating())
                 : "";
         if (request.getPassengerTrips() != null && request.getPassengerTrips() == 0) {
             ratingText += getString(R.string.incoming_request_rating_new_suffix);

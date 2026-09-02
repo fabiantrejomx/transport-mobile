@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Avatar de la cabecera del cajón con la calificación montada encima, compartido por el pasajero
+     y el conductor: es el mismo dato con el mismo aspecto en las dos apps, y tenerlo en una sola
+     pieza es lo que impide que se separen.
+
+     La pastilla va sobre el avatar y no en la línea de debajo del nombre porque esa línea es
+     terreno disputado: hoy lleva el teléfono o el rol, y con el login por Gmail llevará correos que
+     se desbordan. Aquí la calificación no compite con nada.
+
+     El contenedor es wrap_content, no 48dp: la pastilla puede salir más ancha que el círculo (por
+     ejemplo con "Nuevo") y así crece el marco en vez de recortarla, con el avatar siempre centrado.
+     Y la pastilla se ancla dentro del marco, nunca con margen negativo, porque los ViewGroup
+     recortan a sus hijos y se perdería justo la parte que sobresale. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="14dp">
+
+    <TextView
+        android:id="@+id/text_nav_avatar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|center_horizontal"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorPrimaryContainer"
+        android:gravity="center"
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        tools:text="AG" />
+
+    <!-- Nace GONE: sin calificación no hay hueco reservado. Ver NavHeaderRating. -->
+    <TextView
+        android:id="@+id/text_nav_rating"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:background="@drawable/bg_rating_badge"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="1dp"
+        android:paddingBottom="1dp"
+        android:textColor="?attr/colorOnSecondaryContainer"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:text="★ 4.9"
+        tools:visibility="visible" />
+</FrameLayout>

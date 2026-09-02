@@ -14,6 +14,7 @@ import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.DriverRepository;
 import com.bng.drivo.data.repository.RestDriverRepository;
 import com.bng.drivo.util.RelativeDateFormatter;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -53,9 +54,14 @@ public class DriverEarningsActivity extends DriverSubScreenActivity {
         textEmpty = findViewById(R.id.text_earnings_empty);
         progress = findViewById(R.id.progress_earnings);
 
-        findViewById(R.id.btn_back).setOnClickListener(v -> navigateHome());
+        ((MaterialToolbar) findViewById(R.id.toolbar)).setNavigationOnClickListener(v -> openDrawer());
 
         loadWallet();
+    }
+
+    @Override
+    protected int navMenuItemId() {
+        return R.id.nav_driver_earnings;
     }
 
     private void loadWallet() {

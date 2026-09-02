@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Marco común de las secciones del conductor (Ganancias, Configuración, Seguridad): el cajón y
+     nada más. El contenido de cada pantalla se infla dentro de subscreen_content desde
+     DriverSubScreenActivity.setContentView(), así que ninguna sección declara el cajón en su
+     propio layout y todas lo tienen idéntico al de Inicio.
+
+     Existe porque el cajón es el menú general de la app y tiene que abrirse desde cualquier
+     sección, no solo desde Inicio. Como aquí las secciones son Activities propias —y no pestañas
+     de una sola Activity, como en el lado del pasajero— cada una necesita su propia instancia del
+     cajón: un DrawerLayout solo puede abrir el suyo. -->
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/subscreen_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Mismos ajustes que el NavigationView de activity_driver_home.xml: si difieren, el cajón
+         cambia de forma al pasar de Inicio a una sección y deja de leerse como el mismo menú. -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:fitsSystemWindows="true"
+        app:itemMinHeight="56dp"
+        app:itemShapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Drivo.NavigationView.Item"
+        app:itemShapeInsetBottom="0dp"
+        app:itemShapeInsetEnd="12dp"
+        app:itemShapeInsetStart="0dp"
+        app:itemShapeInsetTop="0dp"
+        app:headerLayout="@layout/nav_header_driver"
+        app:menu="@menu/driver_drawer_menu" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

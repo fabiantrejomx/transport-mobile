@@ -279,7 +279,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 textTripAvatar.setText(initialsFor(passengerName));
                 textTripPassengerName.setText(passengerName);
                 textTripPassengerRating.setText(request.getPassengerRating() != null
-                        ? String.format(Locale.getDefault(), "★ %.1f", request.getPassengerRating()) : "");
+                        ? getString(R.string.rating_star_format, request.getPassengerRating()) : "");
                 textTripFare.setText(String.format(Locale.getDefault(), "$%.2f", fare));
 
                 drawTripMap();

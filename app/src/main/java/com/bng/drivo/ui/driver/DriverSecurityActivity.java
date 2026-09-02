@@ -8,21 +8,27 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bng.drivo.R;
+import com.bng.drivo.ui.auth.AuthenticatedActivity;
+import com.google.android.material.appbar.MaterialToolbar;
 
 /**
  * C8: Centro de Seguridad general del conductor (sin viaje activo) — mismo criterio que
  * SeguridadActivity del pasajero: marcador al 911, no llamada automática. El S.O.S. real
  * (POST /sos con rideId) solo tiene sentido durante un viaje y ya vive en
  * DriverActiveTripActivity — ver el hallazgo 6 del plan de la Fase 7.
+ *
+ * <p>No es una sección del cajón (no extiende {@code DriverSubScreenActivity}): se llega desde su
+ * fila en Configuración y solo desde ahí, igual que en el pasajero. Por eso lleva flecha de volver
+ * en vez de hamburguesa, y volver significa exactamente eso — la pantalla desde la que se abrió.
  */
-public class DriverSecurityActivity extends DriverSubScreenActivity {
+public class DriverSecurityActivity extends AuthenticatedActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_driver_security);
 
-        findViewById(R.id.btn_back).setOnClickListener(v -> navigateHome());
+        ((MaterialToolbar) findViewById(R.id.toolbar)).setNavigationOnClickListener(v -> finish());
         findViewById(R.id.btn_call_911).setOnClickListener(v ->
                 startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))));
 

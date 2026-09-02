@@ -1,45 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Configuración del conductor. Estructura calcada de fragment_configuraciones.xml (el lado
+     pasajero): misma barra superior, mismas secciones CUENTA/PREFERENCIAS y mismo cierre de
+     sesión al fondo, y la misma hamburguesa que abre el cajón. Lo único que no tiene equivalente
+     del otro lado es el bloque "Mi desempeño". -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        android:elevation="2dp"
+        app:navigationContentDescription="@string/driver_home_menu_description"
+        app:navigationIcon="@drawable/ic_menu"
+        app:navigationIconTint="?attr/colorOnSurface"
+        app:title="@string/driver_settings_title"
+        app:titleTextColor="?attr/colorOnSurface" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingBottom="20dp">
-
-            <ImageButton
-                android:id="@+id/btn_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="16dp"
-                android:background="@drawable/bg_dot"
-                android:backgroundTint="?attr/colorSurfaceVariant"
-                android:contentDescription="@string/action_back"
-                android:padding="10dp"
-                android:src="@drawable/ic_back"
-                app:tint="?attr/colorOnSurface" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/driver_settings_title"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-        </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -98,16 +91,16 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Mi desempeño: los tres números que un conductor pregunta primero. La calificación no
-             existe como endpoint propio en el contrato — se saca del bloque `driver` de
-             GET /rides/{id} del último viaje (ver DriverSettingsActivity), y si no hay viajes
-             todavía se queda en "—" en vez de inventar un 5.0. -->
+        <!-- Mi desempeño: los tres números que un conductor pregunta primero. La misma tarjeta que
+             el pasajero tiene en fragment_configuraciones.xml, con una columna más — él sí tiene
+             saldo. La calificación sale de /me, y si el backend todavía no la manda, del rodeo de
+             DriverRatingLoader; sin ninguna de las dos se queda en "—" en vez de inventar un 5.0. -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:letterSpacing="0.08"
-            android:text="@string/driver_settings_performance_header"
+            android:text="@string/settings_performance_header"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -135,10 +128,15 @@
                     android:gravity="center_horizontal"
                     android:orientation="vertical">
 
+                    <!-- Los tres números nacen con el guion largo, no vacíos: mientras las
+                         respuestas llegan (son tres llamadas distintas) la tarjeta ya tiene su
+                         forma final, y si alguna falla queda un "sin dato" explícito en vez de un
+                         hueco que se lee como un fallo de dibujado. -->
                     <TextView
                         android:id="@+id/text_stat_rating"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="@string/stat_empty"
                         android:textColor="@color/drivo_secondary"
                         android:textSize="20sp"
                         android:textStyle="bold"
@@ -148,7 +146,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="@string/driver_settings_stat_rating"
+                        android:text="@string/stat_label_rating"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -169,6 +167,7 @@
                         android:id="@+id/text_stat_trips"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="@string/stat_empty"
                         android:textColor="?attr/colorOnSurface"
                         android:textSize="20sp"
                         android:textStyle="bold"
@@ -179,7 +178,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:gravity="center"
-                        android:text="@string/driver_settings_stat_trips"
+                        android:text="@string/stat_label_trips"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -200,6 +199,7 @@
                         android:id="@+id/text_stat_balance"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="@string/stat_empty"
                         android:textColor="?attr/colorOnSurface"
                         android:textSize="20sp"
                         android:textStyle="bold"
@@ -219,17 +219,20 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
             android:text="@string/driver_settings_rating_hint"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp" />
 
+        <!-- Las dos cabeceras de sección salen de las mismas cadenas que el pasajero, no de una
+             copia con el prefijo driver_: son la misma clasificación y así no pueden separarse al
+             retocar el texto de un lado. -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="4dp"
             android:letterSpacing="0.08"
-            android:text="@string/driver_settings_preferences_header"
+            android:text="@string/perfil_section_account"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -237,7 +240,6 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeColor="?attr/colorOutline"
@@ -252,33 +254,6 @@
                 android:paddingEnd="16dp">
 
                 <include
-                    android:id="@+id/row_application"
-                    layout="@layout/item_settings_row" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?attr/colorOutline" />
-
-                <include
-                    android:id="@+id/row_vehicle"
-                    layout="@layout/item_settings_row" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?attr/colorOutline" />
-
-                <include
-                    android:id="@+id/row_documents"
-                    layout="@layout/item_settings_row" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?attr/colorOutline" />
-
-                <include
                     android:id="@+id/row_wallet"
                     layout="@layout/item_settings_row" />
 
@@ -290,6 +265,39 @@
                 <include
                     android:id="@+id/row_security"
                     layout="@layout/item_settings_row" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="4dp"
+            android:letterSpacing="0.08"
+            android:text="@string/perfil_section_preferences"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp"
+            app:cardBackgroundColor="?attr/colorSurface">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
+
+                <include
+                    android:id="@+id/row_appearance"
+                    layout="@layout/item_settings_row" />
 
                 <View
                     android:layout_width="match_parent"
@@ -297,7 +305,7 @@
                     android:background="?attr/colorOutline" />
 
                 <include
-                    android:id="@+id/row_appearance"
+                    android:id="@+id/row_notifications"
                     layout="@layout/item_settings_row" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -307,6 +315,7 @@
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
             android:paddingVertical="12dp"
             android:text="@string/driver_settings_logout"
             android:textAllCaps="false"
@@ -315,4 +324,5 @@
             app:strokeColor="@color/drivo_error" />
 
     </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</LinearLayout>

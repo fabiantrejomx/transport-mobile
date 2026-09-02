@@ -8,7 +8,6 @@ import android.widget.Toast;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.DriverApplication;
-import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.model.Wallet;
@@ -23,28 +22,28 @@ import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.auth.RoleSelectionActivity;
 import com.bng.drivo.ui.settings.AppearanceBottomSheet;
 import com.bng.drivo.ui.settings.SimpleMessageBottomSheet;
-import com.bng.drivo.util.SubmittedApplicationCache;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.List;
 import java.util.Locale;
 
 /**
- * C6: configuración del conductor — identidad, desempeño y todo lo que mandó a revisión.
+ * C6: configuración del conductor — identidad, desempeño y preferencias. Es la contraparte de
+ * {@code ConfiguracionesFragment} del pasajero y sigue su misma estructura a propósito (barra
+ * superior, CUENTA, PREFERENCIAS, cerrar sesión); ver el comentario de activity_driver_settings.xml.
  *
- * <p>Tres datos que el contrato no regala y de dónde salen:
+ * <p>Dos datos que el contrato no regala y de dónde salen:
  * <ul>
- *   <li><b>Calificación:</b> no hay endpoint propio ni viene en /me. El bloque {@code driver} de
- *       GET /rides/{id} sí la trae, así que se lee del viaje más reciente de este conductor. Si
- *       todavía no tiene viajes, se queda en "—" en vez de inventar un 5.0.</li>
+ *   <li><b>Calificación:</b> el promedio lo calcula el backend. Se toma de {@code /me} si viene, y
+ *       si no, del rodeo de {@link DriverRatingLoader}. Sin ninguna de las dos se queda en "—" en
+ *       vez de inventar un 5.0.</li>
  *   <li><b>Viajes completados:</b> se cuentan de GET /rides?role=driver.</li>
- *   <li><b>Datos del vehículo/CURP/RFC:</b> ningún GET los devuelve. Se muestran desde la copia
- *       local que guarda el propio registro ({@link SubmittedApplicationCache}); si el registro
- *       se envió desde otro teléfono, se dice eso en vez de fingir que no existen.</li>
  * </ul>
  *
- * <p>"Mis Documentos" sí es 100% del servidor: required_documents/missing_documents de
- * GET /driver/application. "Wallet y Recargas" sigue siendo informativo — el contrato no expone
- * ningún endpoint de autorecarga.
+ * <p>"Wallet y Recargas" es informativo: el contrato no expone ningún endpoint de autorecarga.
+ * Las filas de solicitud/vehículo/documentos vivieron aquí y se retiraron a propósito — eran
+ * volcados de la copia local del registro ({@code SubmittedApplicationCache}) y de
+ * required_documents, y no se va a invertir tiempo en esa parte por ahora.
  */
 public class DriverSettingsActivity extends DriverSubScreenActivity {
 
@@ -55,8 +54,6 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
     /** Suficientes para contar viajes completados sin traer el historial entero. */
     private static final int PERFORMANCE_HISTORY_LIMIT = 50;
 
-    private DriverApplication lastApplication;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,22 +63,30 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
         userRepository = new RestUserRepository(this);
         authRepository = new FirebaseAuthRepository();
 
-        findViewById(R.id.btn_back).setOnClickListener(v -> navigateHome());
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> openDrawer());
 
-        bindRow(R.id.row_application, "📝", R.string.driver_settings_row_application, this::showApplicationInfo);
-        bindRow(R.id.row_vehicle, "🚗", R.string.driver_settings_row_vehicle, this::showVehicleInfo);
-        bindRow(R.id.row_documents, "📄", R.string.driver_settings_row_documents, this::showDocumentsInfo);
         bindRow(R.id.row_wallet, "💰", R.string.driver_settings_row_wallet, this::showWalletInfo);
-        bindRow(R.id.row_security, "🛡️", R.string.driver_settings_row_security,
+        bindRow(R.id.row_security, "🛡️", R.string.perfil_security,
                 () -> startActivity(new Intent(this, DriverSecurityActivity.class)));
-        bindRow(R.id.row_appearance, "🎨", R.string.driver_settings_row_appearance,
+        // Los mismos emojis que usa el pasajero para estas dos filas: es la misma preferencia.
+        bindRow(R.id.row_appearance, "🌓", R.string.perfil_appearance,
                 () -> AppearanceBottomSheet.present(getSupportFragmentManager()));
+        bindRow(R.id.row_notifications, "🔔", R.string.perfil_notifications,
+                () -> SimpleMessageBottomSheet.present(getSupportFragmentManager(),
+                        getString(R.string.perfil_notifications),
+                        getString(R.string.settings_notifications_coming_soon)));
 
         findViewById(R.id.btn_logout).setOnClickListener(v -> logout());
 
         loadProfile();
         loadApplication();
         loadPerformance();
+    }
+
+    @Override
+    protected int navMenuItemId() {
+        return R.id.nav_driver_settings;
     }
 
     private void bindRow(int includeId, String icon, int labelRes, Runnable onClick) {
@@ -97,6 +102,7 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
             public void onSuccess(UserProfile profile) {
                 ((TextView) findViewById(R.id.text_avatar)).setText(profile.getInitials());
                 ((TextView) findViewById(R.id.text_name)).setText(profile.getName());
+                loadRating(profile.getRating());
             }
 
             @Override
@@ -107,11 +113,11 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
         });
     }
 
+    /** Solo para la línea de estado bajo el nombre: es lo único que queda de la solicitud aquí. */
     private void loadApplication() {
         driverRepository.getApplication(new ApiCallback<DriverApplication>() {
             @Override
             public void onSuccess(DriverApplication application) {
-                lastApplication = application;
                 TextView textStatus = findViewById(R.id.text_account_status);
                 if ("approved".equals(application.getStatus())) {
                     textStatus.setText(R.string.driver_settings_account_active);
@@ -166,9 +172,6 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
                     }
                 }
                 ((TextView) findViewById(R.id.text_stat_trips)).setText(String.valueOf(completed));
-                if (!rides.isEmpty()) {
-                    loadRatingFrom(rides.get(0).getId());
-                }
             }
 
             @Override
@@ -178,123 +181,27 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
         });
     }
 
-    /** Único punto del contrato donde existe la calificación del propio conductor. */
-    private void loadRatingFrom(String rideId) {
-        driverRepository.getRideDetail(rideId, new ApiCallback<Ride>() {
-            @Override
-            public void onSuccess(Ride ride) {
-                if (ride.getDriverRating() == null) {
-                    return;
-                }
-                ((TextView) findViewById(R.id.text_stat_rating)).setText(
-                        String.format(Locale.getDefault(), "★ %.1f", ride.getDriverRating()));
-            }
-
-            @Override
-            public void onError(ApiException error) {
-                // Sin calificación disponible se queda el "—".
+    /**
+     * El promedio sale de {@link DriverRatingLoader} — un rodeo por el historial de viajes que
+     * desaparecerá en cuanto GET /me traiga el campo. Si el perfil ya lo trae, ni se llama.
+     */
+    private void loadRating(Double ratingFromProfile) {
+        if (ratingFromProfile != null) {
+            showRating(ratingFromProfile);
+            return;
+        }
+        DriverRatingLoader.load(driverRepository, rating -> {
+            // null deja el "—" del layout: un conductor sin viajes calificados todavía no tiene
+            // promedio, y la línea de abajo ya explica de dónde sale ese número cuando lo haya.
+            if (rating != null) {
+                showRating(rating);
             }
         });
     }
 
-    /** Lo que el conductor envió a revisión, tal cual lo capturó: modalidad, CURP/RFC y estado. */
-    private void showApplicationInfo() {
-        StringBuilder message = new StringBuilder();
-        if (lastApplication != null) {
-            message.append(getString(R.string.driver_settings_application_status_label)).append(": ")
-                    .append(statusLabel(lastApplication.getStatus())).append("\n");
-            message.append(getString(R.string.driver_settings_application_modality_label)).append(": ")
-                    .append(modalityLabel(lastApplication.getModality())).append("\n");
-            String reason = lastApplication.getRejectionReason();
-            if (reason != null && !reason.isEmpty()) {
-                message.append("\n").append(getString(R.string.driver_settings_application_rejection_label))
-                        .append(": ").append(reason).append("\n");
-            }
-        }
-
-        SubmittedApplicationCache.Submitted submitted = SubmittedApplicationCache.read(this);
-        if (submitted != null) {
-            message.append("\n").append(getString(R.string.driver_settings_curp_label)).append(": ")
-                    .append(submitted.curp).append("\n");
-            if (submitted.rfc != null && !submitted.rfc.isEmpty()) {
-                message.append(getString(R.string.driver_settings_rfc_label)).append(": ")
-                        .append(submitted.rfc).append("\n");
-            }
-        }
-        if (message.length() == 0) {
-            message.append(getString(R.string.driver_settings_application_none));
-        }
-        SimpleMessageBottomSheet.present(getSupportFragmentManager(),
-                getString(R.string.driver_settings_row_application), message.toString().trim());
-    }
-
-    /** El vehículo que se envió a revisión; ningún GET del contrato lo devuelve (ver la clase). */
-    private void showVehicleInfo() {
-        SubmittedApplicationCache.Submitted submitted = SubmittedApplicationCache.read(this);
-        String message;
-        if (submitted == null) {
-            message = getString(R.string.driver_settings_vehicle_unknown);
-        } else {
-            message = submitted.brand + " " + submitted.model + " " + submitted.color + "\n"
-                    + getString(R.string.driver_settings_vehicle_year_label) + ": " + submitted.year + "\n"
-                    + getString(R.string.driver_settings_vehicle_plate_label) + ": " + submitted.plate + "\n\n"
-                    + getString(submitted.isOwner ? R.string.driver_settings_vehicle_owner_yes
-                            : R.string.driver_settings_vehicle_owner_no);
-        }
-        SimpleMessageBottomSheet.present(getSupportFragmentManager(),
-                getString(R.string.driver_settings_row_vehicle), message);
-    }
-
-    private String statusLabel(String status) {
-        if ("approved".equals(status)) {
-            return getString(R.string.driver_settings_account_active);
-        }
-        if ("rejected".equals(status)) {
-            return getString(R.string.driver_settings_account_status_rejected);
-        }
-        if ("suspended".equals(status)) {
-            return getString(R.string.driver_settings_account_status_suspended);
-        }
-        if ("draft".equals(status)) {
-            return getString(R.string.driver_settings_account_status_draft);
-        }
-        return getString(R.string.driver_settings_account_status_pending_review);
-    }
-
-    private String modalityLabel(String modality) {
-        return "taxi".equals(modality)
-                ? getString(R.string.driver_settings_application_modality_taxi)
-                : getString(R.string.driver_settings_application_modality_particular);
-    }
-
-    /**
-     * Lista completa con marca por documento en vez de una sola frase con los que faltan: así se
-     * ve de un vistazo qué sí llegó, que es la mitad de la pregunta que se viene a contestar aquí.
-     */
-    private void showDocumentsInfo() {
-        String message;
-        if (lastApplication == null) {
-            message = getString(R.string.driver_settings_load_error);
-        } else {
-            List<String> required = lastApplication.getRequiredDocuments();
-            List<String> missing = lastApplication.getMissingDocuments();
-            if (required == null || required.isEmpty()) {
-                message = missing == null || missing.isEmpty()
-                        ? getString(R.string.driver_settings_documents_complete)
-                        : getString(R.string.driver_settings_documents_missing_format, String.join(", ", missing));
-            } else {
-                StringBuilder builder = new StringBuilder();
-                for (String document : required) {
-                    boolean pending = missing != null && missing.contains(document);
-                    builder.append(getString(pending
-                            ? R.string.driver_settings_application_doc_missing_format
-                            : R.string.driver_settings_application_doc_ok_format, document)).append("\n");
-                }
-                message = builder.toString().trim();
-            }
-        }
-        SimpleMessageBottomSheet.present(getSupportFragmentManager(),
-                getString(R.string.driver_settings_row_documents), message);
+    private void showRating(double rating) {
+        ((TextView) findViewById(R.id.text_stat_rating))
+                .setText(getString(R.string.rating_star_format, rating));
     }
 
     private void showWalletInfo() {

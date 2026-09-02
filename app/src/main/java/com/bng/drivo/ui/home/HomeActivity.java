@@ -29,6 +29,7 @@ import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.settings.ConfiguracionesFragment;
 import com.bng.drivo.util.DrawerInsets;
+import com.bng.drivo.util.NavHeaderRating;
 import com.bng.drivo.ui.trips.ViajesFragment;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -183,6 +184,10 @@ public class HomeActivity extends AuthenticatedActivity {
                 ((TextView) navHeader.findViewById(R.id.text_nav_avatar)).setText(profile.getInitials());
                 ((TextView) navHeader.findViewById(R.id.text_nav_name)).setText(profile.getName());
                 ((TextView) navHeader.findViewById(R.id.text_nav_phone)).setText(profile.getPhone());
+                // Hoy nunca se pinta: la calificación del propio pasajero no viaja por ninguna ruta
+                // que él pueda llamar, así que llega null y la pastilla se queda oculta. Está
+                // enganchado ya para que se encienda sola en cuanto /me traiga el campo — ver MeDto.
+                NavHeaderRating.apply(navHeader, profile.getRating(), profile.getTrips());
             }
 
             @Override

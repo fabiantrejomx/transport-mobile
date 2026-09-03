@@ -68,6 +68,10 @@ public class LoginActivity extends AppCompatActivity {
         userRepository = new RestUserRepository(this);
         driverRole = getIntent().getBooleanExtra(EXTRA_DRIVER_ROLE, false);
 
+        ((TextView) findViewById(R.id.text_role)).setText(
+                driverRole ? R.string.auth_login_role_driver : R.string.auth_login_role_passenger);
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+
         groupPhone = findViewById(R.id.group_phone);
         groupCode = findViewById(R.id.group_code);
         inputPhone = findViewById(R.id.input_phone);

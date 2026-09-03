@@ -14,6 +14,8 @@
 
     <!-- Login -->
     <string name="auth_login_title">Iniciar sesión</string>
+    <string name="auth_login_role_passenger">Pasajero</string>
+    <string name="auth_login_role_driver">Conductor</string>
     <string name="auth_login_phone_prefix">+52</string>
     <string name="auth_login_phone_hint">10 dígitos</string>
     <string name="auth_login_send_code_button">Enviar código</string>

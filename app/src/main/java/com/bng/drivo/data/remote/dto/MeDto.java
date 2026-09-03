@@ -2,10 +2,23 @@ package com.bng.drivo.data.remote.dto;
 
 public class MeDto {
     public String id;
+
+    /** Cadena vacía en una cuenta de Google que todavía no ha escrito su número. */
     public String phone;
     public String name;
     public String email;
     public String photo_url;
+
+    /**
+     * Cómo se dio de alta la cuenta: {@code "phone"} o {@code "google"}. Decide qué campo del
+     * perfil se puede editar — el que verificó el proveedor queda fijo.
+     *
+     * <p>La app lo usa solo para <b>dibujar</b> el candado. Quien lo aplica de verdad es
+     * {@code PATCH /me}, que responde 403 si llega el campo bloqueado: deshabilitar un EditText no
+     * detiene a nadie, y en el caso del teléfono ese candado protege la identidad con la que el
+     * conductor llama al pasajero.
+     */
+    public String auth_provider;
 
     /**
      * Promedio de estrellas del propio usuario, para la pastilla de la cabecera del cajón.

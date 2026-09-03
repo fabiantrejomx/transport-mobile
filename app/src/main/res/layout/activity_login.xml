@@ -68,6 +68,57 @@
                 android:text="@string/auth_login_send_code_button"
                 android:textAllCaps="false"
                 app:cornerRadius="10dp" />
+
+            <!-- Separador "o": las dos vías son alternativas equivalentes, no un camino
+                 principal y un atajo. Por eso el botón de Google va aquí abajo y no compitiendo
+                 con el de continuar, y por eso es outlined: el relleno lo lleva la vía que el
+                 usuario ya empezó a escribir. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="?attr/colorOutline" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="@string/auth_login_or"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="13sp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="?attr/colorOutline" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_google_sign_in"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
+                android:text="@string/auth_login_google_button"
+                android:textAllCaps="false"
+                android:textColor="?attr/colorOnSurface"
+                app:cornerRadius="10dp"
+                app:icon="@drawable/ic_google"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconTint="@null"
+                app:strokeColor="?attr/colorOutline" />
         </LinearLayout>
 
         <!-- Paso 2: código de verificación -->

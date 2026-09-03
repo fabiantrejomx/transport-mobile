@@ -25,6 +25,13 @@
     <string name="auth_login_empty_code_error">Ingresa el código de verificación</string>
     <string name="auth_login_send_error">No se pudo enviar el código. Intenta de nuevo.</string>
     <string name="auth_login_verify_error">Código incorrecto o expirado</string>
+    <string name="auth_login_or">o</string>
+    <string name="auth_login_google_button">Continuar con Google</string>
+    <!-- No hay ninguna cuenta de Google configurada en el teléfono: es el único fallo de esta vía
+         que el usuario puede resolver solo, así que se le dice qué hacer en vez de "algo salió
+         mal". -->
+    <string name="auth_google_no_accounts">No hay ninguna cuenta de Google en este teléfono. Agrégala desde Ajustes o entra con tu número.</string>
+    <string name="auth_google_error">No se pudo entrar con Google. Intenta de nuevo.</string>
 
     <!-- Completar perfil -->
     <string name="complete_profile_title">Completa tu perfil</string>
@@ -131,6 +138,13 @@
     <string name="perfil_edit_empty_name_error">Ingresa tu nombre</string>
     <string name="perfil_edit_invalid_email_error">Ese correo no es válido</string>
     <string name="perfil_edit_save_error">No se pudo guardar tu perfil. Intenta de nuevo.</string>
+    <string name="perfil_edit_phone_hint">10 dígitos</string>
+    <string name="perfil_edit_invalid_phone_error">El teléfono debe tener 10 dígitos</string>
+    <string name="perfil_edit_phone_taken_error">Ese número ya está registrado en otra cuenta</string>
+    <!-- Textos del candado: dicen por qué no se puede editar, no solo que no se puede. Sin el
+         motivo, el campo bloqueado se lee como un error de la app. -->
+    <string name="perfil_edit_email_locked">Tu correo lo verifica Google y no se puede cambiar aquí</string>
+    <string name="perfil_edit_phone_locked">Tu número se verificó por SMS y no se puede cambiar aquí</string>
     <string name="settings_payment_coming_soon">Los métodos de pago digitales están en camino. Por ahora, todos los viajes se pagan en efectivo.</string>
     <string name="settings_notifications_coming_soon">La configuración de notificaciones estará disponible próximamente.</string>
 

@@ -29,8 +29,10 @@ public class RestUserRepository implements UserRepository {
     }
 
     @Override
-    public void updateProfile(String name, String email, ApiCallback<UserProfile> callback) {
-        ApiCallDispatcher.enqueue(service.updateMe(new UpdateMeRequest(name, email, null)), mapping(callback));
+    public void updateProfile(String name, String email, String phone,
+                              ApiCallback<UserProfile> callback) {
+        ApiCallDispatcher.enqueue(service.updateMe(new UpdateMeRequest(name, email, null, phone)),
+                mapping(callback));
     }
 
     private ApiCallback<MeDto> mapping(ApiCallback<UserProfile> callback) {
@@ -49,6 +51,6 @@ public class RestUserRepository implements UserRepository {
 
     private UserProfile toUserProfile(MeDto dto) {
         return new UserProfile(dto.id, dto.name, dto.email, dto.phone, dto.photo_url,
-                dto.rating, dto.trips);
+                dto.rating, dto.trips, dto.auth_provider);
     }
 }

@@ -107,7 +107,9 @@ public class ConfiguracionesFragment extends Fragment {
                 }
                 ((TextView) view.findViewById(R.id.text_avatar)).setText(profile.getInitials());
                 ((TextView) view.findViewById(R.id.text_name)).setText(profile.getName());
-                ((TextView) view.findViewById(R.id.text_phone)).setText(profile.getPhone());
+                showContact(view.findViewById(R.id.text_phone),
+                        profile.hasPhone() ? profile.getPhone() : null);
+                showContact(view.findViewById(R.id.text_email), profile.getEmail());
                 showRating(view, profile.getRating());
             }
 
@@ -139,6 +141,16 @@ public class ConfiguracionesFragment extends Fragment {
                 }
             }
         });
+    }
+
+    /**
+     * Teléfono y correo de la tarjeta. Cuál de los dos falta depende de cómo se dio de alta la
+     * cuenta, así que el renglón que no tiene dato se esconde en vez de quedarse vacío.
+     */
+    private void showContact(TextView field, String value) {
+        boolean hasValue = value != null && !value.trim().isEmpty();
+        field.setText(value);
+        field.setVisibility(hasValue ? View.VISIBLE : View.GONE);
     }
 
     /** Cero y "no se sabe" se dibujan igual: sin número. Ver el comentario del layout. */

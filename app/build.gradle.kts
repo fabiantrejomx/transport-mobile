@@ -63,12 +63,19 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // Firebase (Auth por teléfono, Firestore de solo lectura, Storage, FCM)
+    // Firebase (Auth por teléfono y por Google, Firestore de solo lectura, Storage, FCM)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+
+    // "Continuar con Google": la hoja nativa de cuentas del sistema. Devuelve un
+    // id token de Google que se canjea por una sesión de Firebase, así que el
+    // backend sigue recibiendo el mismo Bearer de siempre.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     // Cliente HTTP hacia transport-api
     implementation(libs.retrofit)

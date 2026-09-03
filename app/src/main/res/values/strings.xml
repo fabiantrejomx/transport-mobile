@@ -140,6 +140,7 @@
     <string name="perfil_edit_empty_name_error">Ingresa tu nombre</string>
     <string name="perfil_edit_invalid_email_error">Ese correo no es válido</string>
     <string name="perfil_edit_save_error">No se pudo guardar tu perfil. Intenta de nuevo.</string>
+    <string name="perfil_edit_save_success">Perfil actualizado</string>
     <string name="perfil_edit_phone_hint">10 dígitos</string>
     <string name="perfil_edit_invalid_phone_error">El teléfono debe tener 10 dígitos</string>
     <string name="perfil_edit_phone_taken_error">Ese número ya está registrado en otra cuenta</string>

@@ -88,6 +88,16 @@
                         android:textSize="13sp"
                         tools:text="Cuenta Activa" />
                 </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btn_edit_profile"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/perfil_edit_description"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_edit"
+                    app:tint="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

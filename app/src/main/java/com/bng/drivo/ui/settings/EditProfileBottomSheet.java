@@ -148,6 +148,7 @@ public class EditProfileBottomSheet extends BottomSheetDialogFragment {
             @Override
             public void onSuccess(UserProfile result) {
                 if (isAdded()) {
+                    Toast.makeText(requireContext(), R.string.perfil_edit_save_success, Toast.LENGTH_SHORT).show();
                     dismiss();
                 }
             }

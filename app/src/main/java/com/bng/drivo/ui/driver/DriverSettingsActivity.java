@@ -21,7 +21,9 @@ import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.auth.RoleSelectionActivity;
 import com.bng.drivo.ui.settings.AppearanceBottomSheet;
+import com.bng.drivo.ui.settings.EditProfileBottomSheet;
 import com.bng.drivo.ui.settings.SimpleMessageBottomSheet;
+import com.bng.drivo.util.NavHeaderRating;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.List;
@@ -66,6 +68,9 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> openDrawer());
 
+        findViewById(R.id.btn_edit_profile).setOnClickListener(v ->
+                EditProfileBottomSheet.present(getSupportFragmentManager()));
+
         bindRow(R.id.row_wallet, "💰", R.string.driver_settings_row_wallet, this::showWalletInfo);
         bindRow(R.id.row_security, "🛡️", R.string.perfil_security,
                 () -> startActivity(new Intent(this, DriverSecurityActivity.class)));
@@ -82,6 +87,13 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
         loadProfile();
         loadApplication();
         loadPerformance();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresca por si se editó el perfil (nombre/teléfono) desde el modal.
+        loadProfile();
     }
 
     @Override
@@ -102,7 +114,7 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
             public void onSuccess(UserProfile profile) {
                 ((TextView) findViewById(R.id.text_avatar)).setText(profile.getInitials());
                 ((TextView) findViewById(R.id.text_name)).setText(profile.getName());
-                loadRating(profile.getRating());
+                loadRating(profile.getRating(), profile.getTrips());
             }
 
             @Override
@@ -185,23 +197,29 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
      * El promedio sale de {@link DriverRatingLoader} — un rodeo por el historial de viajes que
      * desaparecerá en cuanto GET /me traiga el campo. Si el perfil ya lo trae, ni se llama.
      */
-    private void loadRating(Double ratingFromProfile) {
+    private void loadRating(Double ratingFromProfile, Integer trips) {
         if (ratingFromProfile != null) {
-            showRating(ratingFromProfile);
+            showRating(ratingFromProfile, trips);
             return;
         }
         DriverRatingLoader.load(driverRepository, rating -> {
             // null deja el "—" del layout: un conductor sin viajes calificados todavía no tiene
             // promedio, y la línea de abajo ya explica de dónde sale ese número cuando lo haya.
+            // Si este rodeo sí encontró un rating es porque hubo al menos un viaje calificado, así
+            // que aquí trips nunca decide "Nuevo" — se manda null a propósito.
             if (rating != null) {
-                showRating(rating);
+                showRating(rating, null);
             }
         });
     }
 
-    private void showRating(double rating) {
-        ((TextView) findViewById(R.id.text_stat_rating))
-                .setText(getString(R.string.rating_star_format, rating));
+    /**
+     * El 5.0 que da el backend por omisión a quien todavía no tiene calificaciones es relleno, no
+     * un logro — misma regla que {@link com.bng.drivo.util.NavHeaderRating}, para que esta tarjeta
+     * y el cajón no se contradigan sobre cuándo alguien es "Nuevo".
+     */
+    private void showRating(double rating, Integer trips) {
+        ((TextView) findViewById(R.id.text_stat_rating)).setText(NavHeaderRating.text(this, rating, trips));
     }
 
     private void showWalletInfo() {

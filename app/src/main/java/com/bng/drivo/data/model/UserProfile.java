@@ -2,6 +2,9 @@ package com.bng.drivo.data.model;
 
 public class UserProfile {
 
+    /** Valor de {@code authProvider} para una cuenta creada con Google. */
+    public static final String PROVIDER_GOOGLE = "google";
+
     private final String id;
     private String name;
     private String email;
@@ -9,9 +12,10 @@ public class UserProfile {
     private String photoUrl;
     private final Double rating;
     private final Integer trips;
+    private final String authProvider;
 
     public UserProfile(String id, String name, String email, String phone, String photoUrl,
-                       Double rating, Integer trips) {
+                       Double rating, Integer trips, String authProvider) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -19,6 +23,7 @@ public class UserProfile {
         this.photoUrl = photoUrl;
         this.rating = rating;
         this.trips = trips;
+        this.authProvider = authProvider;
     }
 
     public String getId() {
@@ -64,6 +69,23 @@ public class UserProfile {
     /** Viajes que cuentan para el promedio; null si no viene. Cero significa usuario nuevo. */
     public Integer getTrips() {
         return trips;
+    }
+
+    /**
+     * Cuenta creada con Google: el correo lo verificó Google y no se edita; el teléfono lo escribe
+     * el usuario. En una cuenta de teléfono es justo al revés.
+     *
+     * <p>Un backend que todavía no mande el campo se trata como cuenta de teléfono, que es lo que
+     * era todo hasta ahora: ante la duda conviene bloquear el teléfono, porque es el dato con el
+     * que se llaman conductor y pasajero.
+     */
+    public boolean isGoogleAccount() {
+        return PROVIDER_GOOGLE.equals(authProvider);
+    }
+
+    /** Una cuenta de Google nace sin número hasta que su dueño lo escribe en su perfil. */
+    public boolean hasPhone() {
+        return phone != null && !phone.trim().isEmpty();
     }
 
     public boolean isComplete() {

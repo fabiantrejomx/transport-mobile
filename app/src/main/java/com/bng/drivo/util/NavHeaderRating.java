@@ -1,5 +1,6 @@
 package com.bng.drivo.util;
 
+import android.content.Context;
 import android.view.View;
 import android.widget.TextView;
 
@@ -46,11 +47,19 @@ public final class NavHeaderRating {
             badge.setVisibility(View.GONE);
             return;
         }
-        if (trips != null && trips == 0) {
-            badge.setText(R.string.nav_rating_new);
-        } else {
-            badge.setText(badge.getContext().getString(R.string.rating_star_format, rating));
-        }
+        badge.setText(text(badge.getContext(), rating, trips));
         badge.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * La misma decisión que {@link #apply}, para pantallas que no usan una pastilla que se oculta
+     * — como las tarjetas "Mi desempeño" de Configuración, que siempre muestran algo. Separada de
+     * {@code apply} para que las dos vistas de esa tarjeta (pasajero y conductor) no puedan
+     * contradecir a la del cajón sobre cuándo alguien es "Nuevo".
+     */
+    public static String text(@NonNull Context context, double rating, @Nullable Integer trips) {
+        return trips != null && trips == 0
+                ? context.getString(R.string.nav_rating_new)
+                : context.getString(R.string.rating_star_format, rating);
     }
 }

@@ -36,6 +36,16 @@ public enum ApiErrorCode {
     FAVORITE_NOT_FOUND,
     /** Ya hay otro lugar guardado con ese nombre (el servidor los exige únicos por usuario). */
     FAVORITE_LABEL_TAKEN,
+    /** Ese teléfono ya está registrado en otra cuenta. */
+    PHONE_TAKEN,
+    /**
+     * Se intentó editar el dato que verificó el proveedor de identidad: el teléfono de una cuenta
+     * creada por SMS, o el correo de una creada con Google. La app no debería provocarlos —son el
+     * mismo candado que ya dibuja con {@code auth_provider}—, así que verlos significa que la
+     * pantalla y el servidor discrepan sobre cómo se dio de alta el usuario.
+     */
+    PHONE_LOCKED,
+    EMAIL_LOCKED,
     ROUTING_UNAVAILABLE,
     /** No hay respuesta del servidor (sin red, timeout, DNS, etc.) — no es un código del contrato. */
     NETWORK_ERROR,

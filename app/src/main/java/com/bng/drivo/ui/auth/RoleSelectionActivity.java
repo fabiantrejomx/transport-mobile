@@ -29,10 +29,13 @@ public class RoleSelectionActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_role_selection);
 
+        // Sin finish(): esta pantalla se queda en el back stack para que LoginActivity pueda
+        // regresar aquí (botón atrás), por si el usuario tocó el rol equivocado. No hay riesgo de
+        // volver a verla después de un login exitoso: goToHome()/goToCompleteProfile() limpian el
+        // task entero con CLEAR_TASK.
         findViewById(R.id.btn_role_passenger).setOnClickListener(v -> {
             new PrefsHelper(this).putBoolean(PREF_KEY_DRIVER_MODE, false);
             startActivity(new Intent(this, LoginActivity.class));
-            finish();
         });
 
         findViewById(R.id.btn_role_driver).setOnClickListener(v -> {
@@ -40,7 +43,6 @@ public class RoleSelectionActivity extends AppCompatActivity {
             Intent intent = new Intent(this, LoginActivity.class);
             intent.putExtra(LoginActivity.EXTRA_DRIVER_ROLE, true);
             startActivity(intent);
-            finish();
         });
     }
 }

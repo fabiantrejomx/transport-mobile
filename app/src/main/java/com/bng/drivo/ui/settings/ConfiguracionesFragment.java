@@ -29,6 +29,7 @@ import com.bng.drivo.ui.address.AddressListActivity;
 import com.bng.drivo.ui.auth.RoleSelectionActivity;
 import com.bng.drivo.ui.home.HomeActivity;
 import com.bng.drivo.ui.security.SeguridadActivity;
+import com.bng.drivo.util.NavHeaderRating;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.List;
@@ -107,8 +108,10 @@ public class ConfiguracionesFragment extends Fragment {
                 }
                 ((TextView) view.findViewById(R.id.text_avatar)).setText(profile.getInitials());
                 ((TextView) view.findViewById(R.id.text_name)).setText(profile.getName());
-                ((TextView) view.findViewById(R.id.text_phone)).setText(profile.getPhone());
-                showRating(view, profile.getRating());
+                showContact(view.findViewById(R.id.text_phone),
+                        profile.hasPhone() ? profile.getPhone() : null);
+                showContact(view.findViewById(R.id.text_email), profile.getEmail());
+                showRating(view, profile.getRating(), profile.getTrips());
             }
 
             @Override
@@ -141,6 +144,16 @@ public class ConfiguracionesFragment extends Fragment {
         });
     }
 
+    /**
+     * Teléfono y correo de la tarjeta. Cuál de los dos falta depende de cómo se dio de alta la
+     * cuenta, así que el renglón que no tiene dato se esconde en vez de quedarse vacío.
+     */
+    private void showContact(TextView field, String value) {
+        boolean hasValue = value != null && !value.trim().isEmpty();
+        field.setText(value);
+        field.setVisibility(hasValue ? View.VISIBLE : View.GONE);
+    }
+
     /** Cero y "no se sabe" se dibujan igual: sin número. Ver el comentario del layout. */
     private void showAddressCount(View view, int count) {
         TextView badge = view.findViewById(R.id.text_addresses_count);
@@ -151,13 +164,17 @@ public class ConfiguracionesFragment extends Fragment {
     /**
      * La calificación es la que manda {@code /me}. Si llega null se queda el guion del layout: el
      * backend todavía puede no exponer el campo, y un 5.0 inventado sería peor que un "sin dato".
+     *
+     * <p>El 5.0 que sí manda el backend por omisión a quien no tiene calificaciones todavía es
+     * relleno, no un logro — misma regla que {@link NavHeaderRating}, para que esta tarjeta y el
+     * cajón no se contradigan sobre cuándo alguien es "Nuevo".
      */
-    private void showRating(View view, Double rating) {
+    private void showRating(View view, Double rating, Integer trips) {
         if (rating == null) {
             return;
         }
         ((TextView) view.findViewById(R.id.text_stat_rating))
-                .setText(getString(R.string.rating_star_format, rating));
+                .setText(NavHeaderRating.text(requireContext(), rating, trips));
     }
 
     /**

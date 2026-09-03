@@ -18,6 +18,7 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AuthRepository;
 import com.bng.drivo.data.repository.FirebaseAuthRepository;
+import com.bng.drivo.data.repository.GoogleSignInCallback;
 import com.bng.drivo.data.repository.OtpSendCallback;
 import com.bng.drivo.data.repository.OtpVerifyCallback;
 import com.bng.drivo.data.repository.RestUserRepository;
@@ -25,17 +26,20 @@ import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.driver.DriverEntryPoint;
 import com.bng.drivo.ui.home.HomeActivity;
 import com.bng.drivo.util.LoadingButtonHelper;
+import com.bng.drivo.util.PhoneNumbers;
 import com.bng.drivo.util.ValidationHelper;
 import com.google.android.material.button.MaterialButton;
 
 /**
- * Login por teléfono + OTP (Firebase Auth, sin contraseña). No hay pantalla
- * de registro separada: el mismo código verificado crea la sesión tanto para
- * un número nuevo como uno existente.
+ * Login sin contraseña, por dos vías equivalentes: teléfono + OTP, o Google. No hay pantalla de
+ * registro separada — cualquiera de las dos crea la sesión igual para una cuenta nueva que para
+ * una existente, y las dos terminan en {@link #syncProfileAndContinue()}.
+ *
+ * <p>Google no pide código porque no hay nada que confirmar: la identidad la firma Google. Lo que
+ * cambia después es cuál de los dos datos queda verificado, y eso decide qué puede editar el
+ * usuario en su perfil — ver {@code UserProfile.isGoogleAccount()}.
  */
 public class LoginActivity extends AppCompatActivity {
-
-    private static final String PHONE_PREFIX = "+52";
 
     /** Puesto por RoleSelectionActivity cuando el login es para "Soy conductor". */
     public static final String EXTRA_DRIVER_ROLE = "driver_role";
@@ -51,6 +55,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView textCodeSentTo;
     private MaterialButton btnSendCode;
     private MaterialButton btnVerifyCode;
+    private MaterialButton btnGoogleSignIn;
 
     private String phoneNumber;
 
@@ -63,6 +68,10 @@ public class LoginActivity extends AppCompatActivity {
         userRepository = new RestUserRepository(this);
         driverRole = getIntent().getBooleanExtra(EXTRA_DRIVER_ROLE, false);
 
+        ((TextView) findViewById(R.id.text_role)).setText(
+                driverRole ? R.string.auth_login_role_driver : R.string.auth_login_role_passenger);
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+
         groupPhone = findViewById(R.id.group_phone);
         groupCode = findViewById(R.id.group_code);
         inputPhone = findViewById(R.id.input_phone);
@@ -74,11 +83,13 @@ public class LoginActivity extends AppCompatActivity {
         textCodeSentTo = findViewById(R.id.text_code_sent_to);
         btnSendCode = findViewById(R.id.btn_send_code);
         btnVerifyCode = findViewById(R.id.btn_verify_code);
+        btnGoogleSignIn = findViewById(R.id.btn_google_sign_in);
 
         setUpPhoneInput();
         setUpCodeDigitInputs();
         btnSendCode.setOnClickListener(v -> attemptSendCode());
         btnVerifyCode.setOnClickListener(v -> attemptVerifyCode());
+        btnGoogleSignIn.setOnClickListener(v -> attemptGoogleSignIn());
         findViewById(R.id.link_change_phone).setOnClickListener(v -> showPhoneStep());
     }
 
@@ -109,7 +120,7 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.auth_login_empty_phone_error, Toast.LENGTH_SHORT).show();
             return;
         }
-        phoneNumber = PHONE_PREFIX + digits;
+        phoneNumber = PhoneNumbers.toE164(digits);
 
         LoadingButtonHelper.setLoading(btnSendCode, true);
         authRepository.sendVerificationCode(this, phoneNumber, new OtpSendCallback() {
@@ -202,6 +213,34 @@ public class LoginActivity extends AppCompatActivity {
             public void onError(String message) {
                 LoadingButtonHelper.setLoading(btnVerifyCode, false);
                 Toast.makeText(LoginActivity.this, R.string.auth_login_verify_error, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void attemptGoogleSignIn() {
+        LoadingButtonHelper.setLoading(btnGoogleSignIn, true);
+        authRepository.signInWithGoogle(this, new GoogleSignInCallback() {
+            @Override
+            public void onSuccess() {
+                LoadingButtonHelper.setLoading(btnGoogleSignIn, false);
+                syncProfileAndContinue();
+            }
+
+            @Override
+            public void onCancelled() {
+                // Cerró la hoja de cuentas. Se devuelve el botón a su estado y nada más: no hubo
+                // ningún fallo que contarle.
+                LoadingButtonHelper.setLoading(btnGoogleSignIn, false);
+            }
+
+            @Override
+            public void onError(String message) {
+                LoadingButtonHelper.setLoading(btnGoogleSignIn, false);
+                // El repositorio ya distingue el único caso accionable (no hay cuentas en el
+                // teléfono) y manda ese texto; para el resto vale el mensaje genérico.
+                Toast.makeText(LoginActivity.this,
+                        message != null ? message : getString(R.string.auth_google_error),
+                        Toast.LENGTH_LONG).show();
             }
         });
     }

@@ -53,6 +53,14 @@
     <color name="drivo_vehicle_wheel">#8C000000</color>
     <color name="drivo_vehicle_mirror">#66000000</color>
 
+    <!-- Faros, calaveras y brillo de cofre — el detalle que hace que el sprite se lea como un
+         auto y no solo como una silueta. Mismo criterio de contraste que el resto: se invierten
+         con el tema (ver values-night). La calavera es un ámbar quemado y no el dorado de marca
+         a propósito: ese dorado ya significa "confirmar/negociar" en el resto de la app. -->
+    <color name="drivo_vehicle_headlight">#D9FFFFFF</color>
+    <color name="drivo_vehicle_taillight">#FFC77B3D</color>
+    <color name="drivo_vehicle_highlight">#33FFFFFF</color>
+
     <!-- Scrim tras texto sobre el mapa (ej. radar de búsqueda) — mismo tono que la superficie, semitransparente -->
     <color name="drivo_scrim">#E6FFFFFF</color>
 

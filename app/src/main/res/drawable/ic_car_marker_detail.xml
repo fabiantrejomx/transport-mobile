@@ -48,4 +48,25 @@
     <path
         android:fillColor="@color/drivo_vehicle_mirror"
         android:pathData="M17.4,9 C17.4,8.448 17.848,8 18.4,8 C18.952,8 19.4,8.448 19.4,9 C19.4,9.552 18.952,10 18.4,10 C17.848,10 17.4,9.552 17.4,9 Z" />
+
+    <!-- Brillo de cofre/techo: elipse translúcida en diagonal, mismo truco que el realce del
+         techo de arriba pero angosta y ladeada, para dar volumen en vez de una silueta plana. -->
+    <path
+        android:fillColor="@color/drivo_vehicle_highlight"
+        android:pathData="M7.538,9.251 A1.6,5.3 -24 1 1 10.462,7.949 A1.6,5.3 -24 1 1 7.538,9.251 Z" />
+    <!-- Faros delanteros: la señal más rápida de "hacia dónde apunta" cuando el sprite ya viene
+         rotado según el rumbo — más rápido de leer que distinguir cuál parabrisas es el frontal. -->
+    <path
+        android:fillColor="@color/drivo_vehicle_headlight"
+        android:pathData="M5.25,3.3 A1.15,0.8 0 1 1 7.55,3.3 A1.15,0.8 0 1 1 5.25,3.3 Z" />
+    <path
+        android:fillColor="@color/drivo_vehicle_headlight"
+        android:pathData="M14.45,3.3 A1.15,0.8 0 1 1 16.75,3.3 A1.15,0.8 0 1 1 14.45,3.3 Z" />
+    <!-- Calaveras traseras. -->
+    <path
+        android:fillColor="@color/drivo_vehicle_taillight"
+        android:pathData="M5.35,28.7 A1.05,0.65 0 1 1 7.45,28.7 A1.05,0.65 0 1 1 5.35,28.7 Z" />
+    <path
+        android:fillColor="@color/drivo_vehicle_taillight"
+        android:pathData="M14.55,28.7 A1.05,0.65 0 1 1 16.65,28.7 A1.05,0.65 0 1 1 14.55,28.7 Z" />
 </vector>

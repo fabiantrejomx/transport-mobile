@@ -43,6 +43,12 @@
     <color name="drivo_vehicle_wheel">#B31B2836</color>
     <color name="drivo_vehicle_mirror">#8C1B2836</color>
 
+    <!-- Ver el comentario en values/colors.xml. Mismos tres, invertidos: faros oscuros sobre la
+         carrocería clara, calavera un poco más quemada para que no se pierda. -->
+    <color name="drivo_vehicle_headlight">#731B2836</color>
+    <color name="drivo_vehicle_taillight">#FF8A4E22</color>
+    <color name="drivo_vehicle_highlight">#291B2836</color>
+
     <color name="drivo_scrim">#E6142130</color>
 
     <!-- Ver el comentario en values/colors.xml: aquí es el par surface/on_surface del tema claro. -->

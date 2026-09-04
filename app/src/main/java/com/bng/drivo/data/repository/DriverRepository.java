@@ -54,7 +54,11 @@ public interface DriverRepository {
     void startRide(String rideId, ApiCallback<Ride> callback);
 
     /** POST /driver/rides/{id}/complete — dispara la comisión, solo el conductor cierra el viaje. */
-    void completeRide(String rideId, ApiCallback<Ride> callback);
+    /**
+     * Finalizar. Manda la posición porque el servidor comprueba que el conductor esté cerca del
+     * destino antes de dejar cerrar: cerrar cobra la comisión y da el viaje por cumplido.
+     */
+    void completeRide(String rideId, double lat, double lng, ApiCallback<Ride> callback);
 
     /** POST /driver/rides/{id}/cancel */
     void cancelRide(String rideId, ApiCallback<Ride> callback);

@@ -82,7 +82,8 @@ public class RestTripRepository implements TripRepository {
         ApiCallDispatcher.enqueue(service.createQuote(body), new ApiCallback<QuoteDto>() {
             @Override
             public void onSuccess(QuoteDto result) {
-                callback.onSuccess(new Quote(result.id, result.suggested_fare, result.floor, result.ceiling));
+                callback.onSuccess(new Quote(result.id, result.suggested_fare, result.floor,
+                        result.ceiling, result.polyline));
             }
 
             @Override
@@ -265,6 +266,6 @@ public class RestTripRepository implements TripRepository {
                 origin != null ? origin.text : null, destination != null ? destination.text : null,
                 origin != null ? origin.lat : null, origin != null ? origin.lng : null,
                 destination != null ? destination.lat : null, destination != null ? destination.lng : null,
-                dto.requested_at, dto.driver_arrived_at, dto.commission);
+                dto.polyline, dto.requested_at, dto.driver_arrived_at, dto.commission);
     }
 }

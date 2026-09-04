@@ -44,10 +44,11 @@ import java.util.List;
  *       más fuerte que una frase. De eso se encarga el host a través de {@link StatusListener}.</li>
  * </ol>
  *
- * <p>El sondeo solo corre cuando las cuatro condiciones se cumplen a la vez: mapa listo, paso que
- * lo admite (todo menos {@code SEARCHING}, donde manda el matching del servidor), host visible y
- * punto de consulta conocido. Cualquiera que cambie pasa por {@link #syncPolling()}, que es el
- * único sitio que arranca y para el ciclo.
+ * <p>El sondeo corre en todo el flujo del pasajero, la subasta incluida: mientras espera ofertas
+ * sigue siendo útil ver qué unidades hay alrededor del punto de recogida. Solo pide que las tres
+ * condiciones se cumplan a la vez: mapa listo, host visible y punto de consulta conocido.
+ * Cualquiera que cambie pasa por {@link #syncPolling()}, que es el único sitio que arranca y para
+ * el ciclo.
  */
 public class NearbyDriversPresenter {
 
@@ -90,7 +91,6 @@ public class NearbyDriversPresenter {
     @Nullable
     private Runnable pollTick;
 
-    private boolean enabled = true;
     private boolean hostStarted;
     private Status status = Status.UNKNOWN;
 
@@ -136,23 +136,6 @@ public class NearbyDriversPresenter {
     }
 
     /**
-     * Falso a partir de {@code SEARCHING}: desde ahí manda el matching del servidor, que busca en
-     * radios más amplios y a más conductores, y seguir pintando esta foto al lado del radar diría
-     * dos cosas distintas sobre lo mismo.
-     */
-    public void setEnabled(boolean enabled) {
-        if (this.enabled == enabled) {
-            return;
-        }
-        this.enabled = enabled;
-        if (!enabled) {
-            clearMarkers();
-            setStatus(Status.UNKNOWN);
-        }
-        syncPolling();
-    }
-
-    /**
      * Visibilidad real del host. No basta con el ciclo de vida del Fragment: Inicio/Viajes/Ajustes
      * se alternan con show/hide sobre los mismos Fragment ya creados, y eso no dispara onStop —
      * sin esto, el mapa de Inicio seguiría consultando desde otra pestaña. Ver
@@ -174,7 +157,7 @@ public class NearbyDriversPresenter {
     // ------------------------------------------------------------------------------- Sondeo
 
     private boolean shouldPoll() {
-        return map != null && enabled && hostStarted && anchor != null;
+        return map != null && hostStarted && anchor != null;
     }
 
     private void syncPolling() {
@@ -232,7 +215,7 @@ public class NearbyDriversPresenter {
     // ---------------------------------------------------------------------------- Marcadores
 
     private void drawUnits(@Nullable List<NearbyUnit> units) {
-        if (map == null || !enabled) {
+        if (map == null) {
             return;
         }
         List<NearbyUnit> incoming = units != null ? units : Collections.emptyList();

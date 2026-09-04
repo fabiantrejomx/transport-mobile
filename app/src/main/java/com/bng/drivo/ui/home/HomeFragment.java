@@ -40,6 +40,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.AddressLabel;
+import com.bng.drivo.data.model.Quote;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.SavedAddress;
@@ -163,6 +164,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private View routeCard;
     private View pickLocationPin;
     private View pickStopPin;
+    /** Vuelta al encuadre de la ruta; solo se ve en SEARCHING — ver applyStep. */
+    private View frameRouteButton;
     /** Anillos del radar de SEARCHING, anclados a viewModel.getOrigin() — null hasta que el mapa está listo. */
     @Nullable
     private Circle radarRingOuter;
@@ -260,6 +263,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         routeCard = view.findViewById(R.id.card_route_summary);
         pickLocationPin = view.findViewById(R.id.img_pick_location_pin);
         pickStopPin = view.findViewById(R.id.img_pick_stop_pin);
+        frameRouteButton = view.findViewById(R.id.btn_frame_route);
 
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
@@ -277,6 +281,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         loadRecentTrips(view);
 
         view.findViewById(R.id.btn_open_drawer).setOnClickListener(v -> onNavButtonClicked());
+        frameRouteButton.setOnClickListener(v -> mapPresenter.frameRoute());
         view.findViewById(R.id.btn_my_location).setOnClickListener(v -> {
             if (hasLocationPermission()) {
                 showMyLocation();
@@ -486,12 +491,40 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         boolean hasRoute = step == TripFlowViewModel.Step.CONFIRM_PRICE
                 || step == TripFlowViewModel.Step.SEARCHING;
         routeCard.setVisibility(hasRoute ? View.VISIBLE : View.GONE);
+        // La tarjeta se puebla aquí y no solo al mostrar el panel de tarifa, porque le sobrevive:
+        // sigue en pantalla durante la subasta, cuando ese panel ya se escondió. Rotar a media
+        // espera recrea la vista y sin esto la tarjeta salía vacía. Va antes del bloque de abajo,
+        // que es el que decide qué se puede tocar de la ruta según el paso.
+        if (hasRoute) {
+            confirmPricePanel.bindRouteSummary();
+        }
         // Con el viaje ya creado la ruta está cerrada: la parada solo se toca al negociar.
+        boolean routeEditable = step == TripFlowViewModel.Step.CONFIRM_PRICE;
         View addStopRow = routeCard.findViewById(R.id.row_add_stop);
-        addStopRow.setEnabled(step == TripFlowViewModel.Step.CONFIRM_PRICE);
-        addStopRow.setClickable(step == TripFlowViewModel.Step.CONFIRM_PRICE);
+        addStopRow.setEnabled(routeEditable);
+        addStopRow.setClickable(routeEditable);
+        // Sin parada y sin poder añadirla, la fila no tiene nada que decir: dejar ahí un
+        // "+ Añadir parada" apagado ofrece algo que ya no se puede hacer —de ahí que se pida
+        // antes, en CONFIRM_PRICE— y es la mitad del contenido de la tarjeta. Con parada sí se
+        // queda: es parte de la ruta que el pasajero está esperando que le hagan.
+        addStopRow.setVisibility(
+                routeEditable || viewModel.getStop() != null ? View.VISIBLE : View.GONE);
+        // setEnabled sobre la fila no alcanza a la X: es un hijo con su propio onClick, y sin
+        // esto seguía quitando la parada de un viaje ya creado. Con la ruta editable la repone
+        // ConfirmPricePanel.bindStopRow según haya parada o no.
+        if (!routeEditable) {
+            routeCard.findViewById(R.id.btn_remove_stop).setVisibility(View.GONE);
+        }
+        // Un título solo donde la tarjeta pasa a ser el resumen de algo ya pedido.
+        routeCard.findViewById(R.id.text_route_card_title).setVisibility(
+                step == TripFlowViewModel.Step.SEARCHING ? View.VISIBLE : View.GONE);
         pickLocationPin.setVisibility(step == TripFlowViewModel.Step.PICK_LOCATION ? View.VISIBLE : View.GONE);
         pickStopPin.setVisibility(step == TripFlowViewModel.Step.PICK_STOP ? View.VISIBLE : View.GONE);
+        // Solo en la subasta: es el único paso con la ruta ya dibujada y el mapa libre a la vez.
+        // En CONFIRM_PRICE la ruta también está, pero ahí el mapa sigue congelado y no hay de
+        // dónde volver.
+        frameRouteButton.setVisibility(
+                step == TripFlowViewModel.Step.SEARCHING ? View.VISIBLE : View.GONE);
         // Los pasos que ya resuelven la salida dentro del modal ("Cancelar") se quedan sin flecha
         // flotante: una etiqueta dice lo que hace y una flecha desnuda no, y en PICK_STOP el
         // modal expandido la tapaba de todos modos. Se aplica a los tres a la vez para que el
@@ -504,9 +537,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         boolean showNavButton = step != TripFlowViewModel.Step.CONFIRM_PRICE
                 && step != TripFlowViewModel.Step.PICK_STOP
                 && step != TripFlowViewModel.Step.SEARCHING;
-        // En CONFIRM_PRICE el mapa queda congelado (abajo), así que no hay nada que recentrar; en
-        // SEARCHING pasaba ya lo mismo. En PICK_STOP sí se conserva: ahí arrastrar el mapa es el
-        // mecanismo para colocar el pin, y volver a la ubicación propia es una ayuda real.
+        // En CONFIRM_PRICE el mapa queda congelado (abajo), así que no hay nada que recentrar. En
+        // PICK_STOP sí se conserva: ahí arrastrar el mapa es el mecanismo para colocar el pin, y
+        // volver a la ubicación propia es una ayuda real. En SEARCHING el mapa vuelve a ser libre,
+        // pero el sitio al que se quiere volver desde ahí es la ruta, no la ubicación propia — de
+        // eso se encarga btn_frame_route, que ocupa esa esquina sobre el modal.
         boolean showMyLocation = step != TripFlowViewModel.Step.SEARCHING
                 && step != TripFlowViewModel.Step.CONFIRM_PRICE;
         setNavButtonVisible(root, showNavButton, idle);
@@ -517,16 +552,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (getActivity() instanceof HomeActivity) {
             ((HomeActivity) requireActivity()).setDrawerEnabled(idle);
         }
-        // Congelado también al confirmar la tarifa: sin controles de mapa en ese paso, dejar los
+        // Congelado solo al confirmar la tarifa: sin controles de mapa en ese paso, dejar los
         // gestos activos permitiría alejarse de la ruta sin nada que la devuelva al encuadre
-        // (MapPresenter solo reencuadra al dibujarla o al cambiar el padding).
-        mapPresenter.setGesturesEnabled(step != TripFlowViewModel.Step.SEARCHING
-                && step != TripFlowViewModel.Step.CONFIRM_PRICE);
+        // (MapPresenter solo reencuadra al dibujarla o al cambiar el padding). En SEARCHING sí se
+        // mueve: la espera de la subasta dura hasta 180 s y mirar alrededor —qué unidades hay
+        // cerca, por dónde queda la ruta— es justo lo que se hace en ese rato. El encuadre no se
+        // pierde porque btn_frame_route lo devuelve.
+        mapPresenter.setGesturesEnabled(step != TripFlowViewModel.Step.CONFIRM_PRICE);
 
-        // Las unidades cercanas acompañan a todo el armado del viaje —inicio, elegir origen o
-        // parada, confirmar tarifa— y se apagan en SEARCHING, tal como pide el contrato: desde ahí
-        // manda el matching del servidor y el radar dice lo que hay que decir.
-        nearbyDriversPresenter.setEnabled(step != TripFlowViewModel.Step.SEARCHING);
+        // Las unidades cercanas acompañan todo el flujo del pasajero, la subasta incluida: es
+        // mientras espera ofertas cuando más quiere ver qué hay a su alrededor.
         refreshNearbyAnchor();
 
         if (step != TripFlowViewModel.Step.SEARCHING) {
@@ -682,10 +717,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         confirmPricePanel.refreshAfterStopChange();
     }
 
-    /** Destino elegido (buscador, dirección guardada o pin en el mapa): arranca la negociación. */
+    /** Destino elegido en el buscador o con el pin en el mapa: no tiene nombre que enseñar. */
     private void startTripFlow(String destinationText, double lat, double lng) {
+        startTripFlow(destinationText, null, lat, lng);
+    }
+
+    /**
+     * Destino elegido: arranca la negociación.
+     *
+     * @param destinationLabel nombre de la dirección guardada de la que salió ("Casa", "Trabajo"),
+     *                         o null si vino del buscador o del pin. Solo se enseña; a la API sigue
+     *                         viajando {@code destinationText}.
+     */
+    private void startTripFlow(String destinationText, @Nullable String destinationLabel,
+                               double lat, double lng) {
         viewModel.startDestination(originLocation, getString(R.string.home_origin_placeholder),
-                new LatLng(lat, lng), destinationText);
+                new LatLng(lat, lng), destinationText, destinationLabel);
         viewModel.goTo(TripFlowViewModel.Step.CONFIRM_PRICE);
     }
 
@@ -706,12 +753,21 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_INITIALS,
                 SearchingPanel.initialsFor(ride.getDriverName()));
         intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_NAME, ride.getDriverName());
-        intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_DETAILS, SearchingPanel.joinNonNull(" ",
-                ride.getVehicleBrand(), ride.getVehicleModel(), ride.getVehicleColor()));
+        if (ride.getDriverRating() != null) {
+            intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_RATING, ride.getDriverRating());
+        }
+        // Marca, modelo y color con la placa detrás, exactamente como los compone la tarjeta de
+        // oferta (SearchingPanel.buildDriverCard). La placa es lo único de esa línea que sirve para
+        // identificar el coche entre otros dos iguales, que es justo lo que toca hacer ahora.
+        String vehicle = SearchingPanel.joinNonNull(" ",
+                ride.getVehicleBrand(), ride.getVehicleModel(), ride.getVehicleColor());
+        intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_DETAILS,
+                SearchingPanel.joinNonNull(" · ", vehicle, ride.getVehiclePlate()));
         intent.putExtra(ActiveTripActivity.EXTRA_PRICE,
                 ride.getAgreedFare() != null ? ride.getAgreedFare().floatValue() : 0f);
         intent.putExtra(ActiveTripActivity.EXTRA_ORIGIN, viewModel.getOriginText());
         intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION, viewModel.getDestinationText());
+        intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION_LABEL, viewModel.getDestinationLabel());
         LatLng origin = viewModel.getOrigin();
         LatLng destination = viewModel.getDestination();
         intent.putExtra(ActiveTripActivity.EXTRA_ORIGIN_LAT, origin != null ? origin.latitude : 0);
@@ -720,6 +776,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 destination != null ? destination.latitude : 0);
         intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION_LNG,
                 destination != null ? destination.longitude : 0);
+        // El trazo por calles del viaje ya cerrado: el servidor lo copió de la cotización al
+        // viaje justo para que siga disponible cuando aquella venza. Si viene null, la pantalla de
+        // viaje activo cae a la guía recta.
+        intent.putExtra(ActiveTripActivity.EXTRA_POLYLINE, ride.getPolyline());
         // La parada no viaja en GET /rides/{id}: sin pasarla aquí, la ruta que el pasajero ve
         // durante el viaje saltaría del origen al destino ignorando su propia parada.
         Waypoint stop = viewModel.getStop();
@@ -1225,6 +1285,21 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         // "center" se aplica sobre el rectángulo del padre ya recortado por los márgenes.
         centerInViewport(pickLocationPin, topPaddingPx, sheetHeightPx);
         centerInViewport(pickStopPin, topPaddingPx, sheetHeightPx);
+
+        // El botón de ruta se apoya en el borde superior del modal con el mismo aire que los
+        // flotantes de arriba guardan con la status bar. Se mide contra el corte del modal y no
+        // contra su posición en vivo: si la subasta desborda y el pasajero lo sube, el botón se
+        // queda donde está y el modal le pasa por encima (ver su elevación en fragment_home.xml).
+        setBottomMargin(frameRouteButton, sheetHeightPx + Math.round(
+                FLOATING_BUTTON_MARGIN_DP * getResources().getDisplayMetrics().density));
+    }
+
+    private void setBottomMargin(View view, int bottomMarginPx) {
+        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+        if (params.bottomMargin != bottomMarginPx) {
+            params.bottomMargin = bottomMarginPx;
+            view.setLayoutParams(params);
+        }
     }
 
     private void centerInViewport(View overlay, int topPaddingPx, int bottomPaddingPx) {
@@ -1463,7 +1538,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             ((TextView) row.findViewById(R.id.text_address_label)).setText(address.getLabel());
             ((TextView) row.findViewById(R.id.text_address_line)).setText(address.getAddress());
 
-            row.setOnClickListener(v -> startTripFlow(address.getAddress(), address.getLat(), address.getLng()));
+            // Con el nombre: la tarjeta del viaje enseña "Casa" y debajo la dirección, para que el
+            // pasajero reconozca de un vistazo cuál de sus direcciones eligió.
+            row.setOnClickListener(v -> startTripFlow(address.getAddress(), address.getLabel(),
+                    address.getLat(), address.getLng()));
             container.addView(row);
 
             if (i < addresses.size() - 1) {
@@ -1564,11 +1642,18 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         mapPresenter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
         nearbyDriversPresenter.attach(googleMap);
         createRadarCircles();
-        mapPresenter.setGesturesEnabled(viewModel.getStep() != TripFlowViewModel.Step.SEARCHING);
+        mapPresenter.setGesturesEnabled(viewModel.getStep() != TripFlowViewModel.Step.CONFIRM_PRICE);
         // Volver a este paso con el mapa recién listo (rotación a mitad del flujo): la ruta la
-        // dibuja el panel al mostrarse, pero el mapa aún no existía cuando eso pasó.
+        // dibuja el panel al mostrarse, pero el mapa aún no existía cuando eso pasó. La cotización
+        // ya está en el ViewModel salvo que la rotación cayera justo mientras viajaba, así que casi
+        // siempre se recupera el trazo real y no la guía recta.
         if (viewModel.getStep() != TripFlowViewModel.Step.IDLE) {
-            mapPresenter.showRoute(viewModel.getRoutePoints());
+            Quote quote = viewModel.getQuote();
+            if (quote != null) {
+                mapPresenter.showRoute(viewModel.getRoutePoints(), quote.getPolyline());
+            } else {
+                mapPresenter.showRoutePending(viewModel.getRoutePoints());
+            }
         }
 
         if (hasLocationPermission()) {

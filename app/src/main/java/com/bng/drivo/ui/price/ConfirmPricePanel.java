@@ -1,6 +1,7 @@
 package com.bng.drivo.ui.price;
 
 import android.content.Context;
+import android.graphics.Typeface;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -62,6 +63,7 @@ public class ConfirmPricePanel {
 
     private final TextView textOrigin;
     private final TextView textDestination;
+    private final TextView textDestinationAddress;
     private final TextView textAddStop;
     private final View btnRemoveStop;
     private final TextView textPriceAmount;
@@ -87,6 +89,7 @@ public class ConfirmPricePanel {
 
         textOrigin = routeCard.findViewById(R.id.text_origin);
         textDestination = routeCard.findViewById(R.id.text_destination);
+        textDestinationAddress = routeCard.findViewById(R.id.text_destination_address);
         textAddStop = routeCard.findViewById(R.id.text_add_stop);
         btnRemoveStop = routeCard.findViewById(R.id.btn_remove_stop);
         textPriceAmount = panel.findViewById(R.id.text_price_amount);
@@ -118,10 +121,8 @@ public class ConfirmPricePanel {
         requestingRide = false;
         btnCancelTrip.setEnabled(true);
         LoadingButtonHelper.setLoading(btnRequestTrip, false);
-        textOrigin.setText(viewModel.getOriginText());
-        textDestination.setText(viewModel.getDestinationText());
-        bindStopRow();
-        mapPresenter.showRoute(viewModel.getRoutePoints());
+        bindRouteSummary();
+        mapPresenter.showRoutePending(viewModel.getRoutePoints());
         loadQuote();
     }
 
@@ -140,15 +141,57 @@ public class ConfirmPricePanel {
      */
     public void refreshAfterStopChange() {
         bindStopRow();
-        mapPresenter.showRoute(viewModel.getRoutePoints());
+        // Sin el trazo de la cotización anterior: describía la ruta sin esta parada, y pintarlo
+        // ahora sería enseñar un recorrido que ya no es el del viaje. Lo repone bindQuote().
+        mapPresenter.showRoutePending(viewModel.getRoutePoints());
         loadQuote();
     }
 
     private void removeStop() {
         viewModel.setStop(null);
         bindStopRow();
-        mapPresenter.showRoute(viewModel.getRoutePoints());
+        // Mismo motivo que en refreshAfterStopChange(): el trazo vigente todavía pasa por la
+        // parada que se acaba de quitar.
+        mapPresenter.showRoutePending(viewModel.getRoutePoints());
         loadQuote();
+    }
+
+    /**
+     * El destino en la tarjeta de ruta.
+     *
+     * <p>Cuando salió de una dirección guardada manda su nombre —"Casa", "Trabajo"— y la dirección
+     * pasa a una segunda línea debajo. El nombre solo no basta: dice cuál de sus direcciones eligió
+     * el pasajero, pero no a dónde va, y en esta tarjeta hace falta lo uno y lo otro. Elegido de
+     * cualquier otra forma no hay nombre que enseñar y la fila se queda de una línea, como estaba.
+     */
+    /**
+     * Vuelca en la tarjeta de ruta lo que el ViewModel sabe del viaje: origen, parada y destino.
+     *
+     * <p>Es público porque la tarjeta le sobrevive al panel: sigue en pantalla durante la subasta,
+     * cuando este panel ya se escondió. Sin que el host la repueble, volver a SEARCHING con la
+     * vista recién creada —una rotación a media espera— dejaba la tarjeta con sus TextView vacíos:
+     * un "Viaje solicitado" sin decir qué viaje.
+     */
+    public void bindRouteSummary() {
+        textOrigin.setText(viewModel.getOriginText());
+        bindDestination();
+        bindStopRow();
+    }
+
+    private void bindDestination() {
+        String label = viewModel.getDestinationLabel();
+        if (label == null || label.trim().isEmpty()) {
+            textDestination.setText(viewModel.getDestinationText());
+            textDestination.setTypeface(null, Typeface.NORMAL);
+            textDestinationAddress.setVisibility(View.GONE);
+            return;
+        }
+        textDestination.setText(label);
+        // Negrita como en item_saved_address: la tarjeta repite el mismo par nombre/dirección de
+        // la fila que el pasajero acaba de tocar, y reconocerlo es justo lo que se busca.
+        textDestination.setTypeface(null, Typeface.BOLD);
+        textDestinationAddress.setText(viewModel.getDestinationText());
+        textDestinationAddress.setVisibility(View.VISIBLE);
     }
 
     private void bindStopRow() {
@@ -188,6 +231,9 @@ public class ConfirmPricePanel {
 
     private void bindQuote(Quote quote) {
         viewModel.setQuote(quote);
+        // El trazo por calles viaja en la cotización, así que este es el primer momento en que se
+        // puede pintar. Si el servidor no lo mandó, showRoute cae a la guía recta.
+        mapPresenter.showRoute(viewModel.getRoutePoints(), quote.getPolyline());
 
         float min = Math.round(quote.getFloor());
         float max = Math.round(quote.getCeiling());

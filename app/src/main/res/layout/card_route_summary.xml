@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Tarjeta flotante de origen / parada / destino, sobre el mapa del home. Se muestra en los
      pasos CONFIRM_PRICE y SEARCHING, y es la que da contexto de "a dónde vas" mientras el modal
-     de abajo habla de dinero. La fila de la parada solo acepta toques en CONFIRM_PRICE: con el
-     viaje ya creado la ruta está cerrada (HomeFragment.applyStep la deshabilita).
+     de abajo habla de dinero.
+
+     La ruta solo se edita en CONFIRM_PRICE. En SEARCHING el viaje ya está creado y la fila de la
+     parada deja de ofrecerse: si no hay parada desaparece entera —ofrecer "+ Añadir parada" ahí
+     invita a algo que ya no se puede hacer, y por eso se pide antes— y si la hay se queda como
+     texto, sin la X de quitarla. Lo decide HomeFragment.applyStep.
 
      Su posición y sus márgenes los pone fragment_home.xml en la etiqueta <include>. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -19,6 +23,21 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
+
+        <!-- Solo en SEARCHING (ver HomeFragment.applyStep). En CONFIRM_PRICE sobra: ahí la
+             tarjeta acompaña a un modal que todavía pregunta cuánto ofreces, y titularla como si
+             el viaje ya estuviera pedido se adelantaría al paso. -->
+        <TextView
+            android:id="@+id/text_route_card_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="10dp"
+            android:text="@string/route_card_requested_title"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:visibility="visible" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -81,30 +100,57 @@
                 app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
 
+        <!-- El punto se alinea arriba, no al centro: cuando el destino es una dirección guardada
+             la fila crece a dos líneas (nombre + dirección) y un punto centrado quedaría a media
+             altura del bloque, desalineado respecto al de origen. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingTop="8dp">
 
             <View
                 android:layout_width="8dp"
                 android:layout_height="8dp"
+                android:layout_marginTop="5dp"
                 android:layout_marginEnd="10dp"
                 android:background="@drawable/bg_dot"
                 android:backgroundTint="@color/drivo_secondary" />
 
-            <TextView
-                android:id="@+id/text_destination"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="13sp"
-                tools:text="Parque Los Fuertes" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/text_destination"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="13sp"
+                    tools:text="Casa" />
+
+                <!-- Solo cuando el destino salió de una dirección guardada: entonces la línea de
+                     arriba lleva el nombre que le puso el usuario ("Casa", "Trabajo"), que por sí
+                     solo no dice a dónde se va, y esta pone la dirección debajo. Elegido de
+                     cualquier otra forma, esta línea no existe y arriba va la dirección tal cual.
+                     Lo decide ConfirmPricePanel.bindDestination. -->
+                <TextView
+                    android:id="@+id/text_destination_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:paddingTop="1dp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    tools:text="Sur 17 851, Centro, 94300 Orizaba, Ver."
+                    tools:visibility="visible" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

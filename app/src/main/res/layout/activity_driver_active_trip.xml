@@ -7,6 +7,7 @@
      expandirlos. Ver DriverActiveTripActivity. -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -55,6 +56,62 @@
         android:textColor="@color/drivo_inverse_on_surface"
         android:textSize="13sp"
         android:textStyle="bold" />
+
+    <!-- Los mandos de cámara, en una sola columna para que baste con mover el contenedor cuando
+         el modal cambia de alto (lo hace DriverActiveTripActivity.updateSheetStops; desde aquí no
+         se puede saber cuánto mide en cada fase).
+
+         Van de arriba abajo por frecuencia de uso, con el más habitual pegado al pulgar. Los dos
+         de arriba solo existen con el viaje en curso: antes de arrancar no hay recorrido que
+         encuadrar ni nada que navegar. -->
+    <LinearLayout
+        android:id="@+id/container_map_controls"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:orientation="vertical">
+
+        <ImageButton
+            android:id="@+id/btn_frame_route"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_dot_outlined"
+            android:contentDescription="@string/driver_trip_frame_route"
+            android:elevation="4dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_route"
+            android:visibility="gone"
+            app:tint="?attr/colorOnSurface"
+            tools:visibility="visible" />
+
+        <ImageButton
+            android:id="@+id/btn_navigation_view"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_dot_outlined"
+            android:contentDescription="@string/driver_trip_navigation_view"
+            android:elevation="4dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_navigation"
+            android:visibility="gone"
+            app:tint="?attr/colorOnSurface"
+            tools:visibility="visible" />
+
+        <ImageButton
+            android:id="@+id/btn_follow_driver"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/bg_dot_outlined"
+            android:contentDescription="@string/driver_trip_follow_me"
+            android:elevation="4dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_my_location"
+            app:tint="?attr/colorOnSurface" />
+    </LinearLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/sheet_container"

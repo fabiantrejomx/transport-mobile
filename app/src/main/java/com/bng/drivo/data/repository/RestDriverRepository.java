@@ -15,7 +15,7 @@ import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.remote.TransportApiService;
 import com.bng.drivo.data.remote.dto.ApplicationStatusDto;
 import com.bng.drivo.data.remote.dto.DriverApplicationRequest;
-import com.bng.drivo.data.remote.dto.DriverArrivedRequest;
+import com.bng.drivo.data.remote.dto.DriverAtLocationRequest;
 import com.bng.drivo.data.remote.dto.DriverDocumentRequest;
 import com.bng.drivo.data.remote.dto.DriverLocationRequest;
 import com.bng.drivo.data.remote.dto.DriverOfferRequest;
@@ -117,7 +117,7 @@ public class RestDriverRepository implements DriverRepository {
 
     @Override
     public void markArrived(String rideId, double lat, double lng, ApiCallback<Ride> callback) {
-        ApiCallDispatcher.enqueue(service.markDriverArrived(rideId, new DriverArrivedRequest(lat, lng)),
+        ApiCallDispatcher.enqueue(service.markDriverArrived(rideId, new DriverAtLocationRequest(lat, lng)),
                 mapRide(callback));
     }
 
@@ -127,9 +127,11 @@ public class RestDriverRepository implements DriverRepository {
     }
 
     @Override
-    public void completeRide(String rideId, ApiCallback<Ride> callback) {
+    public void completeRide(String rideId, double lat, double lng, ApiCallback<Ride> callback) {
         String idempotencyKey = UUID.randomUUID().toString();
-        ApiCallDispatcher.enqueue(service.completeRide(rideId, idempotencyKey), mapRide(callback));
+        ApiCallDispatcher.enqueue(
+                service.completeRide(rideId, idempotencyKey, new DriverAtLocationRequest(lat, lng)),
+                mapRide(callback));
     }
 
     @Override
@@ -196,7 +198,8 @@ public class RestDriverRepository implements DriverRepository {
             @Override
             public void onSuccess(ApplicationStatusDto dto) {
                 callback.onSuccess(new DriverApplication(dto.status, dto.modality, dto.required_documents,
-                        dto.missing_documents, dto.rejection_reason));
+                        dto.missing_documents, dto.rejection_reason, dto.is_online,
+                        dto.can_go_online));
             }
 
             @Override
@@ -217,7 +220,7 @@ public class RestDriverRepository implements DriverRepository {
                 origin != null ? origin.text : null, destination != null ? destination.text : null,
                 origin != null ? origin.lat : null, origin != null ? origin.lng : null,
                 destination != null ? destination.lat : null, destination != null ? destination.lng : null,
-                dto.requested_at, dto.driver_arrived_at, dto.commission);
+                dto.polyline, dto.requested_at, dto.driver_arrived_at, dto.commission);
     }
 
     private ApiCallback<RideDto> mapRide(ApiCallback<Ride> callback) {
@@ -251,6 +254,6 @@ public class RestDriverRepository implements DriverRepository {
                 dto.pickup != null ? dto.pickup.lat : null, dto.pickup != null ? dto.pickup.lng : null,
                 dto.dropoff != null ? dto.dropoff.lat : null, dto.dropoff != null ? dto.dropoff.lng : null,
                 stops, dto.pickup_distance_m, dto.pickup_eta_min, dto.trip_distance_m,
-                dto.counter_increments, dto.expires_at);
+                dto.counter_increments, dto.polyline, dto.expires_at);
     }
 }

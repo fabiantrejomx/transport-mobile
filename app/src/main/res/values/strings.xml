@@ -87,6 +87,10 @@
     <string name="nav_configuraciones">Configuración</string>
     <string name="nav_menu_description">Abrir menú</string>
     <string name="home_my_location_description">Ir a mi ubicación</string>
+    <string name="home_frame_route_description">Ver la ruta completa</string>
+    <!-- Cabecera de card_route_summary en el paso SEARCHING: dice en qué punto del flujo está
+         la ruta que hay debajo, ya no editable. -->
+    <string name="route_card_requested_title">Viaje solicitado</string>
     <string name="nav_section_coming_soon">Próximamente</string>
 
     <!-- Etiquetas de dirección guardada (AddressLabel) -->
@@ -213,7 +217,7 @@
 
     <!-- Confirma tu viaje -->
     <string name="confirm_price_title">Confirma tu viaje</string>
-    <string name="confirm_price_label">Tarifa Sugerida LibreGO</string>
+    <string name="confirm_price_label">Tarifa Sugerida</string>
     <string name="confirm_price_payment_cash">💵 Pago en Efectivo</string>
     <string name="confirm_price_payment_coming_soon">Próximamente: otros métodos de pago</string>
     <string name="confirm_price_request_trip">Solicitar Viaje</string>
@@ -233,7 +237,6 @@
     <string name="searching_reject_driver">Descartar</string>
     <string name="searching_accept_driver">Elegir</string>
     <string name="searching_counter">Conductor disponible (%1$d/%2$d)</string>
-    <string name="searching_eta_min">%1$d min</string>
     <string name="searching_accept_error">No se pudo confirmar con este conductor. Intenta de nuevo.</string>
     <string name="searching_reject_error">No se pudo rechazar la oferta. Intenta de nuevo.</string>
     <string name="searching_offer_received">Un conductor te hizo una oferta</string>
@@ -260,6 +263,12 @@
     <string name="active_trip_cancelled_by_driver_toast">El conductor canceló el viaje</string>
 
     <!-- Fases previas al viaje activo: conductor en camino / esperando -->
+    <!-- La tilde no es adorno: el ETA sale de la línea recta por un factor de calle, no de una
+         consulta de tráfico. Es una referencia, y el texto no debe sonar a compromiso de llegada. -->
+    <string name="eta_approx_min">~%1$d min</string>
+    <string name="active_trip_eta_label">Llegada estimada</string>
+    <string name="active_trip_locate_driver">Localizar al conductor</string>
+    <string name="active_trip_status_en_route_eta">Llega en ~%1$d min</string>
     <string name="active_trip_status_en_route_title">Tu conductor va en camino</string>
     <string name="active_trip_status_en_route_subtitle">Sigue su ubicación en el mapa</string>
     <string name="active_trip_status_waiting_title">Tu conductor te está esperando</string>
@@ -353,10 +362,14 @@
     <string name="incoming_request_pickup_label">Mi ubicación actual</string>
     <string name="incoming_request_counter_label">Tu Contraoferta:</string>
     <string name="incoming_request_ignore_button">Ignorar</string>
-    <!-- "Aceptar" mentía: en este punto el conductor se postula y el viaje no es suyo todavía —
-         lo decide el pasajero entre todos los que ofertaron. Creer lo contrario hace que cada vez
-         que no lo eligen lo viva como que se lo quitaron. -->
-    <string name="incoming_request_accept_button_format">Ofertar por %1$s</string>
+    <!-- Sin el importe: ya lo dice, grande, la cabecera de la tarjeta, y repetirlo en el botón
+         hacía que cambiara de ancho con cada contraoferta.
+
+         Ojo con lo que promete: el conductor NO gana el viaje al pulsar aquí, solo entra en la
+         subasta junto con los demás y el pasajero decide (ver CLAUDE.md). Si aceptar acaba
+         leyéndose como "el viaje es mío", el sitio donde arreglarlo es el banner de oferta
+         enviada que sigue a este paso, que es el que dice en qué quedó. -->
+    <string name="incoming_request_accept_button">Aceptar</string>
     <string name="incoming_request_counter_button_format">+ $%1$.0f</string>
     <!-- Único formato de calificación de la app: la estrella dice que el número son estrellas, y
          un decimal porque lo que manda el backend es un promedio (4.9), no las estrellas de un
@@ -376,6 +389,11 @@
     <string name="driver_trip_waze_button">Navegar con Waze</string>
     <string name="driver_trip_waze_unavailable">No se pudo abrir Waze.</string>
     <string name="driver_trip_fare_label">Tarifa Acordada</string>
+    <!-- Aquí sí es "mi ubicación": el conductor se busca a sí mismo, así que lleva la cruz de
+         puntería y no el coche que usa el pasajero para buscarlo a él. -->
+    <string name="driver_trip_follow_me">Centrar en mi ubicación</string>
+    <string name="driver_trip_navigation_view">Vista de navegación</string>
+    <string name="driver_trip_frame_route">Ver la ruta completa</string>
     <string name="driver_trip_eta_stat_label">Llegada en</string>
     <!-- Ya no es la etiqueta del tile secundario (ver panel_driver_trip.xml) — el estado "En
          curso" se pinta en el badge junto al nombre del pasajero. El tile queda listo para
@@ -424,7 +442,7 @@
     <string name="driver_settings_account_status_pending_review">En revisión</string>
     <string name="driver_settings_account_status_rejected">Solicitud rechazada</string>
     <string name="driver_settings_account_status_suspended">Cuenta suspendida</string>
-    <string name="driver_settings_wallet_message">Para recargar tu saldo, transfiere por SPEI a la cuenta de LibreGO y envía tu comprobante. Durante el piloto se acredita a mano.</string>
+    <string name="driver_settings_wallet_message">Para recargar tu saldo, transfiere por SPEI a la cuenta de Drivo y envía tu comprobante. Durante el piloto se acredita a mano.</string>
     <string name="driver_settings_load_error">No se pudo cargar tu información.</string>
 
     <!-- Centro de Seguridad del conductor (C8) -->
@@ -437,6 +455,10 @@
     <!-- Home del conductor sobre el modal (mismo patrón que el pasajero) -->
     <string name="driver_home_greeting_default">¡Hola!</string>
     <string name="driver_home_greeting">¡Hola, %1$s!</string>
+    <!-- Sustituye al subtítulo normal cuando el servidor dice que no podría conectarse. El
+         botón se queda activo a propósito: si le acaban de acreditar una recarga, tocarlo
+         funciona, y desactivarlo lo dejaría atrapado hasta reiniciar la app. -->
+    <string name="driver_home_offline_no_balance_subtitle">Tu saldo está por debajo del mínimo. Recarga para volver a recibir viajes.</string>
     <string name="driver_home_offline_subtitle">Conéctate para empezar a recibir solicitudes de viaje cerca de ti.</string>
     <string name="driver_home_online_subtitle">Estamos buscando viajes cerca de ti. Deja la app abierta para no perder ninguna solicitud.</string>
     <string name="driver_home_stat_balance_label">Saldo</string>

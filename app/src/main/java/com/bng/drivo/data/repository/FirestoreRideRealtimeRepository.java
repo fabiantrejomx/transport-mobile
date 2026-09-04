@@ -104,8 +104,10 @@ public class FirestoreRideRealtimeRepository implements RideRealtimeRepository {
                     }
                     Double lat = snapshot.getDouble("lat");
                     Double lng = snapshot.getDouble("lng");
+                    Long etaMin = snapshot.getLong("eta_min");
                     if (lat != null && lng != null) {
-                        listener.onDriverLocationChanged(lat, lng);
+                        listener.onDriverLocationChanged(lat, lng,
+                                etaMin != null ? etaMin.intValue() : null);
                     }
                 });
         return registration::remove;

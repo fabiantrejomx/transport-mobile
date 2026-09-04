@@ -25,6 +25,8 @@ import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.map.MapStyler;
+import com.bng.drivo.ui.map.PolylineDecoder;
+import com.bng.drivo.util.NavHeaderRating;
 import com.bng.drivo.ui.map.MarkerIconFactory;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -34,6 +36,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Dash;
@@ -43,11 +46,13 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PatternItem;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -79,10 +84,22 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     public static final String EXTRA_RIDE_ID = "extra_ride_id";
     public static final String EXTRA_DRIVER_INITIALS = "extra_driver_initials";
     public static final String EXTRA_DRIVER_NAME = "extra_driver_name";
+    /**
+     * Calificación del conductor elegido. Es el mismo número que el pasajero vio en la tarjeta con
+     * la que lo eligió, y aquí sirve para reconocerla: sin ella, la pantalla del viaje enseña menos
+     * de su conductor que la lista de la que salió. Ausente si el servidor no la mandó.
+     */
+    public static final String EXTRA_DRIVER_RATING = "extra_driver_rating";
     public static final String EXTRA_DRIVER_DETAILS = "extra_driver_details";
     public static final String EXTRA_PRICE = "extra_price";
     public static final String EXTRA_ORIGIN = "extra_origin";
     public static final String EXTRA_DESTINATION = "extra_destination";
+    /**
+     * Nombre de la dirección guardada de la que salió el destino ("Casa", "Trabajo"), o null si el
+     * pasajero lo eligió en el buscador o con el pin. Es cosa suya y no sale de su app: el conductor
+     * ve la dirección, nunca cómo la tiene guardada.
+     */
+    public static final String EXTRA_DESTINATION_LABEL = "extra_destination_label";
     public static final String EXTRA_ORIGIN_LAT = "extra_origin_lat";
     public static final String EXTRA_ORIGIN_LNG = "extra_origin_lng";
     public static final String EXTRA_DESTINATION_LAT = "extra_destination_lat";
@@ -90,8 +107,16 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     /** Parada intermedia opcional: (0,0) significa "sin parada" (el flujo admite una sola). */
     public static final String EXTRA_STOP_LAT = "extra_stop_lat";
     public static final String EXTRA_STOP_LNG = "extra_stop_lng";
+    /**
+     * Trazo de la ruta por calles, codificado, tal como lo devolvió la API al aceptar la oferta.
+     * Viaja en el Intent y no se vuelve a pedir: son un par de KB y el viaje ya está cerrado, así
+     * que el trazo no puede cambiar. Ausente —o ilegible— se cae a la guía recta.
+     */
+    public static final String EXTRA_POLYLINE = "extra_polyline";
 
     private static final LatLng DEFAULT_POSITION = new LatLng(19.4326, -99.1332);
+    /** Lo bastante cerca para ver en qué calle va el coche, sin perder las de alrededor. */
+    private static final float LOCATE_ZOOM = 16f;
     private static final long DRIVER_MARKER_ANIMATION_MS = 1200L;
 
     private final RideRealtimeRepository realtimeRepository = new FirestoreRideRealtimeRepository();
@@ -115,8 +140,28 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
 
     private Marker driverMarker;
     private LatLng driverPosition;
+    /**
+     * Último ETA publicado por el servidor, en minutos. Se guarda porque el número llega por el
+     * canal en vivo y las fases cambian por otro lado: sin esto, entrar a IN_PROGRESS dejaría el
+     * tile vacío hasta la siguiente posición del conductor.
+     */
+    @Nullable
+    private Integer etaMin;
+    private View groupTripEta;
+    private TextView textTripEta;
+    private View btnLocateDriver;
+    /**
+     * Si la cámara va pegada al coche. Empieza encendido —el pasajero abre esta pantalla para ver
+     * por dónde viene— y lo apaga él mismo al arrastrar el mapa. El botón lo reengancha.
+     */
+    private boolean followingDriver = true;
+    private View bottomStack;
+    /** Último alto aplicado como padding del mapa; evita repetir el trabajo en cada pase. */
+    private int lastMapBottomPaddingPx = -1;
     private ValueAnimator driverAnimator;
     private Polyline routePolyline;
+    /** Recorrido real por calles ya decodificado. Vacío si el servidor no mandó trazo. */
+    private List<LatLng> routePoints = Collections.emptyList();
 
     private View groupBeforeTrip;
     private View groupTripInProgress;
@@ -146,6 +191,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         originLatLng = readLatLng(EXTRA_ORIGIN_LAT, EXTRA_ORIGIN_LNG);
         destinationLatLng = readLatLng(EXTRA_DESTINATION_LAT, EXTRA_DESTINATION_LNG);
         stopLatLng = readOptionalLatLng(EXTRA_STOP_LAT, EXTRA_STOP_LNG);
+        routePoints = PolylineDecoder.decode(getIntent().getStringExtra(EXTRA_POLYLINE));
 
         if (rideId == null) {
             finish();
@@ -153,12 +199,17 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         }
 
         ((TextView) findViewById(R.id.text_driver_avatar)).setText(driverInitials);
-        ((TextView) findViewById(R.id.text_driver_name)).setText(driverName);
+        bindDriverName();
         ((TextView) findViewById(R.id.text_driver_details)).setText(driverDetails);
         ((TextView) findViewById(R.id.text_trip_price)).setText(String.format(Locale.getDefault(), "$%.2f", price));
-        ((TextView) findViewById(R.id.text_trip_destination))
-                .setText(getIntent().getStringExtra(EXTRA_DESTINATION));
+        bindDestination();
 
+        bottomStack = findViewById(R.id.container_trip_bottom);
+        bottomStack.getViewTreeObserver().addOnGlobalLayoutListener(this::applyMapPadding);
+        btnLocateDriver = findViewById(R.id.btn_locate_driver);
+        btnLocateDriver.setOnClickListener(v -> locateDriver());
+        groupTripEta = findViewById(R.id.group_trip_eta);
+        textTripEta = findViewById(R.id.text_trip_eta);
         groupBeforeTrip = findViewById(R.id.group_before_trip);
         groupTripInProgress = findViewById(R.id.group_trip_in_progress);
         textStatusTitle = findViewById(R.id.text_trip_status_title);
@@ -187,6 +238,61 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
                 Toast.makeText(this, R.string.active_trip_message_coming_soon, Toast.LENGTH_SHORT).show());
         btnShare.setOnClickListener(v ->
                 Toast.makeText(this, R.string.active_trip_share_coming_soon, Toast.LENGTH_SHORT).show());
+    }
+
+    /**
+     * El destino del viaje, con el mismo criterio que la tarjeta de "Viaje solicitado": si salió de
+     * una dirección guardada manda su nombre y la dirección baja a una segunda línea. El nombre
+     * solo dice cuál de sus direcciones eligió, no a dónde va, y aquí el pasajero quiere lo uno y
+     * lo otro durante todo el viaje.
+     */
+    /**
+     * Nombre y calificación del conductor, compuestos igual que en la tarjeta de oferta con la que
+     * el pasajero lo eligió ({@code SearchingPanel.buildDriverCard}): "Juan P. · ★4.9", con el
+     * vehículo debajo. Repetir ahí la misma línea es lo que le permite reconocer, ya en el viaje,
+     * a cuál de los conductores que le ofertaron aceptó.
+     */
+    /**
+     * El conductor en la tarjeta: nombre en su línea y calificación montada sobre el avatar.
+     *
+     * <p>La calificación no va junto al nombre —donde estuvo primero— porque ahí compite con él y
+     * con el vehículo de debajo. Sobre el avatar es donde ya vive en el resto de la app
+     * (part_nav_avatar_rating.xml), con el mismo fondo y el mismo recorte.
+     */
+    private void bindDriverName() {
+        ((TextView) findViewById(R.id.text_driver_name)).setText(driverName);
+
+        TextView badge = findViewById(R.id.text_driver_rating);
+        double rating = getIntent().getDoubleExtra(EXTRA_DRIVER_RATING, 0);
+        if (rating <= 0) {
+            // Sin dato la pastilla desaparece entera, ni guion ni hueco — mismo criterio que
+            // NavHeaderRating: en una tarjeta que se repinta con cada fase, un adorno que unas
+            // veces es número y otras no, parpadea.
+            badge.setVisibility(View.GONE);
+            return;
+        }
+        // El texto lo compone NavHeaderRating y no este archivo: es la única forma de que la
+        // pastilla del viaje y la del cajón no se contradigan a la primera corrección de copy.
+        // Los viajes del conductor no viajan en el contrato, así que van null y se pinta el
+        // número, que es lo único que se puede afirmar.
+        badge.setText(NavHeaderRating.text(this, rating, null));
+        badge.setVisibility(View.VISIBLE);
+    }
+
+    private void bindDestination() {
+        TextView destination = findViewById(R.id.text_trip_destination);
+        TextView destinationAddress = findViewById(R.id.text_trip_destination_address);
+        String address = getIntent().getStringExtra(EXTRA_DESTINATION);
+        String label = getIntent().getStringExtra(EXTRA_DESTINATION_LABEL);
+
+        if (label == null || label.trim().isEmpty()) {
+            destination.setText(address);
+            destinationAddress.setVisibility(View.GONE);
+            return;
+        }
+        destination.setText(label);
+        destinationAddress.setText(address);
+        destinationAddress.setVisibility(View.VISIBLE);
     }
 
     private LatLng readLatLng(String latExtra, String lngExtra) {
@@ -232,8 +338,21 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
     public void onMapReady(GoogleMap map) {
         googleMap = map;
         MapStyler.apply(this, googleMap);
+        // El mapa puede llegar después del primer pase de medida, así que el padding se aplica
+        // también aquí: si solo se hiciera al medir, la primera cámara encuadraría contra la
+        // pantalla completa.
+        lastMapBottomPaddingPx = -1;
+        applyMapPadding();
         googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(
                 CameraPosition.fromLatLngZoom(originLatLng, 14f)));
+
+        // Solo el arrastre del pasajero suelta la cámara; los encuadres que hace la app llegan con
+        // otro motivo y no deben apagar el seguimiento.
+        googleMap.setOnCameraMoveStartedListener(reason -> {
+            if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
+                followingDriver = false;
+            }
+        });
 
         googleMap.addMarker(new MarkerOptions()
                 .position(originLatLng)
@@ -293,6 +412,8 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         groupTripInProgress.setVisibility(View.GONE);
         textStatusTitle.setText(titleRes);
         textStatusSubtitle.setText(subtitleRes);
+        // El subtítulo que se acaba de poner es el respaldo: si ya hay ETA, lo sustituye.
+        bindEta();
 
         btnCall.setVisibility(View.VISIBLE);
         btnMessage.setVisibility(View.VISIBLE);
@@ -340,6 +461,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         groupBeforeTrip.setVisibility(View.GONE);
         groupTripInProgress.setVisibility(View.VISIBLE);
         waitTimer.stop();
+        bindEta();
 
         // Ya van juntos en el coche: llamar y escribir dejan de tener sentido y solo queda
         // compartir el viaje con alguien de fuera.
@@ -378,14 +500,100 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         }
         addRouteMarker(destinationLatLng, R.color.drivo_secondary);
 
-        List<PatternItem> dashed = Arrays.asList(new Dash(20f), new Gap(12f));
-        routePolyline = googleMap.addPolyline(new PolylineOptions()
-                .addAll(points)
-                .width(8f)
-                .color(getColor(R.color.drivo_success))
-                .pattern(dashed));
+        if (routePoints.size() >= 2) {
+            routePolyline = googleMap.addPolyline(new PolylineOptions()
+                    .addAll(routePoints)
+                    .width(12f)
+                    .color(getColor(R.color.drivo_success))
+                    .jointType(JointType.ROUND)
+                    .startCap(new RoundCap())
+                    .endCap(new RoundCap()));
+        } else {
+            // Respaldo: el servidor no mandó trazo. Punteada a propósito, para no dar por camino
+            // real una línea que solo une los extremos.
+            List<PatternItem> dashed = Arrays.asList(new Dash(20f), new Gap(12f));
+            routePolyline = googleMap.addPolyline(new PolylineOptions()
+                    .addAll(points)
+                    .width(8f)
+                    .color(getColor(R.color.drivo_success))
+                    .pattern(dashed));
+        }
 
         frameForCurrentPhase();
+    }
+
+    /**
+     * Pone el tiempo que falta donde le toca según la fase: en el subtítulo mientras el conductor
+     * viene, y en su propio tile una vez a bordo.
+     *
+     * <p>Sin dato no se enseña nada —ni "--" ni un cero—: el ETA lo calcula el servidor y puede no
+     * venir, y un hueco es más honesto que un número inventado. En DRIVER_ARRIVED tampoco se
+     * enseña: el conductor ya está en el punto, ahí lo que corre es el cronómetro de cortesía.
+     */
+    private void bindEta() {
+        boolean inProgress = "IN_PROGRESS".equals(currentStatus);
+        groupTripEta.setVisibility(inProgress && etaMin != null ? View.VISIBLE : View.GONE);
+        if (inProgress) {
+            if (etaMin != null) {
+                textTripEta.setText(getString(R.string.eta_approx_min, etaMin));
+            }
+            return;
+        }
+        if ("MATCHED".equals(currentStatus) && etaMin != null) {
+            textStatusSubtitle.setText(getString(R.string.active_trip_status_en_route_eta, etaMin));
+        }
+    }
+
+    /**
+     * Le dice al mapa cuánto de él queda tapado por abajo.
+     *
+     * <p>El SDK encuadra y centra contra el rectángulo que le quede libre, no contra la vista
+     * entera, así que con esto todo lo demás —el encuadre inicial, el seguimiento, el botón de
+     * localizar— cae solo en su sitio. Sin ello, "centrar al conductor" lo centraba en la pantalla
+     * y la tarjeta se lo comía: el coche quedaba justo detrás de ella.
+     *
+     * <p>Se remide en cada pase porque la tarjeta cambia de alto con la fase: el cronómetro de
+     * cortesía la estira y el bloque de precio y llegada la cambia otra vez.
+     */
+    private void applyMapPadding() {
+        if (googleMap == null || bottomStack == null) {
+            return;
+        }
+        int heightPx = bottomStack.getHeight();
+        if (heightPx <= 0 || heightPx == lastMapBottomPaddingPx) {
+            return;
+        }
+        lastMapBottomPaddingPx = heightPx;
+        googleMap.setPadding(0, 0, 0, heightPx);
+
+        // El hueco visible acaba de cambiar de tamaño, así que lo que estuviera centrado ya no lo
+        // está. Se rehace la intención de cámara vigente en vez de dejarla a medias.
+        if (followingDriver && driverPosition != null) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLng(driverPosition));
+        } else if (driverPosition != null || routePolyline != null) {
+            frameForCurrentPhase();
+        }
+    }
+
+    /**
+     * Lleva la cámara al coche del conductor.
+     *
+     * <p>El mapa se puede arrastrar en las tres fases del viaje, y mirar alrededor —qué hay cerca
+     * del punto de encuentro, por dónde va la ruta— era hasta ahora un viaje de ida: el único
+     * reencuadre automático es el primero, cuando aparece el coche. Este botón es la vuelta.
+     *
+     * <p>Centra sobre el conductor y no sobre la ruta entera a propósito: lo que se pierde de vista
+     * al arrastrar, y lo que el pasajero quiere recuperar, es dónde está el auto.
+     *
+     * <p>Además vuelve a enganchar la cámara al coche: quien lo toca no quiere una foto del sitio
+     * donde está ahora, quiere volver a acompañarlo.
+     */
+    private void locateDriver() {
+        followingDriver = true;
+        if (googleMap == null || driverPosition == null) {
+            return;
+        }
+        googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(driverPosition, LOCATE_ZOOM));
     }
 
     private void addRouteMarker(LatLng position, int colorRes) {
@@ -395,11 +603,18 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
                 .anchor(0.5f, 0.5f));
     }
 
-    private void onDriverLocationChanged(double lat, double lng) {
+    private void onDriverLocationChanged(double lat, double lng, @Nullable Integer etaMin) {
+        this.etaMin = etaMin;
+        bindEta();
+        // El ETA se pinta aunque el mapa todavía no exista: es del modal, no del mapa, y el
+        // pasajero que abre la pantalla quiere el número antes que el coche.
         if (googleMap == null) {
             return;
         }
         LatLng newPosition = new LatLng(lat, lng);
+
+        // Solo tiene sentido ofrecerlo cuando hay algo que localizar.
+        btnLocateDriver.setVisibility(View.VISIBLE);
 
         if (driverMarker == null) {
             driverMarker = googleMap.addMarker(new MarkerOptions()
@@ -439,6 +654,12 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         });
         driverAnimator.start();
         driverPosition = newPosition;
+
+        // La cámara acompaña al coche desde que viene por el pasajero hasta que lo deja. Se mueve
+        // el centro y no el zoom: el acercamiento que el pasajero haya elegido es suyo.
+        if (followingDriver) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLng(newPosition));
+        }
     }
 
     private double bearingBetween(LatLng a, LatLng b) {
@@ -466,6 +687,10 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
                 bounds.include(stopLatLng);
             }
             bounds.include(destinationLatLng);
+            // La ruta real puede salirse del rectángulo origen-destino; sin esto quedaría cortada.
+            for (LatLng point : routePoints) {
+                bounds.include(point);
+            }
         }
         frameBounds(bounds.build());
     }

@@ -20,6 +20,13 @@ public class Ride {
     private final Double originLng;
     private final Double destinationLat;
     private final Double destinationLng;
+    /**
+     * Trazo de la ruta por calles (origen → paradas → destino) codificado con el algoritmo de
+     * polilíneas de Google. <b>Solo sirve para dibujar</b>: la distancia y la tarifa las sigue
+     * poniendo el servidor. Puede ser null —Google a veces omite el campo— y entonces el mapa cae
+     * a la guía recta; que falte el dibujo nunca invalida el viaje.
+     */
+    private final String polyline;
     private final String requestedAt;
     /**
      * Hora del servidor en la que el conductor marcó "llegué al punto" (ISO-8601), null antes de
@@ -34,7 +41,7 @@ public class Ride {
     public Ride(String id, String status, Double agreedFare, String driverName, Double driverRating,
                 String vehicleBrand, String vehicleModel, String vehicleColor, String vehiclePlate,
                 String originText, String destinationText, Double originLat, Double originLng,
-                Double destinationLat, Double destinationLng, String requestedAt,
+                Double destinationLat, Double destinationLng, String polyline, String requestedAt,
                 String driverArrivedAt, Double commission) {
         this.id = id;
         this.status = status;
@@ -51,6 +58,7 @@ public class Ride {
         this.originLng = originLng;
         this.destinationLat = destinationLat;
         this.destinationLng = destinationLng;
+        this.polyline = polyline;
         this.requestedAt = requestedAt;
         this.driverArrivedAt = driverArrivedAt;
         this.commission = commission;
@@ -114,6 +122,10 @@ public class Ride {
 
     public Double getDestinationLng() {
         return destinationLng;
+    }
+
+    public String getPolyline() {
+        return polyline;
     }
 
     public String getRequestedAt() {

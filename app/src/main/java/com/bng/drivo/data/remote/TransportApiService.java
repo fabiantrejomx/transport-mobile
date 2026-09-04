@@ -4,7 +4,7 @@ import com.bng.drivo.data.remote.dto.ApplicationStatusDto;
 import com.bng.drivo.data.remote.dto.CreateRideRequest;
 import com.bng.drivo.data.remote.dto.DeviceRegisterRequest;
 import com.bng.drivo.data.remote.dto.DriverApplicationRequest;
-import com.bng.drivo.data.remote.dto.DriverArrivedRequest;
+import com.bng.drivo.data.remote.dto.DriverAtLocationRequest;
 import com.bng.drivo.data.remote.dto.DriverDocumentRequest;
 import com.bng.drivo.data.remote.dto.DriverLocationRequest;
 import com.bng.drivo.data.remote.dto.DriverOfferRequest;
@@ -144,13 +144,14 @@ public interface TransportApiService {
                             @Body DriverOfferRequest body);
 
     @POST("/driver/rides/{id}/arrived")
-    Call<RideDto> markDriverArrived(@Path("id") String rideId, @Body DriverArrivedRequest body);
+    Call<RideDto> markDriverArrived(@Path("id") String rideId, @Body DriverAtLocationRequest body);
 
     @POST("/driver/rides/{id}/start")
     Call<RideDto> startRide(@Path("id") String rideId);
 
     @POST("/driver/rides/{id}/complete")
-    Call<RideDto> completeRide(@Path("id") String rideId, @Header("Idempotency-Key") String idempotencyKey);
+    Call<RideDto> completeRide(@Path("id") String rideId, @Header("Idempotency-Key") String idempotencyKey,
+                               @Body DriverAtLocationRequest body);
 
     @POST("/driver/rides/{id}/cancel")
     Call<RideDto> cancelRideAsDriver(@Path("id") String rideId);

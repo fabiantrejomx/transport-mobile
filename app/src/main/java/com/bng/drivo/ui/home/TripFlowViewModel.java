@@ -55,6 +55,13 @@ public class TripFlowViewModel extends ViewModel {
     private LatLng destination;
     @Nullable
     private String destinationText;
+    /**
+     * Nombre que el usuario le puso a la dirección guardada de la que salió este destino ("Casa",
+     * "Trabajo"). Null si lo eligió de cualquier otra forma. <b>Es solo para enseñar</b>: a la API
+     * viaja {@link #destinationText}, que es la dirección de verdad.
+     */
+    @Nullable
+    private String destinationLabel;
     @Nullable
     private Waypoint stop;
     @Nullable
@@ -86,11 +93,13 @@ public class TripFlowViewModel extends ViewModel {
     }
 
     /** Destino recién elegido (buscador, dirección guardada o pin en el mapa): reinicia el resto. */
-    public void startDestination(LatLng origin, String originText, LatLng destination, String destinationText) {
+    public void startDestination(LatLng origin, String originText, LatLng destination,
+                                 String destinationText, @Nullable String destinationLabel) {
         this.origin = origin;
         this.originText = originText;
         this.destination = destination;
         this.destinationText = destinationText;
+        this.destinationLabel = destinationLabel;
         this.stop = null;
         this.quote = null;
         this.rideId = null;
@@ -101,6 +110,7 @@ public class TripFlowViewModel extends ViewModel {
     public void clearTrip() {
         destination = null;
         destinationText = null;
+        destinationLabel = null;
         stop = null;
         quote = null;
         rideId = null;
@@ -145,6 +155,12 @@ public class TripFlowViewModel extends ViewModel {
     @Nullable
     public String getDestinationText() {
         return destinationText;
+    }
+
+    /** Ver {@link #destinationLabel}: null salvo que el destino sea una dirección guardada. */
+    @Nullable
+    public String getDestinationLabel() {
+        return destinationLabel;
     }
 
     @Nullable

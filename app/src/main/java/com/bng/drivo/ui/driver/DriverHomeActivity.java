@@ -246,6 +246,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private boolean openingWonRide;
 
     private boolean online;
+    /**
+     * Si el servidor dejaría conectarse: aprobado y con saldo. Null mientras no se sabe —o contra
+     * un servidor anterior al contrato 1.11.0—, y entonces no se afirma nada.
+     */
+    @Nullable
+    private Boolean canGoOnline;
     private boolean approved;
     private Step step = Step.GATE;
     /** Paso realmente puesto en el modal: va un fundido por detrás de {@link #step} al animar. */
@@ -576,10 +582,24 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             public void onSuccess(DriverApplication application) {
                 if ("approved".equals(application.getStatus())) {
                     approved = true;
+                    // La conexión la manda el servidor, no lo que esta pantalla recordara. Es un
+                    // estado suyo que sobrevive a que la app se cierre: Android recicla esta
+                    // Activity mientras dura un viaje (otro mapa en primer plano, minutos de GPS),
+                    // y al volver salía "Desconectado" mientras el servidor lo seguía teniendo en
+                    // el radar — dejaba de escuchar solicitudes que se le seguían mandando. El
+                    // servidor además puede desconectarlo por su cuenta, al cerrar un viaje que lo
+                    // deja bajo el saldo mínimo, y así también se entera.
+                    online = application.isOnline();
+                    canGoOnline = application.getCanGoOnline();
                     step = online ? Step.ONLINE : Step.OFFLINE;
                     applyStep(step, false);
                     updateConnectionUi();
                     setUpMapAndLocationIfNeeded();
+                    // onStart() ya pasó con la conexión todavía en falso: si resultó estar
+                    // conectado, la bandeja se engancha aquí o no se engancha nunca.
+                    if (online) {
+                        startInboxListener();
+                    }
                     loadWallet();
                 } else {
                     approved = false;
@@ -652,6 +672,54 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     // Conectarse / desconectarse
     // ---------------------------------------------------------------------------------------
 
+    /**
+     * Vuelve a preguntar si sigue conectado, sin rehacer la pantalla.
+     *
+     * <p>Hace falta porque <b>la conexión puede cambiar sin que el conductor la toque</b>: al
+     * cerrar un viaje cuya comisión lo deja bajo el saldo mínimo, el servidor lo saca del radar él
+     * solo. Sin esto, la pantalla volvía del viaje diciendo "Estás en línea" y escuchando una
+     * bandeja a la que ya no iba a llegar nada.
+     *
+     * <p>No usa {@link #runApplicationGate()}, que sería lo obvio: aquel vuelve al paso GATE y
+     * repinta la pantalla entera, así que asomaría el spinner en cada vuelta a Inicio. Este solo
+     * toca lo que de verdad cambió.
+     *
+     * <p>El paso solo se mueve si estamos en el radar. Con una solicitud en pantalla, cambiarlo
+     * sacaría al conductor de una decisión que está tomando; el valor queda guardado y lo aplica
+     * {@code backToRadar()} al salir de ella.
+     */
+    private void refreshConnectionState() {
+        driverRepository.getApplication(new ApiCallback<DriverApplication>() {
+            @Override
+            public void onSuccess(DriverApplication application) {
+                if (!"approved".equals(application.getStatus())) {
+                    // Le retiraron la aprobación mientras no mirábamos: eso sí cambia de pantalla.
+                    runApplicationGate();
+                    return;
+                }
+                canGoOnline = application.getCanGoOnline();
+                boolean enLineaSegunServidor = application.isOnline();
+                if (enLineaSegunServidor != online) {
+                    online = enLineaSegunServidor;
+                    if (online) {
+                        startInboxListener();
+                    } else {
+                        stopInboxListener();
+                    }
+                    if (step == Step.ONLINE || step == Step.OFFLINE) {
+                        goTo(online ? Step.ONLINE : Step.OFFLINE);
+                    }
+                }
+                updateConnectionUi();
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                // Se queda con lo que ya tenía; se reintenta en la siguiente vuelta a la pantalla.
+            }
+        });
+    }
+
     private void toggleConnection() {
         if (!approved) {
             return;
@@ -691,6 +759,10 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 } else if (error.getCode() == ApiErrorCode.INSUFFICIENT_BALANCE) {
                     Toast.makeText(DriverHomeActivity.this, R.string.driver_home_insufficient_balance_toast,
                             Toast.LENGTH_LONG).show();
+                    // El servidor acaba de decirlo: que la tarjeta lo siga diciendo cuando el
+                    // toast se vaya, en vez de volver al "Conéctate para recibir solicitudes".
+                    canGoOnline = false;
+                    updateConnectionUi();
                 } else {
                     Toast.makeText(DriverHomeActivity.this, R.string.driver_home_connect_error, Toast.LENGTH_SHORT)
                             .show();
@@ -742,7 +814,15 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             textConnectionStatus.setText(R.string.driver_home_status_offline);
             textConnectionStatus.setTextColor(getColor(R.color.drivo_on_background));
             dotConnectionStatus.setBackgroundTintList(getColorStateList(R.color.drivo_error));
-            textConnectionHint.setText(R.string.driver_home_offline_subtitle);
+            // Estar desconectado no siempre es una decisión suya: el servidor lo saca del radar al
+            // cerrar un viaje cuya comisión lo deja bajo el mínimo, y sin avisar. Hasta ahora solo
+            // se enteraba tocando "Conectarse" y leyendo el error; aquí se lo dice antes.
+            //
+            // Se compara contra FALSE y no con un "!= true": null es "el servidor no lo dijo", y
+            // ahí lo correcto es callarse, no acusar de falta de saldo a quien puede tenerlo.
+            textConnectionHint.setText(Boolean.FALSE.equals(canGoOnline)
+                    ? R.string.driver_home_offline_no_balance_subtitle
+                    : R.string.driver_home_offline_subtitle);
         }
     }
 
@@ -785,9 +865,10 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     // Solicitudes entrantes
     // ---------------------------------------------------------------------------------------
 
+    /** Idempotente: se llama desde onStart() y desde el gate, que corren en orden imprevisible. */
     private void startInboxListener() {
         String uid = authRepository.getCurrentUserId();
-        if (uid == null) {
+        if (uid == null || inboxSubscription != null) {
             return;
         }
         inboxSubscription = realtimeRepository.observeInbox(uid, this::onInboxChanged);
@@ -1084,6 +1165,13 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
 
         Intent intent = new Intent(this, DriverActiveTripActivity.class);
         intent.putExtra(DriverActiveTripActivity.EXTRA_RIDE_ID, rideId);
+        // Esta pantalla lleva un bucle de ubicación corriendo, así que su posición está al día.
+        // Sin pasarla, la pantalla del viaje abre el mapa sin saber dónde mirar y se ve el mundo
+        // entero un instante antes de encuadrar la ruta.
+        if (lastKnownLocation != null) {
+            intent.putExtra(DriverActiveTripActivity.EXTRA_DRIVER_LAT, lastKnownLocation.latitude);
+            intent.putExtra(DriverActiveTripActivity.EXTRA_DRIVER_LNG, lastKnownLocation.longitude);
+        }
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             if (!isFinishing() && !isDestroyed()) {
                 startActivity(intent);
@@ -1186,8 +1274,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             btnIncomingIgnore.setText(R.string.incoming_request_close_button);
             btnIncomingIgnore.setOnClickListener(v -> closeDisplayedRequest());
         } else {
-            String offerText = String.format(Locale.getDefault(), "$%.2f", request.getOffer());
-            btnIncomingAccept.setText(getString(R.string.incoming_request_accept_button_format, offerText));
+            btnIncomingAccept.setText(R.string.incoming_request_accept_button);
             btnIncomingAccept.setOnClickListener(v ->
                     submitOffer(request.getRideId(), request.getOffer(), request.getPassengerName(), true));
             btnIncomingIgnore.setText(R.string.incoming_request_ignore_button);
@@ -1244,7 +1331,10 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         for (Waypoint stop : request.getStops()) {
             stops.add(new LatLng(stop.getLat(), stop.getLng()));
         }
-        routePainter.showRequestPreview(lastKnownLocation, pickup, stops, dropoff);
+        // El trazo llega en la propia solicitud (contrato 1.7.0). Si el servidor no lo manda,
+        // showRequestPreview cae a la guía recta de siempre.
+        String polyline = request.getPolyline();
+        routePainter.showRequestPreview(lastKnownLocation, pickup, stops, dropoff, polyline);
         if (lastKnownLocation != null) {
             return;
         }
@@ -1253,7 +1343,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         String rideId = request.getRideId();
         requestLastLocation(location -> {
             if (rideId.equals(displayedRideId) && routePainter.isReady()) {
-                routePainter.showRequestPreview(location, pickup, stops, dropoff);
+                routePainter.showRequestPreview(location, pickup, stops, dropoff, polyline);
             }
         });
     }
@@ -1966,6 +2056,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         // Cubre volver de un viaje ya cerrado o de Ganancias: el saldo pudo cambiar.
         if (approved) {
             loadWallet();
+            refreshConnectionState();
             // Y si mientras no mirábamos un pasajero nos eligió, el viaje se abre aquí. Es lo que
             // vuelve al push un atajo en vez de la única vía: sin esto, una notificación perdida
             // dejaba al conductor asignado —y por tanto fuera del radar— sin viaje en pantalla.

@@ -13,6 +13,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.Dash;
 import com.google.android.gms.maps.model.Gap;
+import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
@@ -20,6 +21,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PatternItem;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.RoundCap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,6 +47,11 @@ public class MapPresenter {
     private static final int FRAME_PADDING_DP = 32;
     private static final int MARKER_DIAMETER_DP = 16;
     private static final float ROUTE_WIDTH_PX = 8f;
+    /**
+     * La ruta real se pinta más gruesa que la guía recta: es un trazo por calles y con este ancho
+     * no se pierde entre las propias calles del mapa a poco que se aleje la cámara.
+     */
+    private static final float REAL_ROUTE_WIDTH_PX = 12f;
 
     private final Context context;
     private final int framePaddingPx;
@@ -114,6 +121,21 @@ public class MapPresenter {
         }
     }
 
+    /**
+     * Devuelve la cámara al encuadre de la ruta completa. Es la vuelta atrás del paso SEARCHING,
+     * donde el mapa sí se puede arrastrar: sin esto, alejarse mirando las unidades cercanas era
+     * un viaje de ida — no queda ningún reencuadre automático que lo deshaga (los que hay salen
+     * de dibujar la ruta o de cambiar el padding, y ninguno de los dos vuelve a pasar ahí).
+     *
+     * <p>No hace nada sin ruta dibujada, que es justo lo que el host garantiza al enseñar el
+     * botón solo en ese paso.
+     */
+    public void frameRoute() {
+        if (currentBounds != null) {
+            frame(currentBounds);
+        }
+    }
+
     public void setGesturesEnabled(boolean enabled) {
         if (map != null) {
             map.getUiSettings().setAllGesturesEnabled(enabled);
@@ -121,10 +143,44 @@ public class MapPresenter {
     }
 
     /**
-     * Guía punteada recta entre origen, parada y destino — no es una ruta real de calles: el
-     * contrato es explícito en que el cliente no calcula recorrido (ver openapi.yaml).
+     * Los puntos del viaje sin unirlos todavía: marcadores y encuadre, sin línea.
+     *
+     * <p>Es el estado mientras la cotización viaja, que es de donde sale el trazo. Antes se pintaba
+     * aquí la guía punteada recta, pero esa línea no es el camino que se va a recorrer, y enseñarla
+     * un segundo para sustituirla después por el recorrido real hacía parpadear dos rutas distintas
+     * sobre el mismo viaje. El usuario ya tiene respuesta inmediata: sus dos puntos y la cámara
+     * encuadrándolos.
      */
-    public void showRoute(@NonNull List<LatLng> points) {
+    public void showRoutePending(@NonNull List<LatLng> points) {
+        drawRoute(points, null, false);
+    }
+
+    /**
+     * La ruta del viaje del pasajero: origen, parada y destino.
+     *
+     * <p>Se pinta el recorrido real por calles a partir de {@code encodedPolyline}, el trazo que
+     * el servidor ya calculó y pagó (campo {@code polyline} de la cotización y del viaje). El
+     * cliente sigue sin calcular recorrido: aquí solo se desempaqueta un dibujo ajeno.
+     *
+     * <p><b>La guía punteada recta ya solo es el respaldo</b>: se pinta cuando el servidor no mandó
+     * trazo —el contrato dice que {@code polyline} puede faltar sin que eso invalide nada— o cuando
+     * lo que mandó no se pudo leer. Que falte el dibujo nunca deja al usuario sin ruta.
+     *
+     * @param points          origen, parada (si la hay) y destino, en orden. Marcan los puntos que
+     *                        el usuario eligió y por eso siguen mandando sobre los marcadores.
+     * @param encodedPolyline trazo por calles codificado, o null.
+     */
+    public void showRoute(@NonNull List<LatLng> points, @Nullable String encodedPolyline) {
+        drawRoute(points, encodedPolyline, true);
+    }
+
+    /**
+     * @param fallbackToStraightLine si no hay trazo legible, une los puntos con la guía punteada.
+     *                               Falso mientras la cotización está en vuelo: ahí todavía no se
+     *                               sabe si habrá trazo, y no haberlo pedido no es un fallo.
+     */
+    private void drawRoute(@NonNull List<LatLng> points, @Nullable String encodedPolyline,
+                           boolean fallbackToStraightLine) {
         clearRoute();
         if (map == null || points.size() < 2) {
             return;
@@ -138,15 +194,36 @@ public class MapPresenter {
         }
         addMarker(points.get(points.size() - 1), R.color.drivo_secondary);
 
-        List<PatternItem> dashed = Arrays.asList(new Dash(20f), new Gap(12f));
-        routePolyline = map.addPolyline(new PolylineOptions()
-                .addAll(points)
-                .width(ROUTE_WIDTH_PX)
-                .color(context.getColor(R.color.drivo_success))
-                .pattern(dashed));
+        List<LatLng> realRoute = PolylineDecoder.decode(encodedPolyline);
+        boolean hasRealRoute = realRoute.size() >= 2;
 
+        if (hasRealRoute) {
+            routePolyline = map.addPolyline(new PolylineOptions()
+                    .addAll(realRoute)
+                    .color(context.getColor(R.color.drivo_success))
+                    .width(REAL_ROUTE_WIDTH_PX)
+                    .jointType(JointType.ROUND)
+                    .startCap(new RoundCap())
+                    .endCap(new RoundCap()));
+        } else if (fallbackToStraightLine) {
+            // Punteada a propósito: comunica que es una aproximación y no el camino que se va a
+            // recorrer. Un trazo sólido en línea recta diría algo que no es cierto.
+            List<PatternItem> dashed = Arrays.asList(new Dash(20f), new Gap(12f));
+            routePolyline = map.addPolyline(new PolylineOptions()
+                    .addAll(points)
+                    .color(context.getColor(R.color.drivo_success))
+                    .width(ROUTE_WIDTH_PX)
+                    .pattern(dashed));
+        }
+
+        // El encuadre va sobre lo que de verdad se dibujó, no solo sobre origen y destino: una ruta
+        // que se abre fuera de ese rectángulo —un libramiento, un río de por medio— quedaría
+        // cortada por los bordes de la pantalla.
         LatLngBounds.Builder bounds = new LatLngBounds.Builder();
         for (LatLng point : points) {
+            bounds.include(point);
+        }
+        for (LatLng point : realRoute) {
             bounds.include(point);
         }
         currentBounds = bounds.build();

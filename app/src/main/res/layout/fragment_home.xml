@@ -88,6 +88,34 @@
         android:visibility="gone"
         app:tint="@color/drivo_primary" />
 
+    <!-- Vuelta al encuadre de la ruta, solo en el paso SEARCHING. Ese paso dejó de congelar el
+         mapa (el pasajero puede arrastrarlo para ver qué unidades hay a su alrededor mientras
+         espera ofertas), y sin este botón alejarse era un viaje de ida: ahí no queda ningún
+         reencuadre automático que devuelva la vista.
+
+         Va anclado al borde superior del modal y no a la fila de flotantes de arriba, que en este
+         paso la ocupa entera la tarjeta de ruta (routeCardClearsFloatingRow es false en SEARCHING
+         — ver HomeFragment.applyTopInsets). Su margen inferior real lo fija updateMapViewport con
+         el alto del modal; el de aquí solo sirve para la vista previa del editor.
+
+         Elevación por debajo de la del modal (12dp) a propósito: si la subasta desborda y el
+         pasajero sube el modal, el botón se mete debajo en vez de quedar flotando sobre las
+         ofertas. -->
+    <ImageButton
+        android:id="@+id/btn_frame_route"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_dot_outlined"
+        android:contentDescription="@string/home_frame_route_description"
+        android:elevation="4dp"
+        android:padding="10dp"
+        android:src="@drawable/ic_route"
+        android:visibility="gone"
+        app:tint="?attr/colorOnSurface" />
+
     <!-- El radar del paso SEARCHING ya NO es una View aquí: eran dos anillos centrados en la
          pantalla (layout_gravity="center") que se desacoplaban del punto de recogida real en
          cuanto el mapa se reencuadraba (p. ej. al cambiar el alto del modal), porque esta View

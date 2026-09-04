@@ -52,6 +52,7 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
@@ -96,8 +97,29 @@ import java.util.Locale;
 public class DriverActiveTripActivity extends AuthenticatedActivity implements OnMapReadyCallback {
 
     public static final String EXTRA_RIDE_ID = "extra_ride_id";
+    /**
+     * Dónde está el conductor, según la pantalla de la que se viene.
+     *
+     * <p>Viaja en el Intent para poder centrar el mapa <b>en el mismo instante</b> en que existe,
+     * sin esperar a nadie. Pedirle la ubicación al sistema aquí también funciona, pero es una
+     * llamada asíncrona, y el hueco entre que el mapa aparece y esa llamada contesta es justo el
+     * rato en que se ve el mundo entero centrado en el golfo de Guinea. Quien nos abre ya tiene el
+     * dato fresco —lleva un bucle de ubicación corriendo—, así que basta con pasarlo.
+     *
+     * <p>Puede no venir (al abrir desde una notificación no hay pantalla previa que lo tenga), y
+     * entonces se cae a la llamada asíncrona.
+     */
+    public static final String EXTRA_DRIVER_LAT = "extra_driver_lat";
+    public static final String EXTRA_DRIVER_LNG = "extra_driver_lng";
 
     private static final long LOCATION_INTERVAL_TRIP_MS = 4500L;
+    /** El mismo con el que DriverHomeActivity centra al conductor: se viene de esa pantalla. */
+    private static final float SELF_ZOOM = 16f;
+    /** Aire entre los mandos de cámara y el borde superior del modal. */
+    private static final int FOLLOW_BUTTON_GAP_DP = 12;
+    /** Vista de conducción: se leen los nombres de calle y se ve el siguiente cruce. */
+    private static final float NAVIGATION_ZOOM = 18f;
+    private static final float NAVIGATION_TILT = 45f;
     private static final int STAR_COUNT = 5;
 
     private DriverRepository driverRepository;
@@ -133,6 +155,61 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     private Integer pickupEtaMin;
     private Integer tripDistanceM;
     private final List<LatLng> stops = new ArrayList<>();
+    /**
+     * Trazo por calles del viaje del pasajero, codificado. No viene en {@code GET /driver/rides/{id}}
+     * —el DTO de la solicitud entrante no lo lleva—, así que se pide aparte a
+     * {@code GET /driver/current-ride}, que sí lo trae. Null mientras no llega o si el servidor no
+     * lo mandó: entonces el tramo se pinta como guía recta.
+     */
+    @Nullable
+    private String tripPolyline;
+    /**
+     * ETA publicado por el servidor, en minutos. El conductor lo lee del canal en vivo aunque su
+     * propia posición sea la que lo genera: el número lo calcula el servidor a propósito, para que
+     * él y el pasajero vean exactamente el mismo, y no dos cuentas parecidas.
+     */
+    @Nullable
+    private Integer etaMin;
+    /** Último rumbo del GPS, en grados. Null parado: a velocidad cero el dato es ruido. */
+    @Nullable
+    private Double lastBearing;
+    /**
+     * Dónde terminó el viaje. Se fija al cerrarlo y ya no cambia.
+     *
+     * <p>Existe porque {@link #lastKnownLocation} es un campo vivo que escriben varias fuentes
+     * —el bucle de ubicación, las lecturas puntuales antes de llegar y de cerrar, el extra con el
+     * que se abre la pantalla—, y cualquiera de ellas puede escribirlo <em>después</em> de que la
+     * cámara ya se colocó. Con el viaje cerrado el sitio correcto es uno solo y no vuelve a
+     * moverse: el que el servidor acaba de validar contra el destino. Guardarlo aparte es lo que
+     * hace que el encuadre final no dependa de quién escriba último.
+     */
+    @Nullable
+    private LatLng tripEndLocation;
+    /**
+     * Si {@link #lastKnownLocation} viene del flujo de ubicación y no del extra con el que se abrió
+     * la pantalla. La distinción importa donde el dato decide algo: ese extra es dónde estaba el
+     * conductor <b>al recibir el viaje</b>, y mandárselo al servidor como "dónde estoy ahora" le
+     * haría rechazar una llegada o un cierre que sí eran válidos.
+     */
+    private boolean hasLiveFix;
+    @Nullable
+    private RealtimeSubscription locationSubscription;
+    /**
+     * Si la cámara va pegada al coche. Arranca encendido y <b>lo apaga el propio conductor</b> con
+     * solo arrastrar el mapa: mirar una calle de más adelante no debe pelearse con una cámara que
+     * lo devuelve a su sitio cada 4.5 s. El botón flotante lo vuelve a encender.
+     */
+    private boolean followingDriver = true;
+    /**
+     * Vista de conducción: más cerca, inclinada y girada hacia donde avanza. Solo con el viaje en
+     * curso. Cambia lo que hace el seguimiento, no si sigue: en esta vista la cámara también gira
+     * con el rumbo, y fuera de ella solo se desplaza.
+     */
+    private boolean navigationView;
+    private View mapControls;
+    private View btnFollowDriver;
+    private View btnNavigationView;
+    private View btnFrameRoute;
 
     private final List<TextView> cobroStarViews = new ArrayList<>();
     private int cobroRating;
@@ -181,6 +258,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
             finish();
             return;
         }
+        // Antes de crear el mapa: onMapReady se apoya en esto para centrar sin esperas.
+        if (getIntent().hasExtra(EXTRA_DRIVER_LAT)) {
+            lastKnownLocation = new LatLng(
+                    getIntent().getDoubleExtra(EXTRA_DRIVER_LAT, 0),
+                    getIntent().getDoubleExtra(EXTRA_DRIVER_LNG, 0));
+        }
 
         driverRepository = new RestDriverRepository(this);
         tripRepository = new RestTripRepository(this);
@@ -214,6 +297,13 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         containerCobroStars = findViewById(R.id.container_cobro_stars);
         btnCobroClose = findViewById(R.id.btn_cobro_close);
 
+        mapControls = findViewById(R.id.container_map_controls);
+        btnFollowDriver = findViewById(R.id.btn_follow_driver);
+        btnFollowDriver.setOnClickListener(v -> followDriverAgain());
+        btnNavigationView = findViewById(R.id.btn_navigation_view);
+        btnNavigationView.setOnClickListener(v -> showNavigationView());
+        btnFrameRoute = findViewById(R.id.btn_frame_route);
+        btnFrameRoute.setOnClickListener(v -> showFullRoute());
         findViewById(R.id.btn_trip_sos).setOnClickListener(v -> sendSos());
         findViewById(R.id.btn_trip_waze).setOnClickListener(v -> openWaze());
         btnTripCancel.setOnClickListener(v -> confirmCancelTrip());
@@ -244,7 +334,185 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         googleMap.setPadding(0, sheetTopInsetPx, 0, Math.max(lastSheetHeightPx, 0));
         Fragment mapFragment = getSupportFragmentManager().findFragmentById(R.id.map);
         routePainter.attach(googleMap, mapFragment != null ? mapFragment.getView() : null);
+        // Solo el gesto del conductor suelta la cámara. Los movimientos que hace la app —encuadrar
+        // la ruta, centrarse en él— llegan aquí con otro motivo y no deben apagar el seguimiento.
+        googleMap.setOnCameraMoveStartedListener(reason -> {
+            if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
+                followingDriver = false;
+            }
+        });
+        centerOnDriver();
         drawTripMap();
+    }
+
+    /**
+     * Deja la cámara sobre el conductor en cuanto el mapa existe.
+     *
+     * <p>Sin esto la pantalla abría en la posición por defecto del SDK —latitud 0, longitud 0: el
+     * golfo de Guinea— y se quedaba ahí <em>todo lo que tardara la red</em>, porque el primer
+     * encuadre no llega hasta que {@code GET /driver/rides/{id}} responde con el punto de recogida.
+     * Al responder, la cámara saltaba de medio océano Atlántico a Orizaba de un tirón. El salto no
+     * lo causaba una animación mal puesta: lo causaba que nadie había dicho dónde mirar.
+     *
+     * <p>Se centra al mismo zoom 16 y sobre el mismo punto que dejó {@link DriverHomeActivity}, así
+     * que el mapa se abre viéndose igual que aquel del que se viene, y el único movimiento que
+     * queda es el de abrirse para que quepa el tramo de recogida.
+     *
+     * <p>La ubicación puede llegar tarde y cruzarse con la respuesta de la red. Si para entonces la
+     * ruta ya está dibujada, manda ella: recentrar sobre el conductor desharía el encuadre que
+     * acaba de hacerse, que es justo el problema al revés.
+     */
+    private void centerOnDriver() {
+        if (lastKnownLocation != null) {
+            moveToDriver();
+            return;
+        }
+        if (!hasLocationPermission()) {
+            return;
+        }
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location == null || googleMap == null) {
+                return;
+            }
+            lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            if (pickupLatLng == null) {
+                moveToDriver();
+            }
+        });
+    }
+
+    /**
+     * El botón flotante: vuelve al coche y reengancha la cámara.
+     *
+     * <p>Fija el zoom, a diferencia del seguimiento continuo: quien lo toca se ha perdido de vista
+     * a sí mismo, y devolverlo al mismo zoom desde el que se fue no lo ayudaría.
+     */
+    /**
+     * Enciende o apaga la vista de conducción, y con ella el marcador que le corresponde: la flecha
+     * mientras el mapa va inclinado, el coche cuando vuelve a estar plano.
+     */
+    private void setNavigationView(boolean enabled) {
+        navigationView = enabled;
+        if (routePainter.isReady()) {
+            routePainter.setNavigationMode(enabled);
+        }
+    }
+
+    /**
+     * Dónde debe mirar la cámara. Con el viaje cerrado manda {@link #tripEndLocation}, que ya no se
+     * mueve; mientras está en curso, la última posición conocida.
+     */
+    /**
+     * La posición más reciente que tiene la app, o null si no hay ninguna de fiar.
+     *
+     * <p>Solo devuelve la del flujo en vivo. {@code getLastLocation()} da "la mejor disponible",
+     * que el sistema cachea y puede ser de hace rato; con un flujo de alta precisión entregando
+     * cada 4.5 s, lo que ya tenemos es más fresco que lo que devolvería esa consulta.
+     */
+    @Nullable
+    private LatLng liveLocation() {
+        return hasLiveFix ? lastKnownLocation : null;
+    }
+
+    @Nullable
+    private LatLng cameraTarget() {
+        return tripEndLocation != null ? tripEndLocation : lastKnownLocation;
+    }
+
+    private void followDriverAgain() {
+        followingDriver = true;
+        setNavigationView(false);
+        LatLng destino = cameraTarget();
+        if (googleMap == null || destino == null) {
+            return;
+        }
+        // Se endereza el mapa al volver: si venía de la vista de navegación seguiría inclinado y
+        // girado, y esta vista es la de "ver dónde estoy", que se lee mejor plana y al norte.
+        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                new CameraPosition.Builder()
+                        .target(destino).zoom(SELF_ZOOM).tilt(0f).bearing(0f).build()));
+    }
+
+    /**
+     * Vista de conducción: pegada al coche, inclinada y girada hacia donde avanza.
+     *
+     * <p>Es la que sirve para manejar, no para ubicarse: a este acercamiento se leen los nombres de
+     * las calles y se ve el siguiente cruce, que es lo que el conductor mira mientras va.
+     *
+     * <p>El giro sale del rumbo del GPS y solo se aplica cuando lo hay. Parado no viene, y forzarlo
+     * haría girar el mapa entero con cada temblor de la señal en un semáforo.
+     */
+    private void showNavigationView() {
+        followingDriver = true;
+        setNavigationView(true);
+        if (googleMap == null || lastKnownLocation == null) {
+            return;
+        }
+        CameraPosition.Builder camara = new CameraPosition.Builder()
+                .target(lastKnownLocation)
+                .zoom(NAVIGATION_ZOOM)
+                .tilt(NAVIGATION_TILT);
+        if (lastBearing != null) {
+            camara.bearing(lastBearing.floatValue());
+        }
+        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(camara.build()));
+    }
+
+    /**
+     * El recorrido entero en pantalla, como se veía antes de arrancar.
+     *
+     * <p>Suelta el seguimiento a propósito: es una vista de conjunto, y dejar la cámara enganchada
+     * al coche la desharía en cuanto avanzara unos metros. Se recupera con cualquiera de los otros
+     * dos botones.
+     */
+    private void showFullRoute() {
+        followingDriver = false;
+        setNavigationView(false);
+        if (googleMap == null || pickupLatLng == null || dropoffLatLng == null
+                || !routePainter.isReady()) {
+            return;
+        }
+        // Encuadrar por límites deja el mapa plano y al norte por sí solo, así que no hace falta
+        // enderezarlo aparte: dos animaciones seguidas solo se pisarían.
+        routePainter.showTripLeg(lastKnownLocation, pickupLatLng, stops, dropoffLatLng,
+                tripPolyline, true);
+    }
+
+    private void moveToDriver() {
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, SELF_ZOOM));
+        // A partir de aquí el encuadre de la ruta puede animar: ya no saldría de la nada, sino de
+        // donde está el conductor, y verlo abrirse dice más que aparecer ya abierto.
+        routePainter.markCameraPositioned();
+    }
+
+    /**
+     * Segundo intento de conseguir el trazo, solo si el detalle de la solicitud vino sin él.
+     *
+     * <p>Desde el contrato 1.7.0 {@code GET /driver/rides/{id}} ya lo incluye y esto no llega a
+     * ejecutarse; sigue aquí porque {@code GET /driver/current-ride} lo trae desde 1.6.0 y cubre al
+     * servidor que aún no se haya actualizado. Es información de pintura: si también falla, no se
+     * avisa de nada y el mapa se queda con la guía recta.
+     *
+     * <p>El tramo de recogida —del conductor al pasajero— no entra aquí y sigue siendo recta a
+     * propósito: el servidor no lo calcula con Google, su ETA sale de la línea recta por un factor
+     * de calle.
+     */
+    private void fetchTripPolyline() {
+        driverRepository.getCurrentRide(new ApiCallback<Ride>() {
+            @Override
+            public void onSuccess(Ride ride) {
+                if (ride == null || !rideId.equals(ride.getId()) || ride.getPolyline() == null) {
+                    return;
+                }
+                tripPolyline = ride.getPolyline();
+                drawTripMap();
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                // Sin trazo: el mapa se queda con la guía recta, que es el respaldo previsto.
+            }
+        });
     }
 
     private void fetchRequestDetails() {
@@ -282,7 +550,11 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                         ? getString(R.string.rating_star_format, request.getPassengerRating()) : "");
                 textTripFare.setText(String.format(Locale.getDefault(), "$%.2f", fare));
 
+                tripPolyline = request.getPolyline();
                 drawTripMap();
+                if (tripPolyline == null) {
+                    fetchTripPolyline();
+                }
             }
 
             @Override
@@ -303,8 +575,25 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         if (googleMap == null || pickupLatLng == null || !routePainter.isReady()) {
             return;
         }
+        // Con el viaje ya cerrado no hay nada que redibujar, y volver a entrar aquí era un salto:
+        // el estado deja de ser IN_PROGRESS, así que la rama de abajo caía en el tramo de recogida
+        // y llevaba la cámara desde el destino —donde el conductor acaba de dejar al pasajero—
+        // hasta el punto donde lo recogió, a kilómetros de distancia. No lo disparaba nadie a
+        // propósito: al cambiar al panel de cobro, el modal cambia de alto y updateSheetStops()
+        // repinta el mapa.
+        // El estado también se mira, y no solo la bandera: "COMPLETED" llega por Firestore, que es
+        // más rápido que la respuesta HTTP, así que hay un instante en que el viaje ya terminó y
+        // terminalStateHandled todavía no se ha puesto.
+        if (terminalStateHandled || "COMPLETED".equals(currentStatus)) {
+            return;
+        }
         if ("IN_PROGRESS".equals(currentStatus) && dropoffLatLng != null) {
-            routePainter.showTripLeg(lastKnownLocation, pickupLatLng, stops, dropoffLatLng);
+            // Sin encuadrar la ruta: ya arrancó y lo que el conductor necesita ver es la calle que
+            // tiene delante, no el viaje entero desde arriba. El encuadre completo servía para
+            // decidir si le convenía; a partir de aquí solo aleja la cámara de donde va. Lo centra
+            // showInProgressPhase() una vez, y el seguimiento lo mantiene.
+            routePainter.showTripLeg(lastKnownLocation, pickupLatLng, stops, dropoffLatLng,
+                    tripPolyline, false);
         } else {
             routePainter.showPickupLeg(lastKnownLocation, pickupLatLng);
         }
@@ -335,6 +624,11 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     protected void onStart() {
         super.onStart();
         statusSubscription = realtimeRepository.observeRideStatus(rideId, this::onStatusChanged);
+        locationSubscription = realtimeRepository.observeDriverLocation(rideId,
+                (lat, lng, eta) -> {
+                    etaMin = eta;
+                    bindEta();
+                });
         startLocationLoop();
     }
 
@@ -344,6 +638,10 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         if (statusSubscription != null) {
             statusSubscription.stop();
             statusSubscription = null;
+        }
+        if (locationSubscription != null) {
+            locationSubscription.stop();
+            locationSubscription = null;
         }
         stopLocationLoop();
     }
@@ -414,10 +712,11 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textTripActionSubtitle.setText(
                 getString(R.string.driver_trip_pickup_subtitle_format, pickupText, pickupKm));
 
-        tileTripSecondaryStat.setVisibility(View.VISIBLE);
         textTripSecondaryStatLabel.setText(R.string.driver_trip_eta_stat_label);
-        textTripSecondaryStatValue.setText(pickupEtaMin != null
-                ? getString(R.string.searching_eta_min, pickupEtaMin) : "--");
+        bindEta();
+
+        btnNavigationView.setVisibility(View.GONE);
+        btnFrameRoute.setVisibility(View.GONE);
 
         drawTripMap();
         btnTripAction.setText(arrived ? R.string.driver_trip_action_start : R.string.driver_trip_action_arrived);
@@ -450,11 +749,20 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         textTripActionSubtitle.setText(
                 getString(R.string.driver_trip_dropoff_subtitle_format, dropoffText, tripKm));
 
-        // El tile queda listo para el ETA real del tramo (label ya puesto), pero sin ese dato
-        // todavía se oculta en vez de mostrar algo vacío o inventado — ver
-        // driver_trip_dropoff_eta_stat_label.
+        // El dato que le faltaba a este tile ya existe: el servidor publica el ETA contra el
+        // destino en cuanto el viaje arranca. Sigue ocultándose si no viene, que era el motivo
+        // original de esconderlo — enseñar un hueco donde dice "Llegada estimada" prometería algo.
         textTripSecondaryStatLabel.setText(R.string.driver_trip_dropoff_eta_stat_label);
-        tileTripSecondaryStat.setVisibility(View.GONE);
+        bindEta();
+
+        // Los dos mandos extra son de este paso: antes no hay recorrido que encuadrar ni nada
+        // que navegar.
+        btnNavigationView.setVisibility(View.VISIBLE);
+        btnFrameRoute.setVisibility(View.VISIBLE);
+
+        // Entrar al viaje lo pone directamente en vista de conducción, aunque hubiera soltado la
+        // cámara mirando el mapa mientras esperaba: empieza a manejar y esa es la que le sirve.
+        showNavigationView();
 
         btnTripAction.setText(R.string.driver_trip_action_complete);
         btnTripAction.setEnabled(true);
@@ -505,6 +813,24 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 waitAnchorRequested = false;
             }
         });
+    }
+
+    /**
+     * El tiempo que falta, en el tile de abajo. La etiqueta la pone cada fase —"Llegada en" yendo
+     * por el pasajero, "Llegada estimada" ya en el viaje—; aquí solo va el número.
+     *
+     * <p>Mientras el canal en vivo no ha dado el primero se usa el de la solicitud, que es la misma
+     * cuenta hecha en el servidor cuando el viaje se ofreció: así el tile no arranca vacío. Sin
+     * ninguno de los dos, el tile se esconde en vez de enseñar un guion: la etiqueta promete un
+     * dato y es mejor no ponerla que ponerla en falso.
+     */
+    private void bindEta() {
+        Integer minutos = etaMin != null ? etaMin
+                : ("IN_PROGRESS".equals(currentStatus) ? null : pickupEtaMin);
+        tileTripSecondaryStat.setVisibility(minutos != null ? View.VISIBLE : View.GONE);
+        if (minutos != null) {
+            textTripSecondaryStatValue.setText(getString(R.string.eta_approx_min, minutos));
+        }
     }
 
     /** Cambia el panel visible del modal y deja que se remida solo en el siguiente pase. */
@@ -601,11 +927,30 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         }
         lastSheetHeightPx = heightPx;
         sheetBehavior.setPeekHeight(heightPx, true);
+        // El modal cambia de alto con la fase (el cronómetro de cortesía lo estira, el panel de
+        // cobro más), así que el botón se recoloca con él en vez de llevar un margen fijo.
+        ViewGroup.MarginLayoutParams controlParams =
+                (ViewGroup.MarginLayoutParams) mapControls.getLayoutParams();
+        int margenPx = heightPx + Math.round(
+                FOLLOW_BUTTON_GAP_DP * getResources().getDisplayMetrics().density);
+        if (controlParams.bottomMargin != margenPx) {
+            controlParams.bottomMargin = margenPx;
+            mapControls.setLayoutParams(controlParams);
+        }
         // El mapa encuadra la ruta contra el rectángulo que queda a la vista, no contra la
         // pantalla completa: sin esto los pines caen detrás del modal.
         if (googleMap != null) {
             googleMap.setPadding(0, sheetTopInsetPx, 0, heightPx);
-            drawTripMap();
+            if (terminalStateHandled || "COMPLETED".equals(currentStatus)) {
+                // El viaje ya cerró y no hay nada que redibujar, pero el hueco visible sí acaba de
+                // cambiar: el panel de cobro es mucho más alto que el del viaje. El centrado que
+                // hizo attemptComplete() se calculó contra el hueco anterior, así que el conductor
+                // quedaba descentrado —o detrás del propio panel— y había que buscarlo a mano.
+                // El padding manda sobre la cámara, y este es el primer momento en que es el bueno.
+                recenterMapOnDriver();
+            } else {
+                drawTripMap();
+            }
         }
     }
 
@@ -651,6 +996,13 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
             return;
         }
         LoadingButtonHelper.setLoading(btnTripAction, true);
+        // Mismo criterio que al cerrar: el servidor comprueba esta posición contra el punto de
+        // recogida, así que se manda la del flujo en vivo antes que la cacheada del sistema.
+        LatLng enVivo = liveLocation();
+        if (enVivo != null) {
+            sendArrived(enVivo.latitude, enVivo.longitude);
+            return;
+        }
         fusedLocationClient.getLastLocation()
                 .addOnSuccessListener(location -> {
                     if (location == null) {
@@ -658,25 +1010,28 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                         Toast.makeText(this, R.string.driver_trip_arrived_error, Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    driverRepository.markArrived(rideId, location.getLatitude(), location.getLongitude(),
-                            new ApiCallback<Ride>() {
-                                @Override
-                                public void onSuccess(Ride result) {
-                                    LoadingButtonHelper.setLoading(btnTripAction, false);
-                                }
-
-                                @Override
-                                public void onError(ApiException error) {
-                                    LoadingButtonHelper.setLoading(btnTripAction, false);
-                                    Toast.makeText(DriverActiveTripActivity.this,
-                                            R.string.driver_trip_arrived_error, Toast.LENGTH_SHORT).show();
-                                }
-                            });
+                    sendArrived(location.getLatitude(), location.getLongitude());
                 })
                 .addOnFailureListener(e -> {
                     LoadingButtonHelper.setLoading(btnTripAction, false);
                     Toast.makeText(this, R.string.driver_trip_arrived_error, Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    private void sendArrived(double lat, double lng) {
+        driverRepository.markArrived(rideId, lat, lng, new ApiCallback<Ride>() {
+            @Override
+            public void onSuccess(Ride result) {
+                LoadingButtonHelper.setLoading(btnTripAction, false);
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                LoadingButtonHelper.setLoading(btnTripAction, false);
+                showProximityAwareError(error, ApiErrorCode.TOO_FAR_FROM_PICKUP,
+                        R.string.driver_trip_arrived_error);
+            }
+        });
     }
 
     private void attemptStart() {
@@ -696,10 +1051,44 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         });
     }
 
+    /**
+     * Finalizar el viaje. Como marcar llegada, va con la posición: el servidor comprueba que el
+     * conductor esté cerca del destino antes de dejarlo cerrar, y de las dos comprobaciones es la
+     * que más pesa —cerrar cobra la comisión y da el trayecto por cumplido—.
+     */
     private void attemptComplete() {
+        if (!hasLocationPermission()) {
+            Toast.makeText(this, R.string.driver_home_location_permission_toast, Toast.LENGTH_SHORT).show();
+            return;
+        }
         LoadingButtonHelper.setLoading(btnTripAction, true);
+
+        // La del flujo en vivo si la hay: ver liveLocation(). Aquí no es un detalle de pintura, es
+        // la posición que el servidor compara contra el destino para dejar cerrar el viaje.
+        LatLng enVivo = liveLocation();
+        if (enVivo != null) {
+            sendComplete(enVivo.latitude, enVivo.longitude);
+            return;
+        }
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(location -> {
+                    if (location == null) {
+                        LoadingButtonHelper.setLoading(btnTripAction, false);
+                        Toast.makeText(this, R.string.driver_trip_complete_error, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    sendComplete(location.getLatitude(), location.getLongitude());
+                })
+                .addOnFailureListener(e -> {
+                    LoadingButtonHelper.setLoading(btnTripAction, false);
+                    Toast.makeText(this, R.string.driver_trip_complete_error, Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void sendComplete(double lat, double lng) {
         completeInFlight = true;
-        driverRepository.completeRide(rideId, new ApiCallback<Ride>() {
+        final LatLng cerradoEn = new LatLng(lat, lng);
+        driverRepository.completeRide(rideId, lat, lng, new ApiCallback<Ride>() {
             @Override
             public void onSuccess(Ride result) {
                 completeInFlight = false;
@@ -707,6 +1096,13 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 terminalStateHandled = true;
                 currentStatus = "COMPLETED";
                 stopLocationLoop();
+                // Se suelta la cámara antes de colocarla: quitar las actualizaciones no cancela las
+                // que ya iban camino del hilo principal, y una sola que llegue tarde con el
+                // seguimiento encendido vuelve a apuntar la cámara por su cuenta.
+                followingDriver = false;
+                // El sitio del cierre queda fijado aquí: es el que acaba de viajar al servidor y el
+                // que este validó contra el destino.
+                tripEndLocation = cerradoEn;
                 showCobroRatingPhase(result);
                 // La ruta del viaje que se acaba de cerrar ya no importa: el mapa vuelve a
                 // centrarse en el conductor, como al entrar a Home, en vez de quedarse en el
@@ -718,10 +1114,26 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
             public void onError(ApiException error) {
                 completeInFlight = false;
                 LoadingButtonHelper.setLoading(btnTripAction, false);
-                Toast.makeText(DriverActiveTripActivity.this, R.string.driver_trip_complete_error, Toast.LENGTH_SHORT)
-                        .show();
+                showProximityAwareError(error, ApiErrorCode.TOO_FAR_FROM_DROPOFF,
+                        R.string.driver_trip_complete_error);
             }
         });
+    }
+
+    /**
+     * Un error del servidor, dicho de la forma más útil que se pueda.
+     *
+     * <p>Cuando el motivo es la distancia, el mensaje del servidor trae los metros reales ("Estás a
+     * 480 m del destino; acércate a menos de 250 m") y es exactamente lo que el conductor necesita
+     * para saber qué hacer. Un aviso genérico ahí lo dejaría tocando el botón sin entender por qué
+     * no pasa nada. Para cualquier otro fallo se usa el texto propio, que no depende de que el
+     * servidor escriba en un idioma ni en un tono concretos.
+     */
+    private void showProximityAwareError(ApiException error, ApiErrorCode proximityCode,
+                                          int fallbackRes) {
+        String message = error.getCode() == proximityCode && error.getMessage() != null
+                ? error.getMessage() : getString(fallbackRes);
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
     @SuppressLint("MissingPermission")
@@ -729,8 +1141,15 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         if (googleMap == null) {
             return;
         }
-        if (lastKnownLocation != null) {
-            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+        // El viaje terminó: la vista de conducción deja de tener sentido y la cámara se endereza.
+        // Sin esto el panel de cobro salía sobre un mapa todavía inclinado y girado al rumbo que
+        // llevaba al llegar.
+        setNavigationView(false);
+        LatLng destino = cameraTarget();
+        if (destino != null) {
+            googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                    new CameraPosition.Builder()
+                            .target(destino).zoom(SELF_ZOOM).tilt(0f).bearing(0f).build()));
             return;
         }
         if (!hasLocationPermission()) {
@@ -852,12 +1271,29 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                     return;
                 }
                 lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
-                // Solo mueve el coche: reencuadrar cada 4.5 s le quitaría al conductor el control
-                // de la cámara mientras maneja.
-                if (routePainter.isReady()) {
-                    routePainter.updateDriverPosition(lastKnownLocation);
-                }
+                hasLiveFix = true;
                 Double heading = location.hasBearing() ? (double) location.getBearing() : null;
+                if (heading != null) {
+                    lastBearing = heading;
+                }
+                if (routePainter.isReady()) {
+                    routePainter.updateDriverPosition(lastKnownLocation, heading);
+                }
+                // La cámara lo acompaña mientras no haya arrastrado el mapa. Fuera de la vista de
+                // navegación solo se mueve el centro: el acercamiento que él haya elegido es suyo.
+                if (followingDriver && googleMap != null) {
+                    if (navigationView && heading != null) {
+                        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                                new CameraPosition.Builder()
+                                        .target(lastKnownLocation)
+                                        .zoom(googleMap.getCameraPosition().zoom)
+                                        .tilt(googleMap.getCameraPosition().tilt)
+                                        .bearing(heading.floatValue())
+                                        .build()));
+                    } else {
+                        googleMap.animateCamera(CameraUpdateFactory.newLatLng(lastKnownLocation));
+                    }
+                }
                 Double accuracy = location.hasAccuracy() ? (double) location.getAccuracy() : null;
                 driverRepository.reportLocation(location.getLatitude(), location.getLongitude(), heading, accuracy,
                         new ApiCallback<Void>() {

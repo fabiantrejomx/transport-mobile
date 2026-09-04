@@ -25,11 +25,25 @@ public class RouteCamera {
 
     private final int paddingPx;
     private boolean framed;
+    private boolean positioned;
     private boolean retryScheduled;
 
     /** @param paddingPx aire alrededor de la ruta, para que los pines no queden pegados al borde. */
     public RouteCamera(int paddingPx) {
         this.paddingPx = paddingPx;
+    }
+
+    /**
+     * Avisa de que la cámara ya está en un sitio con sentido, puesta por alguien más.
+     *
+     * <p>Con esto el primer encuadre también anima. La razón de que el primero fuera instantáneo
+     * era que salía de la posición por defecto del SDK, y animar desde ahí es un vuelo desde medio
+     * océano; cuando la pantalla ya centró el mapa —sobre el propio conductor, por ejemplo—, ese
+     * motivo desaparece y queda solo la ventaja: se ve <em>cómo</em> se abre la vista para que
+     * quepa la ruta, en vez de aparecer ya abierta.
+     */
+    public void markPositioned() {
+        positioned = true;
     }
 
     /**
@@ -39,12 +53,12 @@ public class RouteCamera {
     public void frame(@NonNull GoogleMap map, @NonNull LatLngBounds bounds, @Nullable View mapView) {
         CameraUpdate update = CameraUpdateFactory.newLatLngBounds(bounds, paddingPx);
         try {
-            if (framed) {
+            if (framed || positioned) {
                 map.animateCamera(update);
             } else {
                 map.moveCamera(update);
-                framed = true;
             }
+            framed = true;
         } catch (IllegalStateException mapNotMeasuredYet) {
             // newLatLngBounds necesita el tamaño del mapa: si onMapReady llega antes del layout,
             // se reintenta una sola vez tras el siguiente pase, aún sin animar. Sin reintento el

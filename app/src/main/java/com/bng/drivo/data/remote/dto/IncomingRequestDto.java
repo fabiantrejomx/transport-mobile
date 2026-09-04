@@ -20,5 +20,14 @@ public class IncomingRequestDto {
     public Integer trip_distance_m;
     /** Ya recortados al techo del viaje por el servidor; puede venir vacío. Nunca fijarlos en la UI. */
     public List<Double> counter_increments;
+    /**
+     * Trazo del viaje del pasajero por calles, codificado (contrato 1.7.0). Es el mismo de la
+     * cotización, leído de la fila del viaje, así que servirlo no le cuesta al servidor otra
+     * llamada a Google. Puede venir null —el servidor puede no haberlo recibido, o estar aún en
+     * una versión anterior del contrato— y entonces el mapa pinta la guía recta.
+     *
+     * <p>No cubre el tramo de recogida, del conductor al pasajero: ese se pinta recto siempre.
+     */
+    public String polyline;
     public String expires_at;
 }

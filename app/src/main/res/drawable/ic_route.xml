@@ -1,0 +1,24 @@
+<!-- Ícono del botón que devuelve la cámara al encuadre de la ruta (btn_frame_route). Es el mismo
+     dibujo que el pasajero tiene delante en el mapa: el punto de recogida abajo a la izquierda, el
+     destino arriba a la derecha y el trazo que los une. Se dibuja el trazo primero para que los
+     dos puntos lo tapen en sus extremos. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:pathData="M6,18 C6,11 11,6 18,6"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeWidth="2" />
+
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M6,18 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M18,6 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+</vector>

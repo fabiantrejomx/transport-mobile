@@ -12,10 +12,41 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <com.google.android.material.card.MaterialCardView
+    <!-- El botón va en la misma columna que la tarjeta y no suelto sobre el mapa: así queda
+         siempre justo encima de ella sin que nadie tenga que medir su alto, que cambia con la
+         fase del viaje (el cronómetro de cortesía la hace crecer, el precio también). -->
+    <!-- Todo lo que tapa el mapa por abajo, en un solo bloque: ActiveTripActivity mide su alto y
+         se lo pasa al mapa como padding, para que la cámara encuadre contra el hueco que queda a
+         la vista y no contra la pantalla entera. Sin eso, centrar al conductor lo dejaba centrado
+         en la pantalla — es decir, detrás de esta tarjeta. -->
+    <LinearLayout
+        android:id="@+id/container_trip_bottom"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
+        android:orientation="vertical">
+
+        <!-- Aparece en cuanto se sabe dónde está el coche y se queda las tres fases: mientras
+             viene, mientras espera y durante el trayecto. El mapa se puede arrastrar en todas
+             ellas, y sin esto alejarse para mirar alrededor era un viaje de ida. -->
+        <ImageButton
+            android:id="@+id/btn_locate_driver"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="end"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/bg_dot_outlined"
+            android:contentDescription="@string/active_trip_locate_driver"
+            android:elevation="4dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_locate_driver"
+            android:visibility="gone"
+            app:tint="?attr/colorOnSurface"
+            tools:visibility="visible" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:layout_margin="16dp"
         app:cardCornerRadius="24dp"
         app:cardElevation="8dp"
@@ -33,18 +64,50 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/text_driver_avatar"
-                    android:layout_width="46dp"
-                    android:layout_height="46dp"
-                    android:layout_marginEnd="12dp"
-                    android:background="@drawable/bg_dot"
-                    android:backgroundTint="?attr/colorPrimaryContainer"
-                    android:gravity="center"
-                    android:textColor="?attr/colorOnPrimaryContainer"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="JP" />
+                <!-- Avatar con la calificación montada en el borde inferior, misma pieza que la
+                     cabecera del cajón (part_nav_avatar_rating.xml): mismo fondo, mismo recorte
+                     contra el círculo y el mismo texto, que lo compone NavHeaderRating para las
+                     dos. En la línea del nombre competía con él; aquí no compite con nada.
+
+                     El marco es wrap_content y la pastilla se ancla dentro, sin márgenes
+                     negativos: los ViewGroup recortan a sus hijos y se perdería justo lo que
+                     sobresale. -->
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp">
+
+                    <TextView
+                        android:id="@+id/text_driver_avatar"
+                        android:layout_width="46dp"
+                        android:layout_height="46dp"
+                        android:layout_gravity="top|center_horizontal"
+                        android:background="@drawable/bg_dot"
+                        android:backgroundTint="?attr/colorPrimaryContainer"
+                        android:gravity="center"
+                        android:textColor="?attr/colorOnPrimaryContainer"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="JP" />
+
+                    <!-- Nace GONE: sin calificación no se reserva hueco. -->
+                    <TextView
+                        android:id="@+id/text_driver_rating"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|center_horizontal"
+                        android:background="@drawable/bg_rating_badge"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="6dp"
+                        android:paddingTop="1dp"
+                        android:paddingBottom="1dp"
+                        android:textColor="?attr/colorOnSecondaryContainer"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:text="★ 4.6"
+                        tools:visibility="visible" />
+                </FrameLayout>
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -98,7 +161,22 @@
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    tools:text="Plaza Valle Orizaba, Circunvalación" />
+                    tools:text="Casa" />
+
+                <!-- Solo cuando el destino salió de una dirección guardada: arriba va el nombre
+                     que le puso el pasajero y aquí la dirección, que es la que de verdad dice a
+                     dónde va. Elegido de cualquier otra forma esta línea no existe y arriba queda
+                     la dirección sola, como siempre. Lo decide ActiveTripActivity. -->
+                <TextView
+                    android:id="@+id/text_trip_destination_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    tools:text="Sur 17 851, Centro, 94300 Orizaba, Ver."
+                    tools:visibility="visible" />
             </LinearLayout>
 
             <LinearLayout
@@ -292,35 +370,77 @@
                 android:visibility="gone"
                 tools:visibility="visible">
 
+                <!-- Precio y llegada comparten fila y fondo: son las dos cosas que el pasajero
+                     mira durante el trayecto, y separarlas en dos tarjetas alargaría el modal
+                     justo cuando el mapa es lo que importa. -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="?attr/colorSurfaceVariant"
-                    android:gravity="center"
-                    android:orientation="vertical"
+                    android:orientation="horizontal"
                     android:layout_marginTop="14dp"
                     android:padding="12dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:letterSpacing="0.08"
-                        android:text="@string/active_trip_price_label"
-                        android:textAllCaps="true"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="10sp" />
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/text_trip_price"
-                        android:layout_width="wrap_content"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.08"
+                            android:text="@string/active_trip_price_label"
+                            android:textAllCaps="true"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="10sp" />
+
+                        <TextView
+                            android:id="@+id/text_trip_price"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            tools:text="$290.00" />
+                    </LinearLayout>
+
+                    <!-- Se oculta entero mientras no haya ETA: una etiqueta "Llegada estimada"
+                         sobre un hueco promete un dato que no está. Ver ActiveTripActivity. -->
+                    <LinearLayout
+                        android:id="@+id/group_trip_eta"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        tools:text="$290.00" />
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.08"
+                            android:text="@string/active_trip_eta_label"
+                            android:textAllCaps="true"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="10sp" />
+
+                        <TextView
+                            android:id="@+id/text_trip_eta"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            tools:text="~18 min" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
 </FrameLayout>

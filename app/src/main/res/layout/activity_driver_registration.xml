@@ -128,9 +128,12 @@
                     android:visibility="visible">
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_curp"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
+                        app:helperText="@string/driver_reg_curp_helper"
+                        app:helperTextEnabled="true"
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -138,13 +141,18 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:hint="@string/driver_reg_curp_hint"
+                            android:inputType="textCapCharacters|textNoSuggestions"
+                            android:maxLength="18"
                             android:maxLines="1" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_rfc"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="4dp"
+                        app:helperText="@string/driver_reg_rfc_helper"
+                        app:helperTextEnabled="true"
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -152,6 +160,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:hint="@string/driver_reg_rfc_hint"
+                            android:inputType="textCapCharacters|textNoSuggestions"
+                            android:maxLength="13"
                             android:maxLines="1" />
                     </com.google.android.material.textfield.TextInputLayout>
 
@@ -370,23 +380,29 @@
                     android:orientation="vertical"
                     android:visibility="gone">
 
+                    <!-- El año se elige, no se teclea: el rango válido lo pone el servidor
+                         (2000 al año que entra) y una lista es la única forma de que el conductor
+                         no descubra el límite al enviar los 7 pasos. Las opciones se cargan en
+                         DriverRegistrationActivity porque el tope depende del reloj. -->
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_vehicle_year"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                        android:hint="@string/driver_reg_vehicle_year_hint"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 
-                        <com.google.android.material.textfield.TextInputEditText
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
                             android:id="@+id/input_vehicle_year"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="@string/driver_reg_vehicle_year_hint"
-                            android:inputType="number"
-                            android:maxLength="4"
-                            android:maxLines="1" />
+                            android:inputType="none"
+                            android:maxLines="1"
+                            tools:ignore="LabelFor" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_vehicle_brand"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
@@ -401,6 +417,7 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_vehicle_model"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
@@ -415,6 +432,7 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_vehicle_color"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
@@ -429,9 +447,12 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_vehicle_plate"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="4dp"
+                        app:helperText="@string/driver_reg_plate_helper"
+                        app:helperTextEnabled="true"
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -439,11 +460,36 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:hint="@string/driver_reg_vehicle_plate_hint"
+                            android:inputType="textCapCharacters|textNoSuggestions"
+                            android:maxLength="10"
                             android:maxLines="1" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Los cuatro costados. Con una sola toma, quien revisa no puede cotejar
+                         la placa contra la tarjeta de circulación ni ver el estado de la
+                         carrocería, y el pasajero no reconoce el coche que se le acerca. -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/driver_reg_vehicle_photos_label"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp" />
+
                     <include
-                        android:id="@+id/upload_vehicle_photo"
+                        android:id="@+id/upload_vehicle_photo_front"
+                        layout="@layout/item_upload_box" />
+
+                    <include
+                        android:id="@+id/upload_vehicle_photo_right"
+                        layout="@layout/item_upload_box" />
+
+                    <include
+                        android:id="@+id/upload_vehicle_photo_left"
+                        layout="@layout/item_upload_box" />
+
+                    <include
+                        android:id="@+id/upload_vehicle_photo_rear"
                         layout="@layout/item_upload_box" />
 
                     <LinearLayout
@@ -535,6 +581,20 @@
                     <include
                         android:id="@+id/upload_circulation_card"
                         layout="@layout/item_upload_box" />
+
+                    <!-- Un taxi concesionado acredita el vehículo con la concesión, no con la
+                         tarjeta de circulación: el servidor rechaza ese documento para esta
+                         modalidad (DOCUMENT_NOT_REQUIRED). Se explica en vez de dejar el cuadro
+                         de la foto en blanco sin decir por qué. -->
+                    <TextView
+                        android:id="@+id/text_taxi_circulation_notice"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/driver_reg_taxi_circulation_notice"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
 
                     <LinearLayout
                         android:layout_width="match_parent"

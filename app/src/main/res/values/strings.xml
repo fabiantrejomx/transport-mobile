@@ -56,6 +56,13 @@
     <string name="notif_ride_taken_body">Otro conductor se lo llevó</string>
     <string name="notif_ride_status_title">Actualización de tu viaje</string>
     <string name="notif_ride_status_body">Toca para ver el estado actual</string>
+    <string name="notif_channel_account">Estado de tu cuenta</string>
+    <string name="notif_application_approved_title">Tu registro fue aprobado</string>
+    <string name="notif_application_approved_body">Ya puedes conectarte y empezar a recibir viajes</string>
+    <string name="notif_application_rejected_title">Tu registro necesita correcciones</string>
+    <string name="notif_application_rejected_body">Abre la app para ver qué hay que corregir</string>
+    <string name="notif_application_reviewed_title">Revisamos tu registro</string>
+    <string name="notif_application_reviewed_body">Toca para ver el resultado</string>
 
     <!-- Home -->
     <string name="home_origin_placeholder">Tu ubicación actual</string>
@@ -293,13 +300,17 @@
     <string name="driver_reg_step6_title">Póliza de Seguro</string>
     <string name="driver_reg_step7_title">Verificación de Seguridad</string>
     <string name="driver_reg_curp_hint">CURP</string>
-    <string name="driver_reg_rfc_hint">RFC (opcional)</string>
+    <string name="driver_reg_curp_helper">18 caracteres, tal como aparece en tu documento</string>
+    <string name="driver_reg_rfc_hint">RFC</string>
+    <string name="driver_reg_rfc_helper">13 caracteres con homoclave</string>
     <string name="driver_reg_vehicle_year_hint">Año de fabricación</string>
     <string name="driver_reg_vehicle_brand_hint">Marca (Ej. Nissan)</string>
     <string name="driver_reg_vehicle_model_hint">Modelo (Ej. Versa)</string>
     <string name="driver_reg_vehicle_color_hint">Color</string>
     <string name="driver_reg_vehicle_plate_hint">Número de Placa</string>
+    <string name="driver_reg_plate_helper">Con o sin guiones, como viene en tu placa</string>
     <string name="driver_reg_concession_label">Solo para modalidad Taxi</string>
+    <string name="driver_reg_taxi_circulation_notice">Como taxi, tu vehículo se acredita con el permiso de concesión que subiste en el paso 4. No necesitas la tarjeta de circulación.</string>
     <string name="driver_reg_is_owner_label">¿Eres el propietario del vehículo?</string>
     <string name="driver_reg_not_owner_notice">La autorización para conductores no propietarios estará disponible próximamente. Por ahora, continúa el registro como propietario o usa un vehículo a tu nombre.</string>
     <string name="driver_reg_submit_button">Enviar para Revisión</string>
@@ -311,7 +322,11 @@
     <string name="driver_reg_upload_license_back">Licencia (Reverso)</string>
     <string name="driver_reg_upload_id_front">Identificación Oficial (Frente)</string>
     <string name="driver_reg_upload_id_back">Identificación Oficial (Reverso)</string>
-    <string name="driver_reg_upload_vehicle_photo">Foto del Vehículo (Exterior)</string>
+    <string name="driver_reg_vehicle_photos_label">Fotos del exterior — las cuatro son obligatorias</string>
+    <string name="driver_reg_upload_vehicle_photo_front">Vehículo (Frente)</string>
+    <string name="driver_reg_upload_vehicle_photo_right">Vehículo (Costado derecho)</string>
+    <string name="driver_reg_upload_vehicle_photo_left">Vehículo (Costado izquierdo)</string>
+    <string name="driver_reg_upload_vehicle_photo_rear">Vehículo (Parte trasera)</string>
     <string name="driver_reg_upload_concession">Permiso de Concesión</string>
     <string name="driver_reg_upload_circulation_card">Foto Tarjeta de Circulación</string>
     <string name="driver_reg_upload_insurance">Póliza de Seguro Vigente</string>
@@ -320,8 +335,19 @@
     <string name="driver_reg_upload_done_suffix"> — Foto lista</string>
     <string name="driver_reg_processing_photo">Procesando foto…</string>
     <string name="driver_reg_photo_error">No se pudo procesar la foto. Intenta con otra.</string>
-    <string name="driver_reg_missing_fields_error">Completa CURP, los datos del vehículo y todas las fotos obligatorias antes de enviar.</string>
-    <string name="driver_reg_invalid_year_error">Ingresa un año de fabricación válido.</string>
+    <string name="driver_reg_invalid_year_error">Elige el año de fabricación de tu vehículo.</string>
+    <string name="driver_reg_required_field_error">Campo obligatorio</string>
+    <string name="driver_reg_curp_invalid_error">CURP inválido. Son 18 caracteres, revisa tu documento.</string>
+    <string name="driver_reg_rfc_invalid_error">RFC inválido. Son 13 caracteres para persona física.</string>
+    <string name="driver_reg_plate_invalid_error">La placa debe tener entre 6 y 8 letras y números.</string>
+    <string name="driver_reg_fix_fields_error">Revisa los campos marcados antes de enviar.</string>
+    <string name="driver_reg_missing_photos_error">Faltan fotos obligatorias. Revisa los 7 pasos.</string>
+    <string name="driver_reg_selfie_dialog_title">Selfie de verificación</string>
+    <string name="driver_reg_profile_photo_dialog_title">Foto de perfil</string>
+    <string name="driver_reg_face_photo_message">Se abre la cámara frontal en modo selfie: no puedes elegir una foto de la galería.\n\nPara que quede bien a la primera:\n\n•  Muestra tu cara completa y mira de frente.\n•  Sin lentes ni lentes de sol.\n•  Sin gorra, gorro, sombrero ni capucha.\n•  Aparta el cabello o el fleco de la cara.\n•  Sin aretes, piercings ni cubrebocas.\n•  Busca buena luz y un fondo liso.</string>
+    <string name="driver_reg_selfie_dialog_confirm">Tomar selfie</string>
+    <string name="driver_reg_profile_photo_dialog_confirm">Tomar foto</string>
+    <string name="driver_reg_face_photo_cancel">Cancelar</string>
     <string name="driver_reg_submit_application_error">No se pudo enviar tu solicitud. Intenta de nuevo.</string>
     <string name="driver_reg_upload_document_error">No se pudo subir %1$s. Intenta de nuevo.</string>
     <string name="driver_reg_success_toast">Solicitud enviada. Te avisaremos cuando esté aprobada.</string>

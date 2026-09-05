@@ -61,6 +61,7 @@ import com.bng.drivo.ui.map.MarkerIconFactory;
 import com.bng.drivo.util.DrawerInsets;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.PlaceTextResolver;
+import com.bng.drivo.util.PushRegistration;
 import com.bng.drivo.util.RideAlert;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -253,6 +254,15 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     @Nullable
     private Boolean canGoOnline;
     private boolean approved;
+    /**
+     * Si el expediente hay que volver a preguntarlo al regresar a la pantalla.
+     *
+     * <p>Se enciende al pasar a segundo plano, que es cuando el backoffice puede haber revisado
+     * sin que la app se entere. Ver {@code onResume}.
+     */
+    private boolean gateStale;
+    /** Si ya se resolvió el permiso y el registro del token en esta apertura. */
+    private boolean pushChecked;
     private Step step = Step.GATE;
     /** Paso realmente puesto en el modal: va un fundido por detrás de {@link #step} al animar. */
     private Step displayedStep = Step.GATE;
@@ -324,7 +334,14 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                     enableMyLocation();
                     startLocationLoop();
                 }
+                // Encadenado, nunca en paralelo: Android solo admite un diálogo de permiso
+                // pendiente, y lanzar los dos a la vez descarta uno en silencio.
+                ensurePushDelivery();
             });
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                    granted -> PushRegistration.registerToken(this));
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -658,6 +675,35 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             textNotApprovedDetail.setText(R.string.driver_home_status_detail_pending_review);
             showNotApprovedAction(R.string.driver_home_status_action_refresh, v -> runApplicationGate());
         }
+
+        // En estos estados no hay mapa, así que tampoco hay diálogo de ubicación compitiendo. Y es
+        // justo aquí donde el conductor espera el veredicto que le va a llegar por push.
+        ensurePushDelivery();
+    }
+
+    /**
+     * Deja el aparato en condiciones de recibir avisos: permiso (Android 13+) y token registrado.
+     *
+     * <p>Hacía falta porque el conductor <b>nunca pasa por la pantalla del pasajero</b>
+     * ({@code DriverEntryPoint} lo manda directo aquí o a su registro), que era el único sitio
+     * donde se registraba el token. Sin token en el servidor, {@code FcmPush} no le manda nada:
+     * ni el viaje entrante, ni que le aceptaron la oferta, ni el veredicto de su expediente.
+     *
+     * <p>Es idempotente —{@code POST /devices} hace upsert— así que llamarlo en cada pintado no
+     * acumula nada y recupera al aparato que se quedó fuera por un error de red.
+     */
+    private void ensurePushDelivery() {
+        // Una vez por apertura de la pantalla: se llama desde tres sitios (el estado no aprobado,
+        // el mapa y el callback de ubicación) y el expediente se repinta en cada refresco.
+        if (pushChecked) {
+            return;
+        }
+        pushChecked = true;
+        if (PushRegistration.needsNotificationPermission(this)) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            return;
+        }
+        PushRegistration.registerToken(this);
     }
 
     /** El estado no aprobado ya no se refresca tocando la tarjeta (no había ninguna pista
@@ -1747,8 +1793,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         mapFragment.getMapAsync(this);
 
         if (!hasLocationPermission()) {
+            // Con el diálogo de ubicación en vuelo, el de notificaciones se encadena en su
+            // callback: dos a la vez y Android descarta uno sin avisar.
             permissionLauncher.launch(new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
+        } else {
+            ensurePushDelivery();
         }
     }
 
@@ -2062,12 +2112,22 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             // dejaba al conductor asignado —y por tanto fuera del radar— sin viaje en pantalla.
             openingWonRide = false;
             checkCurrentRide(true);
+        } else if (gateStale) {
+            // Y si todavía no está aprobado, se vuelve a preguntar: el veredicto del backoffice
+            // llega mientras la app está cerrada, y sin esto la tarjeta seguía diciendo "en
+            // revisión" hasta que al conductor se le ocurriera tocar "Actualizar". El push
+            // (application_reviewed) es el aviso; esto es lo que hace que al volver ya sea cierto.
+            gateStale = false;
+            runApplicationGate();
         }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        // Se marca al irse a segundo plano y no en cada onResume: en el arranque en frío el
+        // expediente ya lo pide onCreate, y sin esta marca se pediría dos veces seguidas.
+        gateStale = true;
         if (connectivitySubscription != null) {
             connectivitySubscription.stop();
             connectivitySubscription = null;

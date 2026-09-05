@@ -14,7 +14,13 @@ public interface DriverRepository {
     /** GET /driver/application */
     void getApplication(ApiCallback<DriverApplication> callback);
 
-    /** POST /driver/application — la modalidad determina qué documentos se exigen. */
+    /**
+     * POST /driver/application — la modalidad determina qué documentos se exigen.
+     *
+     * <p>Todos los campos son obligatorios, el RFC incluido. CURP, RFC y placa deben ir ya
+     * normalizados (ver {@code DriverFormValidators}); el servidor los normaliza igual, y mandarlos
+     * en crudo dejaría la copia local distinta de lo que quedó guardado.
+     */
     void submitApplication(String modality, String curp, String rfc, String vehicleBrand, String vehicleModel,
                             String vehicleColor, String vehiclePlate, int vehicleYear, boolean isOwner,
                             ApiCallback<DriverApplication> callback);

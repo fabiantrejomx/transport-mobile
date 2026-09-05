@@ -1,8 +1,6 @@
 package com.bng.drivo.ui.home;
 
 import android.Manifest;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
@@ -11,7 +9,6 @@ import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.annotation.NonNull;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -23,16 +20,14 @@ import com.bng.drivo.R;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.model.UserProfile;
-import com.bng.drivo.data.repository.DeviceRepository;
-import com.bng.drivo.data.repository.RestDeviceRepository;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.settings.ConfiguracionesFragment;
 import com.bng.drivo.util.DrawerInsets;
 import com.bng.drivo.util.NavHeaderRating;
+import com.bng.drivo.util.PushRegistration;
 import com.bng.drivo.ui.trips.ViajesFragment;
 import com.google.android.material.navigation.NavigationView;
-import com.google.firebase.messaging.FirebaseMessaging;
 
 /**
  * Host de las 3 secciones del pasajero (Inicio / Viajes / Configuración), con un drawer
@@ -257,9 +252,7 @@ public class HomeActivity extends AuthenticatedActivity {
      * pinta la notificación — igual registramos el token, la app solo pierde la alerta visual.
      */
     void requestNotificationPermissionAndRegisterToken() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
+        if (PushRegistration.needsNotificationPermission(this)) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
             return;
         }
@@ -267,19 +260,6 @@ public class HomeActivity extends AuthenticatedActivity {
     }
 
     private void registerFcmToken() {
-        FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
-            DeviceRepository deviceRepository = new RestDeviceRepository(this);
-            deviceRepository.registerDevice(token, new ApiCallback<Void>() {
-                @Override
-                public void onSuccess(Void result) {
-                    // no-op
-                }
-
-                @Override
-                public void onError(ApiException error) {
-                    // Se reintenta en el siguiente arranque de HomeActivity.
-                }
-            });
-        });
+        PushRegistration.registerToken(this);
     }
 }

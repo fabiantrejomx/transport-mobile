@@ -32,6 +32,15 @@ public enum ApiErrorCode {
     DRIVER_OFFLINE,
     TOO_MANY_PINGS,
     INVALID_MODALITY,
+    /**
+     * Un dato del expediente del conductor viene mal formado. El servidor los devuelve por campo
+     * —y no como un {@link #VALIDATION_ERROR} genérico— para que el registro de 7 pasos pueda
+     * marcar exactamente cuál corregir.
+     */
+    INVALID_CURP,
+    INVALID_RFC,
+    INVALID_PLATE,
+    INVALID_VEHICLE_YEAR,
     DOCUMENT_NOT_REQUIRED,
     FORBIDDEN_PATH,
     FAVORITE_NOT_FOUND,

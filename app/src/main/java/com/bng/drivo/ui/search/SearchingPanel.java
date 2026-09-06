@@ -198,6 +198,10 @@ public class SearchingPanel {
     public void onHostStart() {
         if (active) {
             subscribe();
+            // El cronómetro se paró al irse al fondo. Sin reponerlo, volver a la app dejaba la
+            // cuenta congelada: el sondeo no repinta nada cuando la lista no cambió, que es
+            // justo el caso mientras todavía no hay ofertas.
+            startExpiryTicker();
         }
     }
 
@@ -427,6 +431,46 @@ public class SearchingPanel {
         textTitle.setText(R.string.searching_message);
         textSubtitle.setText(R.string.searching_subtitle);
         callbacks.setRadarVisible(active);
+        // El cronómetro corre también sin tarjetas: es lo único que dice cuánto queda de la
+        // búsqueda, y es justo el rato en que no hay nada más en pantalla. Al retomar la app a
+        // media subasta cuenta desde donde iba, no desde el principio: el ancla es
+        // search_expires_at, la hora del servidor.
+        startExpiryTicker();
+    }
+
+    /**
+     * Lo que queda de búsqueda, bajo el título de "Buscando conductores…".
+     *
+     * <p>Sin esto la espera no tenía fondo visible: los 180 s corrían en el servidor y la pantalla
+     * decía lo mismo en el segundo 5 que en el 175. Reabrir la app a media subasta lo hacía peor
+     * todavía, porque no quedaba nada en el teléfono que dijera cuánto se llevaba esperando.
+     */
+    private void tickSearchCountdown() {
+        long expiresAt = parseMillis(viewModel.getSearchExpiresAt());
+        if (expiresAt <= 0) {
+            return;
+        }
+        long remaining = Math.max(0, expiresAt - System.currentTimeMillis());
+        if (remaining == 0) {
+            // El viaje lo cierra el barredor del servidor, no esta pantalla (ver
+            // onRideStatusChanged). Aquí solo se deja de prometer un tiempo que ya no existe.
+            textSubtitle.setText(R.string.searching_subtitle);
+            return;
+        }
+        long seconds = remaining / 1000;
+        textSubtitle.setText(context().getString(R.string.searching_time_left,
+                String.format(Locale.getDefault(), "%d:%02d", seconds / 60, seconds % 60)));
+    }
+
+    private static long parseMillis(@Nullable String isoTimestamp) {
+        if (isoTimestamp == null) {
+            return 0;
+        }
+        try {
+            return java.time.Instant.parse(isoTimestamp).toEpochMilli();
+        } catch (java.time.format.DateTimeParseException malFormado) {
+            return 0;
+        }
     }
 
     /**
@@ -538,6 +582,9 @@ public class SearchingPanel {
                     }
                     long remaining = Math.max(0, expiresAt - now);
                     card.progress.setProgress((int) (1000 * remaining / card.totalMs));
+                }
+                if (cards.isEmpty()) {
+                    tickSearchCountdown();
                 }
                 expiryHandler.postDelayed(this, EXPIRY_TICK_MS);
             }

@@ -49,6 +49,17 @@ public class ConfirmPricePanel {
 
         /** "Cancelar": se descarta la solicitud y el host vuelve a Home. */
         void onTripCancelled();
+
+        /**
+         * El servidor dice que este pasajero ya trae un viaje abierto (RIDE_IN_PROGRESS): el host
+         * vuelve a preguntar cuál es y lo retoma.
+         *
+         * <p>Es lo que pasa cuando la app se cerró justo mientras POST /rides estaba en vuelo: el
+         * viaje se creó del otro lado y este teléfono nunca se enteró. Enseñar aquí un error
+         * genérico dejaba al pasajero sin poder pedir —el candado del servidor es correcto— y sin
+         * saber que ya tenía uno.
+         */
+        void onRideAlreadyInProgress();
     }
 
     /** El Slider de Material exige que (max - min) sea múltiplo exacto de este paso. */
@@ -295,6 +306,13 @@ public class ConfirmPricePanel {
                     recotizeAndRetry();
                     return;
                 }
+                if (error.getCode() == ApiErrorCode.RIDE_IN_PROGRESS) {
+                    // No es un fallo: hay un viaje vivo que esta app no conocía. Se retoma.
+                    requestingRide = false;
+                    LoadingButtonHelper.setLoading(btnRequestTrip, false);
+                    callbacks.onRideAlreadyInProgress();
+                    return;
+                }
                 failRequest();
             }
         });
@@ -327,6 +345,12 @@ public class ConfirmPricePanel {
 
                             @Override
                             public void onError(ApiException error) {
+                                if (error.getCode() == ApiErrorCode.RIDE_IN_PROGRESS) {
+                                    requestingRide = false;
+                                    LoadingButtonHelper.setLoading(btnRequestTrip, false);
+                                    callbacks.onRideAlreadyInProgress();
+                                    return;
+                                }
                                 failRequest();
                             }
                         });
@@ -342,6 +366,10 @@ public class ConfirmPricePanel {
     private void deliverRide(@NonNull Ride ride) {
         viewModel.setRideId(ride.getId());
         viewModel.setOfferedFare(slider.getValue());
+        // El reloj de la subasta lo pone el servidor al crear el viaje, no este teléfono: es el
+        // mismo dato que se recupera al retomar, y guardarlo también aquí hace que el paso
+        // siguiente cuente igual en los dos casos en vez de solo después de reabrir la app.
+        viewModel.setSearchExpiresAt(ride.getSearchExpiresAt());
         requestingRide = false;
         LoadingButtonHelper.setLoading(btnRequestTrip, false);
         callbacks.onRideCreated(ride);

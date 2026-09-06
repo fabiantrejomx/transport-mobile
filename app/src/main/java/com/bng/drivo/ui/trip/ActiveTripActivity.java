@@ -3,6 +3,7 @@ package com.bng.drivo.ui.trip;
 import android.Manifest;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -11,12 +12,16 @@ import android.view.animation.LinearInterpolator;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
+import com.bng.drivo.util.VisibleScreen;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.Ride;
+import com.bng.drivo.data.model.Waypoint;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.FirestoreRideRealtimeRepository;
@@ -26,6 +31,7 @@ import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.map.PolylineDecoder;
+import com.bng.drivo.ui.search.SearchingPanel;
 import com.bng.drivo.util.NavHeaderRating;
 import com.bng.drivo.ui.map.MarkerIconFactory;
 import com.bng.drivo.util.LoadingButtonHelper;
@@ -113,6 +119,62 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
      * que el trazo no puede cambiar. Ausente —o ilegible— se cae a la guía recta.
      */
     public static final String EXTRA_POLYLINE = "extra_polyline";
+
+    /**
+     * Arma el Intent de esta pantalla a partir del viaje que devolvió el servidor.
+     *
+     * <p>Un solo constructor para los dos caminos que llevan aquí —aceptar una oferta y retomar un
+     * viaje al reabrir la app— porque son el mismo viaje leído del mismo sitio. Antes solo existía
+     * el primero, escrito a mano en HomeFragment a partir de lo que el ViewModel había ido
+     * juntando: los 14 extras eran una foto del momento, y un arranque en frío no tiene esa foto.
+     *
+     * @param destinationLabel el nombre de la dirección guardada ("Casa"), si el destino salió de
+     *                         una. Es cosa de este teléfono y no viaja en el contrato, así que al
+     *                         retomar viene null y se enseña la dirección — que es lo que importa.
+     */
+    public static Intent intentFor(@NonNull Context context, @NonNull Ride ride,
+                                   @Nullable String destinationLabel) {
+        Intent intent = new Intent(context, ActiveTripActivity.class);
+        intent.putExtra(EXTRA_RIDE_ID, ride.getId());
+        intent.putExtra(EXTRA_DRIVER_INITIALS, SearchingPanel.initialsFor(ride.getDriverName()));
+        intent.putExtra(EXTRA_DRIVER_NAME, ride.getDriverName());
+        if (ride.getDriverRating() != null) {
+            // .doubleValue() y no el Double: con el objeto, Java elige putExtra(String,
+            // Serializable) en vez de putExtra(String, double) —la conversión de referencia gana
+            // sobre el unboxing— y getDoubleExtra devolvía siempre el valor por omisión. Por eso
+            // la pastilla de calificación del conductor no se pintaba nunca.
+            intent.putExtra(EXTRA_DRIVER_RATING, ride.getDriverRating().doubleValue());
+        }
+        // Marca, modelo y color con la placa detrás, exactamente como los compone la tarjeta de
+        // oferta (SearchingPanel.buildDriverCard). La placa es lo único de esa línea que sirve para
+        // identificar el coche entre otros dos iguales, que es justo lo que toca hacer ahora.
+        String vehicle = SearchingPanel.joinNonNull(" ",
+                ride.getVehicleBrand(), ride.getVehicleModel(), ride.getVehicleColor());
+        intent.putExtra(EXTRA_DRIVER_DETAILS,
+                SearchingPanel.joinNonNull(" · ", vehicle, ride.getVehiclePlate()));
+        intent.putExtra(EXTRA_PRICE,
+                ride.getAgreedFare() != null ? ride.getAgreedFare().floatValue() : 0f);
+        intent.putExtra(EXTRA_ORIGIN, ride.getOriginText());
+        intent.putExtra(EXTRA_DESTINATION, ride.getDestinationText());
+        intent.putExtra(EXTRA_DESTINATION_LABEL, destinationLabel);
+        intent.putExtra(EXTRA_ORIGIN_LAT, ride.getOriginLat() != null ? ride.getOriginLat() : 0);
+        intent.putExtra(EXTRA_ORIGIN_LNG, ride.getOriginLng() != null ? ride.getOriginLng() : 0);
+        intent.putExtra(EXTRA_DESTINATION_LAT,
+                ride.getDestinationLat() != null ? ride.getDestinationLat() : 0);
+        intent.putExtra(EXTRA_DESTINATION_LNG,
+                ride.getDestinationLng() != null ? ride.getDestinationLng() : 0);
+        // El trazo por calles del viaje ya cerrado: el servidor lo copió de la cotización al
+        // viaje justo para que siga disponible cuando aquella venza. Si viene null, esta pantalla
+        // cae a la guía recta.
+        intent.putExtra(EXTRA_POLYLINE, ride.getPolyline());
+        // La parada sí viaja ya en el viaje (waypoints): antes no, y el mapa del pasajero saltaba
+        // del origen al destino ignorando su propia parada en cuanto la pantalla se abría sin
+        // haber pasado por el flujo que la tenía en memoria.
+        Waypoint stop = ride.getWaypoints().isEmpty() ? null : ride.getWaypoints().get(0);
+        intent.putExtra(EXTRA_STOP_LAT, stop != null ? stop.getLat() : 0);
+        intent.putExtra(EXTRA_STOP_LNG, stop != null ? stop.getLng() : 0);
+        return intent;
+    }
 
     private static final LatLng DEFAULT_POSITION = new LatLng(19.4326, -99.1332);
     /** Lo bastante cerca para ver en qué calle va el coche, sin perder las de alrededor. */
@@ -321,6 +383,20 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         }
     }
 
+    /** Ver {@link VisibleScreen}: con esta pantalla delante, el aviso de cambio de estado del
+     * viaje ya llega por el canal en vivo y se pinta aquí; la notificación sobra. */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        VisibleScreen.show(ActiveTripActivity.class);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        VisibleScreen.hide(ActiveTripActivity.class);
+    }
+
     @Override
     protected void onStop() {
         super.onStop();
@@ -441,9 +517,9 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
      */
     private void startWaitCountdown() {
         waitTimer.start(null);
-        tripRepository.getRideDetail(rideId, new ApiCallback<com.bng.drivo.data.model.Ride>() {
+        tripRepository.getRideDetail(rideId, new ApiCallback<Ride>() {
             @Override
-            public void onSuccess(com.bng.drivo.data.model.Ride ride) {
+            public void onSuccess(Ride ride) {
                 if (!"DRIVER_ARRIVED".equals(currentStatus)) {
                     return;
                 }
@@ -724,9 +800,9 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
 
     private void cancelTrip() {
         LoadingButtonHelper.setLoading(btnCancelTrip, true);
-        tripRepository.cancelRide(rideId, new ApiCallback<com.bng.drivo.data.model.Ride>() {
+        tripRepository.cancelRide(rideId, new ApiCallback<Ride>() {
             @Override
-            public void onSuccess(com.bng.drivo.data.model.Ride result) {
+            public void onSuccess(Ride result) {
                 terminalStateHandled = true;
                 Toast.makeText(ActiveTripActivity.this, R.string.active_trip_cancelled_toast, Toast.LENGTH_SHORT)
                         .show();

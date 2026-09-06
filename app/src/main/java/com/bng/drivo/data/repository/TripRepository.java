@@ -60,4 +60,20 @@ public interface TripRepository {
 
     /** GET /rides/{id} — el único que sí trae al conductor. */
     void getRideDetail(String rideId, ApiCallback<Ride> callback);
+
+    /**
+     * GET /current-ride — el viaje que el pasajero trae abierto ahora mismo, o {@code null} si no
+     * hay ninguno.
+     *
+     * <p>Es como la app se recupera de haberse cerrado a media solicitud. El viaje vive en el
+     * servidor y esta app es una ventana: sin esta llamada, cerrarla durante la subasta —o con el
+     * conductor ya en camino— devolvía a un inicio vacío, sin forma de volver al viaje y sin poder
+     * pedir otro, porque el servidor lo negaba con {@code RIDE_IN_PROGRESS}. Tenía razón; lo que
+     * faltaba era la puerta de vuelta.
+     *
+     * <p>Solo devuelve viajes vivos (SEARCHING/MATCHED/DRIVER_ARRIVED/IN_PROGRESS) — los mismos
+     * cuatro estados que bloquean pedir otro. Lo que puede quedar pendiente de un viaje ya cerrado
+     * es la calificación, y eso se ve en {@link #getRideHistory} con {@code myRating}.
+     */
+    void getCurrentRide(ApiCallback<Ride> callback);
 }

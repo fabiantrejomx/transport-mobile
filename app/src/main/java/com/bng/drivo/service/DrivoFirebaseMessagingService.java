@@ -12,10 +12,14 @@ import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.DeviceRepository;
 import com.bng.drivo.data.repository.RestDeviceRepository;
+import com.bng.drivo.ui.auth.RoleSelectionActivity;
 import com.bng.drivo.ui.driver.DriverActiveTripActivity;
 import com.bng.drivo.ui.driver.DriverHomeActivity;
 import com.bng.drivo.ui.home.HomeActivity;
+import com.bng.drivo.ui.trip.ActiveTripActivity;
 import com.bng.drivo.util.NotificationChannels;
+import com.bng.drivo.util.PrefsHelper;
+import com.bng.drivo.util.VisibleScreen;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
@@ -79,6 +83,10 @@ public class DrivoFirebaseMessagingService extends FirebaseMessagingService {
             return;
         }
 
+        if (loAtiendeLaPantallaQueSeVe(type)) {
+            return;
+        }
+
         RemoteMessage.Notification payload = remoteMessage.getNotification();
         String title = payload != null && payload.getTitle() != null
                 ? payload.getTitle() : defaultTitleFor(type, status);
@@ -98,20 +106,7 @@ public class DrivoFirebaseMessagingService extends FirebaseMessagingService {
             channelId = NotificationChannels.RIDES_NORMAL;
         }
 
-        // offer_accepted es la ÚNICA forma en que el conductor se entera de que ganó un
-        // viaje (el contrato no tiene "GET mi viaje activo") — por eso se manda directo a
-        // DriverActiveTripActivity en vez de a HomeActivity como el resto de los tipos.
-        //
-        // application_reviewed va al inicio del conductor: es la pantalla que ya sabe pintar
-        // los cinco estados del expediente, y los vuelve a consultar al abrirse.
-        Class<?> destination;
-        if (TYPE_OFFER_ACCEPTED.equals(type)) {
-            destination = DriverActiveTripActivity.class;
-        } else if (TYPE_APPLICATION_REVIEWED.equals(type)) {
-            destination = DriverHomeActivity.class;
-        } else {
-            destination = HomeActivity.class;
-        }
+        Class<?> destination = destinationFor(type);
         // EXTRA_RIDE_ID coincide en texto con DriverActiveTripActivity.EXTRA_RIDE_ID —
         // un solo putExtra sirve para los dos destinos posibles.
         Intent intent = new Intent(this, destination);
@@ -132,6 +127,79 @@ public class DrivoFirebaseMessagingService extends FirebaseMessagingService {
         // primero en la bandeja en vez de acumularse, y no choca con las notificaciones de viaje.
         int notificationId = rideId != null ? rideId.hashCode() : type.hashCode();
         NotificationManagerCompat.from(this).notify(notificationId, notification.build());
+    }
+
+    /**
+     * Si el aviso ya lo está atendiendo, en vivo, la pantalla que el usuario tiene delante.
+     *
+     * <p>La notificación es para cuando la app <b>no</b> está a la vista. Con el radar del
+     * conductor delante, una solicitud entrante llega por la bandeja de Firestore, se abre sola en
+     * el modal y suena con {@link com.bng.drivo.util.RideAlert} (tono del sistema + vibración, que
+     * es lo que de verdad avisa a alguien que va manejando). Pintar además una notificación no
+     * cuenta nada nuevo y sí añade una salida de la pantalla en la que hay que decidir.
+     *
+     * <p>{@code application_reviewed} queda fuera a propósito: no hay ninguna pantalla que lo
+     * refresque sola —el inicio del conductor solo vuelve a consultar el expediente al volver del
+     * segundo plano—, así que si se silenciara con la app abierta el veredicto no aparecería por
+     * ningún lado.
+     */
+    private boolean loAtiendeLaPantallaQueSeVe(String type) {
+        switch (type) {
+            case TYPE_NEW_RIDE:
+            case TYPE_RIDE_TAKEN:
+            case TYPE_OFFER_ACCEPTED:
+                // Los tres salen de la bandeja del conductor: una solicitud aparece, y desaparece
+                // cuando la gana o la pierde. El inicio del conductor lo pinta todo en vivo.
+                return VisibleScreen.isShowing(DriverHomeActivity.class);
+            case TYPE_RIDE_STATUS:
+                // El estado del viaje lo sigue el listener de rides/{id} en la pantalla del viaje,
+                // la del pasajero o la del conductor según de quién sea este teléfono.
+                return VisibleScreen.isShowing(ActiveTripActivity.class)
+                        || VisibleScreen.isShowing(DriverActiveTripActivity.class);
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * A qué pantalla lleva cada tipo de aviso.
+     *
+     * <p>Se decide <b>por el destinatario del push</b>, no por descarte. Antes todo lo que no
+     * fuera {@code offer_accepted} ni {@code application_reviewed} caía en un {@code else} que
+     * abría {@link HomeActivity} — el inicio del <em>pasajero</em>. Como {@code new_ride} y
+     * {@code ride_taken} son avisos del conductor (los manda el servidor a su {@code driverId},
+     * ver FcmPush), tocar la notificación de una solicitud entrante sacaba al conductor de su app
+     * y lo dejaba en la del pasajero, con el viaje perdido.
+     *
+     * <p>Pasaba desapercibido mientras cerrar la app dejaba al conductor fuera del radar en
+     * minutos: casi nunca llegaba un {@code new_ride} que no estuviera ya en pantalla. Con el
+     * servicio en primer plano el conductor sigue disponible con la app guardada, así que ahora
+     * este es el camino normal y tiene que llevar a donde debe.
+     *
+     * <p>{@code ride_status} es el único que puede ser para cualquiera de los dos lados: le llega
+     * al pasajero cuando el conductor cancela o cierra el viaje, y al conductor cuando el pasajero
+     * cancela. Como el push no dice de quién es, lo resuelve el modo en el que está este teléfono
+     * — que es justo lo que {@code PREF_KEY_DRIVER_MODE} sabe.
+     */
+    private Class<?> destinationFor(String type) {
+        switch (type) {
+            case TYPE_OFFER_ACCEPTED:
+                // El atajo para enterarse de que ganó el viaje. GET /driver/current-ride lo
+                // respalda si el push no llega o no se toca.
+                return DriverActiveTripActivity.class;
+            case TYPE_NEW_RIDE:
+            case TYPE_RIDE_TAKEN:
+            case TYPE_APPLICATION_REVIEWED:
+                return DriverHomeActivity.class;
+            case TYPE_RIDE_STATUS:
+            default:
+                return enModoConductor() ? DriverHomeActivity.class : HomeActivity.class;
+        }
+    }
+
+    private boolean enModoConductor() {
+        return new PrefsHelper(this)
+                .getBoolean(RoleSelectionActivity.PREF_KEY_DRIVER_MODE, false);
     }
 
     private String defaultTitleFor(String type, String status) {

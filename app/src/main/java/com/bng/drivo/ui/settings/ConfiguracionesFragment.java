@@ -19,15 +19,13 @@ import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.AddressRepository;
-import com.bng.drivo.data.repository.AuthRepository;
-import com.bng.drivo.data.repository.FirebaseAuthRepository;
 import com.bng.drivo.data.repository.RestAddressRepository;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.address.AddressListActivity;
-import com.bng.drivo.ui.auth.RoleSelectionActivity;
 import com.bng.drivo.ui.home.HomeActivity;
+import com.bng.drivo.ui.auth.SessionExit;
 import com.bng.drivo.ui.security.SeguridadActivity;
 import com.bng.drivo.util.NavHeaderRating;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -45,7 +43,6 @@ public class ConfiguracionesFragment extends Fragment {
     /** De sobra para contar los viajes de un pasajero del piloto sin traer el historial entero. */
     private static final int TRIP_COUNT_LIMIT = 100;
 
-    private AuthRepository authRepository;
     private UserRepository userRepository;
     private AddressRepository addressRepository;
 
@@ -59,8 +56,6 @@ public class ConfiguracionesFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        authRepository = new FirebaseAuthRepository();
         userRepository = new RestUserRepository(requireContext());
         addressRepository = new RestAddressRepository(requireContext());
 
@@ -85,6 +80,8 @@ public class ConfiguracionesFragment extends Fragment {
         view.findViewById(R.id.row_notifications).setOnClickListener(v ->
                 SimpleMessageBottomSheet.present(getChildFragmentManager(),
                         getString(R.string.perfil_notifications), getString(R.string.settings_notifications_coming_soon)));
+        view.findViewById(R.id.row_become_driver).setOnClickListener(v ->
+                SessionExit.toDriver(requireActivity()));
         view.findViewById(R.id.btn_logout).setOnClickListener(v -> logout());
     }
 
@@ -208,11 +205,9 @@ public class ConfiguracionesFragment extends Fragment {
                 });
     }
 
+    /** Centralizado en {@link SessionExit}: además de la sesión hay que limpiar lo que este
+     * teléfono guardó de la cuenta (el modo y la copia local del expediente de conductor). */
     private void logout() {
-        authRepository.logout();
-        Intent intent = new Intent(requireContext(), RoleSelectionActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        requireActivity().finish();
+        SessionExit.logout(requireActivity());
     }
 }

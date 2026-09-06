@@ -17,12 +17,17 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.model.UserProfile;
+import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.settings.ConfiguracionesFragment;
+import com.bng.drivo.ui.trip.ActiveTripActivity;
+import com.bng.drivo.ui.trip.FinishedTripActivity;
+import com.bng.drivo.ui.trip.TripResumeGate;
 import com.bng.drivo.util.DrawerInsets;
 import com.bng.drivo.util.NavHeaderRating;
 import com.bng.drivo.util.PushRegistration;
@@ -42,6 +47,7 @@ public class HomeActivity extends AuthenticatedActivity {
     private static final String TAG_VIAJES = "tab_viajes";
     private static final String TAG_CONFIGURACIONES = "tab_configuraciones";
 
+    private View resumingOverlay;
     private Fragment homeFragment;
     private Fragment viajesFragment;
     private Fragment configuracionesFragment;
@@ -89,6 +95,70 @@ public class HomeActivity extends AuthenticatedActivity {
         transaction.show(homeFragment).hide(viajesFragment).hide(configuracionesFragment);
         transaction.commitNow();
         activeFragment = homeFragment;
+
+        resumingOverlay = findViewById(R.id.group_resuming_trip);
+        // Solo en una creación de verdad. Si el sistema está restaurando la pila (savedInstanceState
+        // no es null), la Activity del viaje —si la había— se restaura sola encima, y volver a
+        // lanzarla desde aquí la abriría dos veces.
+        if (savedInstanceState == null) {
+            resumeOpenTrip();
+        }
+    }
+
+    /**
+     * Lo primero al arrancar: preguntarle al servidor qué viaje trae abierto este pasajero.
+     *
+     * <p>Va aquí y no en el Splash porque este es el sitio al que se llega siempre —arranque en
+     * frío, vuelta desde el registro, toque en una notificación— y porque alargar el Splash con
+     * una llamada de red se nota en cada apertura, incluidas las que no tienen nada que retomar.
+     *
+     * <p>Mientras dura, la ventana de "Reanudando viaje en curso" tapa el inicio: durante ese
+     * instante el mapa ya está pintado pero todavía no se sabe si es la pantalla correcta, y
+     * dejarlo tocable invita a pedir un viaje nuevo justo cuando hay uno vivo — que es lo que el
+     * servidor rechaza con RIDE_IN_PROGRESS.
+     */
+    void resumeOpenTrip() {
+        showResumingOverlay(true);
+        TripResumeGate.run(new RestTripRepository(this), new TripResumeGate.Callbacks() {
+            @Override
+            public void onResumeSearching(@NonNull Ride ride) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                showResumingOverlay(false);
+                ((HomeFragment) homeFragment).resumeSearching(ride);
+            }
+
+            @Override
+            public void onResumeActiveTrip(@NonNull Ride ride) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                // La ventana no se quita antes de arrancar la otra pantalla: entre una cosa y la
+                // otra se vería el inicio un instante, que es justo lo que se está evitando. La
+                // quita onResume al volver de allá.
+                startActivity(ActiveTripActivity.intentFor(HomeActivity.this, ride, null));
+            }
+
+            @Override
+            public void onPendingRating(@NonNull Ride ride) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                startActivity(FinishedTripActivity.intentFor(HomeActivity.this, ride));
+            }
+
+            @Override
+            public void onNothingToResume() {
+                showResumingOverlay(false);
+            }
+        });
+    }
+
+    private void showResumingOverlay(boolean show) {
+        if (resumingOverlay != null) {
+            resumingOverlay.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
     }
 
     /**
@@ -196,6 +266,9 @@ public class HomeActivity extends AuthenticatedActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Volver del viaje activo o del recibo: la ventana de reanudación cumplió su función y
+        // aquí abajo ya está el inicio de siempre.
+        showResumingOverlay(false);
         // El nombre se puede editar desde Configuración, en esta misma pantalla.
         loadDrawerProfile();
     }

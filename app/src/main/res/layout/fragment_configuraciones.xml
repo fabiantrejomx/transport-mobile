@@ -353,6 +353,44 @@
                             android:textColor="?attr/colorOnSurface"
                             android:textSize="14sp" />
                     </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?attr/colorOutline" />
+
+                    <!-- El camino de vuelta al modo conductor. Es lo que hace que "usar Drivo
+                         como pasajero" no sea una puerta de un solo sentido: quien salió de un
+                         registro a medias tiene que poder volver a él. Enruta DriverEntryPoint,
+                         que ya distingue registro pendiente de conductor aprobado. -->
+                    <LinearLayout
+                        android:id="@+id/row_become_driver"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
+
+                        <TextView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="16dp"
+                            android:gravity="center"
+                            android:text="🚗"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/perfil_become_driver"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="14sp" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -32,11 +31,13 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.bng.drivo.util.VisibleScreen;
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.DriverApplication;
 import com.bng.drivo.data.model.InboxEntry;
 import com.bng.drivo.data.model.IncomingRequest;
 import com.bng.drivo.data.model.Ride;
+import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.model.Waypoint;
 import com.bng.drivo.data.model.Wallet;
@@ -55,13 +56,17 @@ import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.SystemConnectivityRepository;
 import com.bng.drivo.data.repository.UserRepository;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
+import com.bng.drivo.ui.auth.SessionExitBottomSheet;
 import com.bng.drivo.ui.map.DriverRoutePainter;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.map.MarkerIconFactory;
+import com.bng.drivo.service.DriverOnlineService;
+import com.bng.drivo.service.DrivoFirebaseMessagingService;
 import com.bng.drivo.util.DrawerInsets;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.bng.drivo.util.PlaceTextResolver;
 import com.bng.drivo.util.PushRegistration;
+import com.bng.drivo.util.NavHeaderRating;
 import com.bng.drivo.util.RideAlert;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -156,12 +161,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      * que hereda su ritmo — con los 12 s de antes se veía dar saltos, no moverse.
      */
     private static final long LOCATION_INTERVAL_IDLE_MS = 5000L;
-    /**
-     * Cada cuánto se le manda la posición al servidor. Se mantiene en los 12 s de siempre aunque
-     * el mapa se refresque más seguido: acelerar el dibujo no es razón para triplicar el tráfico
-     * ni el consumo de datos del conductor — ver el filtro por tiempo en startLocationLoop().
-     */
-    private static final long LOCATION_REPORT_INTERVAL_MS = 12000L;
     private static final long BANNER_FADE_MS = 200;
     private static final long RECONNECTED_BANNER_VISIBLE_MS = 2500;
     /** Fundido del contenido del modal al cambiar de paso (mitad de salida, mitad de entrada). */
@@ -216,11 +215,6 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     @Nullable
     private RealtimeSubscription connectivitySubscription;
     private LocationCallback locationCallback;
-    /**
-     * Cuándo se le habló al servidor por última vez ({@link SystemClock#elapsedRealtime()}, que no
-     * salta si cambia la hora del sistema). Separa el ritmo del dibujo del ritmo del reporte.
-     */
-    private long lastLocationReportAtMs;
     private CountDownTimer incomingExpiryTimer;
     private String displayedRideId;
     /**
@@ -243,6 +237,17 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     private final Set<String> closingBanners = new HashSet<>();
     /** Evita que dos consultas a /driver/current-ride se pisen al resolverse varias ofertas. */
     private boolean checkingCurrentRide;
+    /** La calificación pendiente se ofrece una vez por arranque, no en cada vuelta a Inicio. */
+    private boolean pendingRatingChecked;
+    /**
+     * La solicitud que venía en el push que abrió esta pantalla, hasta que se pueda mostrar.
+     *
+     * <p>No se puede abrir en cuanto llega: {@code onCreate} todavía no sabe si el conductor está
+     * aprobado ni conectado — eso lo contesta GET /driver/application. Se guarda y lo consume el
+     * gate.
+     */
+    @Nullable
+    private String pendingPushRideId;
     /** Ya estamos abriendo el viaje ganado: ni volver a abrirlo ni seguir pintando banners. */
     private boolean openingWonRide;
 
@@ -348,6 +353,8 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_driver_home);
 
+        pendingPushRideId = getIntent().getStringExtra(DrivoFirebaseMessagingService.EXTRA_RIDE_ID);
+
         driverRepository = new RestDriverRepository(this);
         userRepository = new RestUserRepository(this);
         authRepository = new FirebaseAuthRepository();
@@ -389,6 +396,10 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         textNotApprovedTitle = findViewById(R.id.text_not_approved_title);
         textNotApprovedDetail = findViewById(R.id.text_not_approved_detail);
         btnNotApprovedAction = findViewById(R.id.btn_not_approved_action);
+        // Siempre visible en los estados no aprobados: es la única salida mientras el cajón está
+        // bloqueado. Ver SessionExit.
+        findViewById(R.id.btn_not_approved_exit).setOnClickListener(v ->
+                SessionExitBottomSheet.present(this));
         progressGate = findViewById(R.id.progress_gate);
         offlineBanner = findViewById(R.id.banner_offline);
         onlineBanner = findViewById(R.id.banner_online);
@@ -617,7 +628,16 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                     if (online) {
                         startInboxListener();
                     }
+                    // El servicio sigue a lo que dice el servidor, no a lo que esta pantalla
+                    // recordara: es el mismo criterio con el que se pinta el botón. Si quedó
+                    // conectado de una sesión anterior, aquí es donde vuelve a reportar.
+                    applyOnlineService();
                     loadWallet();
+                    checkPendingRating();
+                    // Si llegamos aquí desde la notificación de una solicitud, esta es la primera
+                    // vez que se puede abrir: hasta ahora no sabíamos si el conductor estaba
+                    // aprobado.
+                    openPendingPushRequest();
                 } else {
                     approved = false;
                     showNotApprovedState(application);
@@ -642,11 +662,67 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         });
     }
 
+    /**
+     * ¿Quedó una calificación sin enviar del último viaje?
+     *
+     * <p>Una sola vez por arranque ({@code pendingRatingChecked}) y solo del último viaje. El
+     * panel de cobro donde se calificaba vive en la pantalla del viaje y se lo lleva cualquier
+     * cierre de la app; la calificación, en cambio, se puede enviar cuando sea — el servidor solo
+     * exige que el viaje esté terminado. Ver {@link RatePassengerBottomSheet}.
+     *
+     * <p>No se ofrece si hay un viaje abierto: eso lo resuelve {@code checkCurrentRide}, y
+     * calificar el anterior mientras se abre el siguiente es ruido en el peor momento.
+     */
+    private void checkPendingRating() {
+        if (pendingRatingChecked) {
+            return;
+        }
+        pendingRatingChecked = true;
+        driverRepository.getRideHistory(1, new ApiCallback<List<RideSummary>>() {
+            @Override
+            public void onSuccess(List<RideSummary> history) {
+                if (isFinishing() || isDestroyed() || openingWonRide) {
+                    return;
+                }
+                if (history == null || history.isEmpty() || !history.get(0).needsRating()) {
+                    return;
+                }
+                RatePassengerBottomSheet.present(getSupportFragmentManager(), history.get(0));
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                // Se vuelve a intentar en el siguiente arranque; no es nada que anunciar.
+            }
+        });
+    }
+
+    /**
+     * Enciende o apaga el servicio en primer plano según si el conductor está en el radar.
+     *
+     * <p>Un solo sitio que lo decida, y que lo decida a partir de {@code online} —que sale del
+     * servidor— en vez de repartir starts y stops por cada camino que cambia la conexión. El
+     * servicio es idempotente: volver a arrancarlo estando arrancado solo repinta su aviso.
+     *
+     * <p>Con un viaje encima no manda esto: la pantalla del viaje lo pone en modo "viaje en curso"
+     * y lo mantiene vivo aunque el conductor se haya desconectado del radar para no recibir más.
+     */
+    private void applyOnlineService() {
+        if (online) {
+            DriverOnlineService.startOnline(this);
+        } else {
+            DriverOnlineService.stop(this);
+        }
+    }
+
     /** Sin acceso a Ganancias/Configuración/Seguridad todavía — esas pantallas asumen un
      * conductor ya operando, y aquí solo hay una solicitud en algún estado no aprobado. */
     private void showNotApprovedState(DriverApplication application) {
         step = Step.NOT_APPROVED;
         applyStep(Step.NOT_APPROVED, false);
+        // Un expediente que dejó de estar aprobado no reporta posición: el servidor ya no le va a
+        // ofrecer viajes, y el aviso permanente diría algo que no es cierto.
+        DriverOnlineService.stop(this);
         String status = application.getStatus();
         if ("draft".equals(status)) {
             iconNotApproved.setImageResource(R.drawable.ic_edit);
@@ -756,6 +832,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                         goTo(online ? Step.ONLINE : Step.OFFLINE);
                     }
                 }
+                // Fuera del if a propósito, y no solo cuando la conexión cambia: al volver de un
+                // viaje el estado en línea suele ser el mismo, pero el aviso permanente se quedó
+                // diciendo "viaje en curso". Esto lo devuelve a "estás en el radar" — y también
+                // lo apaga cuando el servidor desconectó por su cuenta al cerrar un viaje que
+                // dejó el saldo bajo el mínimo.
+                applyOnlineService();
                 updateConnectionUi();
             }
 
@@ -793,6 +875,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 goTo(Step.ONLINE);
                 updateConnectionUi();
                 startInboxListener();
+                applyOnlineService();
             }
 
             @Override
@@ -835,6 +918,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 goTo(Step.OFFLINE);
                 updateConnectionUi();
                 stopInboxListener();
+                applyOnlineService();
                 loadWallet();
             }
 
@@ -1202,10 +1286,17 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         }
         openingWonRide = true;
         cancelIncomingExpiryTimer();
-        RideAlert.play(this);
-        for (String otro : new ArrayList<>(offerBanners.keySet())) {
-            // Las demás ofertas las acaba de cancelar el servidor al asignarnos ésta.
-            closeOfferBanner(otro, otro.equals(rideId));
+        // Sin banners no acabamos de ganar nada: es un viaje que ya teníamos y que esta app se
+        // está reencontrando al arrancar (o al volver del fondo). Ni suena —el aviso de "te
+        // eligieron" ya sonó en su momento, repetirlo días después miente— ni hay nada que leer
+        // antes de cambiar de pantalla, así que se abre en el acto.
+        boolean acabamosDeGanar = !offerBanners.isEmpty();
+        if (acabamosDeGanar) {
+            RideAlert.play(this);
+            for (String otro : new ArrayList<>(offerBanners.keySet())) {
+                // Las demás ofertas las acaba de cancelar el servidor al asignarnos ésta.
+                closeOfferBanner(otro, otro.equals(rideId));
+            }
         }
         stopBannerTicker();
 
@@ -1218,13 +1309,21 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             intent.putExtra(DriverActiveTripActivity.EXTRA_DRIVER_LAT, lastKnownLocation.latitude);
             intent.putExtra(DriverActiveTripActivity.EXTRA_DRIVER_LNG, lastKnownLocation.longitude);
         }
+        // La pausa es para leer el banner que dice qué pasó. Si no lo hay, no hay nada que leer.
+        long espera = acabamosDeGanar ? BANNER_RESOLVED_VISIBLE_MS : 0L;
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             if (!isFinishing() && !isDestroyed()) {
                 startActivity(intent);
             }
             openingWonRide = false;
-        }, BANNER_RESOLVED_VISIBLE_MS);
+        }, espera);
     }
+
+    /**
+     * Cuánto se espera antes de volver a pedir una solicitud que el servidor todavía no reconoce
+     * como nuestra. Corto: la ventana de la carrera son milisegundos, y la subasta no espera.
+     */
+    private static final long INCOMING_RETRY_DELAY_MS = 900L;
 
     private void fetchIncomingRequest(String rideId) {
         fetchIncomingRequest(rideId, null);
@@ -1236,6 +1335,24 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      *                        nueva — ver showIncomingRequest().
      */
     private void fetchIncomingRequest(String rideId, @Nullable Double myOfferedAmount) {
+        fetchIncomingRequest(rideId, myOfferedAmount, true);
+    }
+
+    /**
+     * @param reintentable un solo reintento ante RIDE_NOT_FOUND, y solo el primero.
+     *
+     * <p>El reintento existe porque la bandeja y la API pueden discrepar por un instante: el
+     * servidor publica la solicitud en el canal en vivo y confirma el permiso para leerla en dos
+     * pasos distintos. Si la app pregunta en medio, recibe "ese viaje no se te ofreció" por un
+     * viaje que sí es suyo. Se corrigió en el servidor escribiendo el permiso primero
+     * (MatchingService.runWave); esto es la red debajo, porque el precio de equivocarse es que la
+     * solicitud no aparezca nunca y el conductor no se entere de que existió.
+     *
+     * <p>Uno solo, y con esa condición: pasado eso, RIDE_NOT_FOUND significa lo que siempre
+     * significó —venció o lo tomó otro— y ahí callar es lo correcto.
+     */
+    private void fetchIncomingRequest(String rideId, @Nullable Double myOfferedAmount,
+                                       boolean reintentable) {
         driverRepository.getIncomingRequest(rideId, new ApiCallback<IncomingRequest>() {
             @Override
             public void onSuccess(IncomingRequest request) {
@@ -1244,6 +1361,14 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
 
             @Override
             public void onError(ApiException error) {
+                if (reintentable && error.getCode() == ApiErrorCode.RIDE_NOT_FOUND) {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (!isFinishing() && !isDestroyed() && step != Step.REQUEST) {
+                            fetchIncomingRequest(rideId, myOfferedAmount, false);
+                        }
+                    }, INCOMING_RETRY_DELAY_MS);
+                    return;
+                }
                 // Ya no existe o ya no es para nosotros (venció, lo tomaron) — sin pantalla de
                 // error, el radar sigue como si nada.
             }
@@ -1260,12 +1385,15 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         textIncomingAvatar.setText(initialsFor(request.getPassengerName()));
         textIncomingName.setText(request.getPassengerName());
 
+        // Lo compone NavHeaderRating y no este archivo: es donde vive la regla de cuándo alguien
+        // es "Nuevo", y su javadoc ya prometía que la solicitud entrante seguía el mismo criterio
+        // — pero aquí se pintaban las dos cosas a la vez ("★ 4.5 (Nuevo)"), que es una
+        // contradicción: si hay estrellas ganadas, no es nuevo. Con trips == 0 va solo "Nuevo",
+        // porque el 5.0 que da el servidor a quien nadie ha calificado es relleno, no un logro.
         String ratingText = request.getPassengerRating() != null
-                ? getString(R.string.rating_star_format, request.getPassengerRating())
+                ? NavHeaderRating.text(this, request.getPassengerRating(),
+                        request.getPassengerTrips())
                 : "";
-        if (request.getPassengerTrips() != null && request.getPassengerTrips() == 0) {
-            ratingText += getString(R.string.incoming_request_rating_new_suffix);
-        }
         textIncomingRating.setText(ratingText);
 
         // De solo lectura muestra lo que este conductor ya ofertó (puede ser una contraoferta,
@@ -1524,6 +1652,9 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         // salir (ofertada, ignorada o vencida) no hay nada que seguir mostrando ahí, así que la
         // cámara vuelve a acercarse a donde está el conductor.
         recenterMapOnDriver();
+        // Si llegó un push mientras había otra solicitud en pantalla, este es el momento de
+        // atenderlo: el modal acaba de quedar libre.
+        openPendingPushRequest();
     }
 
     @SuppressLint("MissingPermission")
@@ -2014,28 +2145,13 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 } else {
                     updateSelfMarkerPosition(lastKnownLocation, heading);
                 }
-                // El reporte al servidor sí se queda solo para online: un conductor desconectado
-                // no debe ocupar el radar de nadie ni dejar rastro en el backend.
-                if (!online) {
-                    return;
-                }
-                // El mapa se refresca a 5 s, pero al servidor se le sigue hablando cada 12 s.
-                long nowMs = SystemClock.elapsedRealtime();
-                if (nowMs - lastLocationReportAtMs < LOCATION_REPORT_INTERVAL_MS) {
-                    return;
-                }
-                lastLocationReportAtMs = nowMs;
-                Double accuracy = location.hasAccuracy() ? (double) location.getAccuracy() : null;
-                driverRepository.reportLocation(location.getLatitude(), location.getLongitude(), heading, accuracy,
-                        new ApiCallback<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                            }
-
-                            @Override
-                            public void onError(ApiException error) {
-                            }
-                        });
+                // Aquí ya no se reporta nada: de eso se ocupa DriverOnlineService, que sigue
+                // corriendo con la app fuera de pantalla. Este bucle se queda solo para mover el
+                // coche en el mapa que el conductor está viendo.
+                //
+                // Tener los dos mandando era pedir un TOO_MANY_PINGS: el servidor rechaza envíos
+                // con menos de 3 s de separación, y dos filtros de 12 s corriendo por su cuenta se
+                // cruzan tarde o temprano.
             }
         };
         fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper());
@@ -2081,6 +2197,38 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     // Ciclo de vida
     // ---------------------------------------------------------------------------------------
 
+    /**
+     * Un push de solicitud con esta pantalla ya abierta. Llega aquí y no a {@code onCreate} porque
+     * la Activity es {@code singleTop} — sin eso, tocar la notificación apilaba un segundo inicio
+     * del conductor encima del primero.
+     */
+    @Override
+    protected void onNewIntent(@NonNull Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        pendingPushRideId = intent.getStringExtra(DrivoFirebaseMessagingService.EXTRA_RIDE_ID);
+        openPendingPushRequest();
+    }
+
+    /**
+     * Abre la solicitud que traía el push, si el modal está libre para recibirla.
+     *
+     * <p>Se intenta tras el gate y en cada {@code onNewIntent}; si no se puede (todavía no hay
+     * respuesta del expediente, o hay otra solicitud en pantalla) se queda guardada y no se
+     * pierde. Se consume una sola vez: reabrir la pantalla no vuelve a sacar una solicitud vieja.
+     */
+    private void openPendingPushRequest() {
+        if (pendingPushRideId == null || !approved) {
+            return;
+        }
+        if (step == Step.GATE || step == Step.NOT_APPROVED || step == Step.REQUEST) {
+            return;
+        }
+        String rideId = pendingPushRideId;
+        pendingPushRideId = null;
+        fetchIncomingRequest(rideId);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -2096,6 +2244,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     @Override
     protected void onResume() {
         super.onResume();
+        VisibleScreen.show(DriverHomeActivity.class);
         // Volvimos a Inicio, sea por el botón atrás o porque la otra pantalla se cerró sola.
         navView.setCheckedItem(R.id.nav_driver_inicio);
         // Las medidas del modal se reescriben solo cuando cambian, así que una calculada con la
@@ -2120,6 +2269,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
             gateStale = false;
             runApplicationGate();
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        VisibleScreen.hide(DriverHomeActivity.class);
     }
 
     @Override

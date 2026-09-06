@@ -175,8 +175,7 @@ public class RestDriverRepository implements DriverRepository {
             public void onSuccess(List<RideSummaryDto> result) {
                 List<RideSummary> summaries = new ArrayList<>();
                 for (RideSummaryDto dto : result) {
-                    summaries.add(new RideSummary(dto.id, dto.status, dto.agreed_fare,
-                            dto.origin_text, dto.dest_text, dto.requested_at));
+                    summaries.add(RideMapper.from(dto));
                 }
                 callback.onSuccess(summaries);
             }
@@ -210,17 +209,7 @@ public class RestDriverRepository implements DriverRepository {
     }
 
     private Ride toRide(RideDto dto) {
-        DriverSummaryDto driver = dto.driver;
-        PlaceDto origin = dto.origin;
-        PlaceDto destination = dto.destination;
-        return new Ride(dto.id, dto.status, dto.agreed_fare,
-                driver != null ? driver.name : null, driver != null ? driver.rating : null,
-                driver != null ? driver.brand : null, driver != null ? driver.model : null,
-                driver != null ? driver.color : null, driver != null ? driver.plate : null,
-                origin != null ? origin.text : null, destination != null ? destination.text : null,
-                origin != null ? origin.lat : null, origin != null ? origin.lng : null,
-                destination != null ? destination.lat : null, destination != null ? destination.lng : null,
-                dto.polyline, dto.requested_at, dto.driver_arrived_at, dto.commission);
+        return RideMapper.from(dto);
     }
 
     private ApiCallback<RideDto> mapRide(ApiCallback<Ride> callback) {

@@ -13,13 +13,11 @@ import com.bng.drivo.data.model.UserProfile;
 import com.bng.drivo.data.model.Wallet;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
-import com.bng.drivo.data.repository.AuthRepository;
 import com.bng.drivo.data.repository.DriverRepository;
-import com.bng.drivo.data.repository.FirebaseAuthRepository;
 import com.bng.drivo.data.repository.RestDriverRepository;
 import com.bng.drivo.data.repository.RestUserRepository;
 import com.bng.drivo.data.repository.UserRepository;
-import com.bng.drivo.ui.auth.RoleSelectionActivity;
+import com.bng.drivo.ui.auth.SessionExit;
 import com.bng.drivo.ui.settings.AppearanceBottomSheet;
 import com.bng.drivo.ui.settings.EditProfileBottomSheet;
 import com.bng.drivo.ui.settings.SimpleMessageBottomSheet;
@@ -51,7 +49,6 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
 
     private DriverRepository driverRepository;
     private UserRepository userRepository;
-    private AuthRepository authRepository;
 
     /** Suficientes para contar viajes completados sin traer el historial entero. */
     private static final int PERFORMANCE_HISTORY_LIMIT = 50;
@@ -63,7 +60,6 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
 
         driverRepository = new RestDriverRepository(this);
         userRepository = new RestUserRepository(this);
-        authRepository = new FirebaseAuthRepository();
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> openDrawer());
@@ -227,11 +223,9 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
                 getString(R.string.driver_settings_wallet_message));
     }
 
+    /** Ver {@link SessionExit}: cerrar sesión también limpia el modo y la copia local del
+     * expediente, que no están atados a ningún uid. */
     private void logout() {
-        authRepository.logout();
-        Intent intent = new Intent(this, RoleSelectionActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+        SessionExit.logout(this);
     }
 }

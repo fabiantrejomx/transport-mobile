@@ -69,6 +69,26 @@ public class TripFlowViewModel extends ViewModel {
     @Nullable
     private String rideId;
     private float offeredFare;
+    /**
+     * El trazo por calles de un viaje <b>retomado</b>: el que venía en GET /current-ride cuando la
+     * app se reabrió con una subasta ya viva.
+     *
+     * <p>Existe porque en ese arranque no hay cotización de la que sacarlo — la cotización se
+     * quedó en el proceso que se cerró—, y sin él la subasta retomada dibujaría la guía recta
+     * sobre una ruta que el servidor ya había calculado. Ver {@link #getRoutePolyline()}.
+     */
+    @Nullable
+    private String resumedPolyline;
+    /**
+     * Cuándo vence la búsqueda, según el servidor (ISO-8601).
+     *
+     * <p>Es el único reloj de la subasta —las ofertas mueren con ella— y viene del servidor en los
+     * dos caminos: al crear el viaje (POST /rides) y al retomarlo (GET /current-ride). Que sea el
+     * mismo dato en ambos es lo que hace que reabrir la app a media espera continúe la cuenta en
+     * vez de reiniciarla.
+     */
+    @Nullable
+    private String searchExpiresAt;
 
     public Step getStep() {
         return step;
@@ -104,6 +124,8 @@ public class TripFlowViewModel extends ViewModel {
         this.quote = null;
         this.rideId = null;
         this.offeredFare = 0f;
+        this.resumedPolyline = null;
+        this.searchExpiresAt = null;
     }
 
     /** Vuelta a Home: se descarta la solicitud en curso, el origen se recalcula al empezar otra. */
@@ -115,6 +137,8 @@ public class TripFlowViewModel extends ViewModel {
         quote = null;
         rideId = null;
         offeredFare = 0f;
+        resumedPolyline = null;
+        searchExpiresAt = null;
     }
 
     /** Origen, parada (si la hay) y destino, en orden — lo que el mapa dibuja como guía. */
@@ -196,6 +220,32 @@ public class TripFlowViewModel extends ViewModel {
 
     public void setOfferedFare(float offeredFare) {
         this.offeredFare = offeredFare;
+    }
+
+    /**
+     * El trazo por calles vigente, venga de donde venga: de la cotización en el flujo normal, o
+     * del viaje ya creado cuando la app se reabre a media subasta. Null si no hay ninguno, y
+     * entonces el mapa cae a la guía recta.
+     *
+     * <p>Un solo sitio que responda "¿qué trazo se dibuja ahora?" evita que cada quien pregunte
+     * por la cotización y se quede sin ruta justo en el caso que no la tiene.
+     */
+    @Nullable
+    public String getRoutePolyline() {
+        return quote != null && quote.getPolyline() != null ? quote.getPolyline() : resumedPolyline;
+    }
+
+    public void setResumedPolyline(@Nullable String resumedPolyline) {
+        this.resumedPolyline = resumedPolyline;
+    }
+
+    @Nullable
+    public String getSearchExpiresAt() {
+        return searchExpiresAt;
+    }
+
+    public void setSearchExpiresAt(@Nullable String searchExpiresAt) {
+        this.searchExpiresAt = searchExpiresAt;
     }
 
     @Override

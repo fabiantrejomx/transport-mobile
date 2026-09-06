@@ -227,8 +227,7 @@ public class RestTripRepository implements TripRepository {
             public void onSuccess(List<RideSummaryDto> result) {
                 List<RideSummary> summaries = new ArrayList<>();
                 for (RideSummaryDto dto : result) {
-                    summaries.add(new RideSummary(dto.id, dto.status, dto.agreed_fare,
-                            dto.origin_text, dto.dest_text, dto.requested_at));
+                    summaries.add(RideMapper.from(dto));
                 }
                 callback.onSuccess(summaries);
             }
@@ -255,17 +254,24 @@ public class RestTripRepository implements TripRepository {
         });
     }
 
+    @Override
+    public void getCurrentRide(ApiCallback<Ride> callback) {
+        ApiCallDispatcher.enqueue(service.getCurrentRide(), new ApiCallback<RideDto>() {
+            @Override
+            public void onSuccess(RideDto result) {
+                // 204: no hay viaje abierto. Es una respuesta normal, no un error — quien
+                // llama distingue por null, igual que en el lado del conductor.
+                callback.onSuccess(result == null ? null : toRide(result));
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                callback.onError(error);
+            }
+        });
+    }
+
     private Ride toRide(RideDto dto) {
-        DriverSummaryDto driver = dto.driver;
-        PlaceDto origin = dto.origin;
-        PlaceDto destination = dto.destination;
-        return new Ride(dto.id, dto.status, dto.agreed_fare,
-                driver != null ? driver.name : null, driver != null ? driver.rating : null,
-                driver != null ? driver.brand : null, driver != null ? driver.model : null,
-                driver != null ? driver.color : null, driver != null ? driver.plate : null,
-                origin != null ? origin.text : null, destination != null ? destination.text : null,
-                origin != null ? origin.lat : null, origin != null ? origin.lng : null,
-                destination != null ? destination.lat : null, destination != null ? destination.lng : null,
-                dto.polyline, dto.requested_at, dto.driver_arrived_at, dto.commission);
+        return RideMapper.from(dto);
     }
 }

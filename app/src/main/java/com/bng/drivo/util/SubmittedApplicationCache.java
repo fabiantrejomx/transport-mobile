@@ -57,6 +57,15 @@ public final class SubmittedApplicationCache {
         new PrefsHelper(context).putString(PREF_KEY, json.toString());
     }
 
+    /**
+     * Borra la copia local. La llama el cierre de sesión: esta caché no está atada a ningún uid,
+     * así que sin esto la siguiente cuenta que entrara en este mismo teléfono vería el CURP y el
+     * vehículo del conductor anterior como si fueran suyos.
+     */
+    public static void clear(Context context) {
+        new PrefsHelper(context).remove(PREF_KEY);
+    }
+
     /** @return null si este teléfono no fue el que envió el registro. */
     @Nullable
     public static Submitted read(Context context) {

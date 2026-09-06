@@ -5,10 +5,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- El contenido va envuelto para que la ventana de "Reanudando viaje" quede por encima de
+         las secciones sin ser un segundo hijo suelto del DrawerLayout. -->
     <FrameLayout
-        android:id="@+id/fragment_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <FrameLayout
+            android:id="@+id/fragment_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <include layout="@layout/view_resuming_trip" />
+    </FrameLayout>
 
     <!-- itemShapeInsetStart=0 + el overlay de ShapeAppearanceOverlay.Drivo.NavigationView.Item
          son lo que logra el estilo Keep: la píldora de seleccionado queda pegada al borde

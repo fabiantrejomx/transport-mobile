@@ -25,6 +25,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -40,7 +41,6 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.AddressLabel;
-import com.bng.drivo.data.model.Quote;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
 import com.bng.drivo.data.model.SavedAddress;
@@ -378,6 +378,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             public void onTripCancelled() {
                 if (isAdded()) {
                     returnToIdle();
+                }
+            }
+
+            @Override
+            public void onRideAlreadyInProgress() {
+                if (isAdded() && getActivity() instanceof HomeActivity) {
+                    Toast.makeText(requireContext(), R.string.resume_trip_already_open,
+                            Toast.LENGTH_LONG).show();
+                    returnToIdle();
+                    ((HomeActivity) requireActivity()).resumeOpenTrip();
                 }
             }
         });
@@ -748,45 +758,53 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
      * volver de ella el home esté como recién abierto y no en el radar de un viaje ya cerrado.
      */
     private void goToActiveTrip(@NonNull Ride ride) {
-        Intent intent = new Intent(requireContext(), ActiveTripActivity.class);
-        intent.putExtra(ActiveTripActivity.EXTRA_RIDE_ID, viewModel.getRideId());
-        intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_INITIALS,
-                SearchingPanel.initialsFor(ride.getDriverName()));
-        intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_NAME, ride.getDriverName());
-        if (ride.getDriverRating() != null) {
-            intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_RATING, ride.getDriverRating());
-        }
-        // Marca, modelo y color con la placa detrás, exactamente como los compone la tarjeta de
-        // oferta (SearchingPanel.buildDriverCard). La placa es lo único de esa línea que sirve para
-        // identificar el coche entre otros dos iguales, que es justo lo que toca hacer ahora.
-        String vehicle = SearchingPanel.joinNonNull(" ",
-                ride.getVehicleBrand(), ride.getVehicleModel(), ride.getVehicleColor());
-        intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_DETAILS,
-                SearchingPanel.joinNonNull(" · ", vehicle, ride.getVehiclePlate()));
-        intent.putExtra(ActiveTripActivity.EXTRA_PRICE,
-                ride.getAgreedFare() != null ? ride.getAgreedFare().floatValue() : 0f);
-        intent.putExtra(ActiveTripActivity.EXTRA_ORIGIN, viewModel.getOriginText());
-        intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION, viewModel.getDestinationText());
-        intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION_LABEL, viewModel.getDestinationLabel());
-        LatLng origin = viewModel.getOrigin();
-        LatLng destination = viewModel.getDestination();
-        intent.putExtra(ActiveTripActivity.EXTRA_ORIGIN_LAT, origin != null ? origin.latitude : 0);
-        intent.putExtra(ActiveTripActivity.EXTRA_ORIGIN_LNG, origin != null ? origin.longitude : 0);
-        intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION_LAT,
-                destination != null ? destination.latitude : 0);
-        intent.putExtra(ActiveTripActivity.EXTRA_DESTINATION_LNG,
-                destination != null ? destination.longitude : 0);
-        // El trazo por calles del viaje ya cerrado: el servidor lo copió de la cotización al
-        // viaje justo para que siga disponible cuando aquella venza. Si viene null, la pantalla de
-        // viaje activo cae a la guía recta.
-        intent.putExtra(ActiveTripActivity.EXTRA_POLYLINE, ride.getPolyline());
-        // La parada no viaja en GET /rides/{id}: sin pasarla aquí, la ruta que el pasajero ve
-        // durante el viaje saltaría del origen al destino ignorando su propia parada.
-        Waypoint stop = viewModel.getStop();
-        intent.putExtra(ActiveTripActivity.EXTRA_STOP_LAT, stop != null ? stop.getLat() : 0);
-        intent.putExtra(ActiveTripActivity.EXTRA_STOP_LNG, stop != null ? stop.getLng() : 0);
-        startActivity(intent);
+        // Todo lo que la pantalla necesita sale del viaje que devolvió el servidor, no de lo que
+        // este flujo fue juntando: es el mismo camino por el que se retoma un viaje al reabrir la
+        // app, y así las dos entradas pintan exactamente lo mismo. Lo único que se le añade es el
+        // nombre de la dirección guardada, que nunca sale de este teléfono.
+        startActivity(ActiveTripActivity.intentFor(requireContext(), ride,
+                viewModel.getDestinationLabel()));
         returnToIdle();
+    }
+
+    /**
+     * Vuelve al paso SEARCHING de una subasta que ya estaba viva cuando la app se cerró.
+     *
+     * <p>Lo llama {@link HomeActivity} tras preguntarle al servidor por el viaje abierto
+     * (GET /current-ride). Todo lo que el flujo normal fue acumulando —destino, parada, trazo,
+     * lo que se ofreció— se rehace aquí desde el viaje, que es donde de verdad vive: el
+     * ViewModel se lo llevó el proceso anterior.
+     *
+     * <p>Dos cosas no se recuperan, y no pasa nada: el nombre de la dirección guardada ("Casa")
+     * nunca salió de este teléfono, así que se enseña la dirección; y la cotización ya no hace
+     * falta —el viaje está pedido y el precio, ofrecido—.
+     */
+    public void resumeSearching(@NonNull Ride ride) {
+        LatLng origin = new LatLng(
+                ride.getOriginLat() != null ? ride.getOriginLat() : originLocation.latitude,
+                ride.getOriginLng() != null ? ride.getOriginLng() : originLocation.longitude);
+        LatLng destination = new LatLng(
+                ride.getDestinationLat() != null ? ride.getDestinationLat() : 0,
+                ride.getDestinationLng() != null ? ride.getDestinationLng() : 0);
+
+        viewModel.startDestination(origin, ride.getOriginText(), destination,
+                ride.getDestinationText(), null);
+        // El servidor manda las paradas sin dirección (se eligen sobre el mapa y el texto lo
+        // resolvía este teléfono). El flujo solo admite una, así que se toma la primera.
+        if (!ride.getWaypoints().isEmpty()) {
+            viewModel.setStop(ride.getWaypoints().get(0));
+        }
+        viewModel.setRideId(ride.getId());
+        viewModel.setOfferedFare(
+                ride.getPassengerOffer() != null ? ride.getPassengerOffer().floatValue() : 0f);
+        viewModel.setResumedPolyline(ride.getPolyline());
+        viewModel.setSearchExpiresAt(ride.getSearchExpiresAt());
+
+        viewModel.goTo(TripFlowViewModel.Step.SEARCHING);
+        // applyStep no dibuja la ruta: en el flujo normal ya venía pintada desde CONFIRM_PRICE.
+        // Aquí no hay paso anterior, así que se pinta ahora — y si el mapa todavía no existe,
+        // lo repone onMapReady, que ya mira getRoutePolyline().
+        mapPresenter.showRoute(viewModel.getRoutePoints(), viewModel.getRoutePolyline());
     }
 
     // ---------------------------------------------------------------------------------------
@@ -1648,9 +1666,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         // ya está en el ViewModel salvo que la rotación cayera justo mientras viajaba, así que casi
         // siempre se recupera el trazo real y no la guía recta.
         if (viewModel.getStep() != TripFlowViewModel.Step.IDLE) {
-            Quote quote = viewModel.getQuote();
-            if (quote != null) {
-                mapPresenter.showRoute(viewModel.getRoutePoints(), quote.getPolyline());
+            String polyline = viewModel.getRoutePolyline();
+            if (polyline != null) {
+                mapPresenter.showRoute(viewModel.getRoutePoints(), polyline);
             } else {
                 mapPresenter.showRoutePending(viewModel.getRoutePoints());
             }

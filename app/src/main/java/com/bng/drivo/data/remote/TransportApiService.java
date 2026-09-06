@@ -71,6 +71,13 @@ public interface TransportApiService {
     @POST("/quotes")
     Call<QuoteDto> createQuote(@Body QuoteRequest body);
 
+    /**
+     * El viaje que el pasajero trae abierto, o 204 si no hay ninguno — espejo de
+     * {@code /driver/current-ride}. Con 204 el cuerpo llega null (ver ApiCallDispatcher).
+     */
+    @GET("/current-ride")
+    Call<RideDto> getCurrentRide();
+
     @GET("/rides")
     Call<List<RideSummaryDto>> getRides(@Query("role") String role, @Query("limit") Integer limit);
 

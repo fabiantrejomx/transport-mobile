@@ -35,6 +35,7 @@ import com.bng.drivo.data.repository.FirebaseStorageRepository;
 import com.bng.drivo.data.repository.RestDriverRepository;
 import com.bng.drivo.data.repository.StorageRepository;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
+import com.bng.drivo.ui.auth.SessionExitBottomSheet;
 import com.bng.drivo.util.DriverFormValidators;
 import com.bng.drivo.util.ImageCompressor;
 import com.bng.drivo.util.LoadingButtonHelper;
@@ -214,6 +215,12 @@ public class DriverRegistrationActivity extends AuthenticatedActivity {
         textTaxiCirculationNotice = findViewById(R.id.text_taxi_circulation_notice);
         textSubmitError = findViewById(R.id.text_submit_error);
         btnSubmit = findViewById(R.id.btn_submit_application);
+
+        // La salida de esta pantalla. Se llega aquí con el task limpio (DriverEntryPoint), así
+        // que "atrás" cierra la app y el siguiente arranque vuelve al mismo sitio: sin esto, un
+        // conductor que se equivocó de rol o de número no tenía más opción que desinstalar.
+        findViewById(R.id.btn_registration_exit).setOnClickListener(v ->
+                SessionExitBottomSheet.present(this));
 
         checkOwner.setOnCheckedChangeListener((buttonView, isChecked) ->
                 textNotOwnerNotice.setVisibility(isChecked ? View.GONE : View.VISIBLE));

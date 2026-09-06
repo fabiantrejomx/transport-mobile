@@ -1,5 +1,7 @@
 package com.bng.drivo.ui.trip;
 
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
@@ -8,13 +10,17 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.TripRepository;
+import com.bng.drivo.ui.search.SearchingPanel;
 import com.bng.drivo.util.ColorUtils;
 import com.bng.drivo.util.LoadingButtonHelper;
 import com.google.android.material.button.MaterialButton;
@@ -32,6 +38,28 @@ import java.util.Locale;
 public class FinishedTripActivity extends AuthenticatedActivity {
 
     private static final int STAR_COUNT = 5;
+
+    /**
+     * El recibo de un viaje ya cerrado, a partir de lo que devolvió el servidor.
+     *
+     * <p>Existe para el arranque en frío: si la app se cerró antes de calificar, esta pantalla se
+     * perdía y con ella la calificación, porque los datos que la pintaban vivían en los extras del
+     * Intent que la abrió. Ahora {@code GET /rides} dice cuál quedó sin calificar
+     * ({@code my_rating}) y de ahí se rehace — ver TripResumeGate.
+     *
+     * <p>Calificar dos veces no es un problema: el servidor lo ignora en silencio (la unicidad
+     * está en la base), justamente porque el teléfono reintenta.
+     */
+    public static Intent intentFor(@NonNull Context context, @NonNull Ride ride) {
+        Intent intent = new Intent(context, FinishedTripActivity.class);
+        intent.putExtra(ActiveTripActivity.EXTRA_RIDE_ID, ride.getId());
+        intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_INITIALS,
+                SearchingPanel.initialsFor(ride.getDriverName()));
+        intent.putExtra(ActiveTripActivity.EXTRA_DRIVER_NAME, ride.getDriverName());
+        intent.putExtra(ActiveTripActivity.EXTRA_PRICE,
+                ride.getAgreedFare() != null ? ride.getAgreedFare().floatValue() : 0f);
+        return intent;
+    }
 
     private final List<TextView> starViews = new ArrayList<>();
     private int rating = 0;

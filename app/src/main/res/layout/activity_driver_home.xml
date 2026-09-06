@@ -149,6 +149,20 @@
                 android:textSize="15sp"
                 app:cornerRadius="26dp"
                 tools:text="Actualizar estado" />
+
+            <!-- La salida. En estos estados el cajón está bloqueado (no hay conductor operando
+                 detrás), y "Cerrar sesión" vive dentro de Configuración, que se abre justo desde
+                 ese cajón: sin este botón, esperar el veredicto del backoffice era esperar
+                 encerrado, días. -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_not_approved_exit"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/session_exit_action"
+                android:textAllCaps="false"
+                android:textSize="14sp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

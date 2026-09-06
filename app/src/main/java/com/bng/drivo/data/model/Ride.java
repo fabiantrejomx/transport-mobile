@@ -1,5 +1,8 @@
 package com.bng.drivo.data.model;
 
+import java.util.Collections;
+import java.util.List;
+
 /** Se amplía conforme cada sub-fase de "Fase 6" lo necesita. originText/destinationText/
  * requestedAt solo los llena GET /rides/{id} — las demás llamadas (crear, aceptar, cancelar)
  * los dejan null, ya conocen origen/destino por otro lado (extras de Intent). */
@@ -37,12 +40,30 @@ public class Ride {
     private final String driverArrivedAt;
     /** Solo viene poblado en la respuesta de POST /driver/rides/{id}/complete. */
     private final Double commission;
+    /**
+     * Lo que el pasajero ofreció al pedirlo. Es la referencia contra la que se leen las ofertas
+     * de la subasta ("tu oferta"), y no cambia; el precio cerrado es {@link #agreedFare}.
+     */
+    private final Double passengerOffer;
+    /**
+     * Paradas intermedias, en orden. Nunca null — lista vacía cuando no hay ninguna.
+     *
+     * <p>Sin texto: el nombre de la parada lo resolvió el teléfono del pasajero al elegirla sobre
+     * el mapa, y eso no viajó nunca al servidor. Para dibujar la ruta no hace falta.
+     */
+    private final List<Waypoint> waypoints;
+    /**
+     * Cuándo vence la búsqueda (ISO-8601). Único reloj de la subasta: las ofertas mueren con ella.
+     * Es lo que permite retomar una búsqueda a media cuenta sin reiniciarla.
+     */
+    private final String searchExpiresAt;
 
     public Ride(String id, String status, Double agreedFare, String driverName, Double driverRating,
                 String vehicleBrand, String vehicleModel, String vehicleColor, String vehiclePlate,
                 String originText, String destinationText, Double originLat, Double originLng,
                 Double destinationLat, Double destinationLng, String polyline, String requestedAt,
-                String driverArrivedAt, Double commission) {
+                String driverArrivedAt, Double commission,
+                Double passengerOffer, List<Waypoint> waypoints, String searchExpiresAt) {
         this.id = id;
         this.status = status;
         this.agreedFare = agreedFare;
@@ -62,6 +83,9 @@ public class Ride {
         this.requestedAt = requestedAt;
         this.driverArrivedAt = driverArrivedAt;
         this.commission = commission;
+        this.passengerOffer = passengerOffer;
+        this.waypoints = waypoints != null ? waypoints : Collections.emptyList();
+        this.searchExpiresAt = searchExpiresAt;
     }
 
     public String getId() {
@@ -134,6 +158,19 @@ public class Ride {
 
     public String getDriverArrivedAt() {
         return driverArrivedAt;
+    }
+
+    public Double getPassengerOffer() {
+        return passengerOffer;
+    }
+
+    /** Nunca null; vacía cuando el viaje no lleva paradas. */
+    public List<Waypoint> getWaypoints() {
+        return waypoints;
+    }
+
+    public String getSearchExpiresAt() {
+        return searchExpiresAt;
     }
 
     public Double getCommission() {

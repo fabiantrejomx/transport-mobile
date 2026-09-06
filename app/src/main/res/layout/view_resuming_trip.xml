@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Reanudando viaje en curso": lo que se ve mientras la app le pregunta al servidor si el
+     usuario trae un viaje abierto, antes de pintar nada del flujo.
+
+     Es opaco y no deja tocar lo de abajo a propósito. Durante ese instante el inicio ya está
+     dibujado pero todavía no se sabe si es la pantalla correcta; dejarlo a la vista invita a
+     empezar un viaje nuevo justo cuando hay uno vivo, y el servidor lo rechazaría con
+     RIDE_IN_PROGRESS. Tapar es más honesto que dejar tocar y luego dar un error.
+
+     clickable/focusable no son decorativos: son lo que hace que se coma los toques en vez de
+     dejarlos pasar a la vista de abajo.
+
+     Se incluye igual en el inicio del pasajero y en el del conductor: los dos arrancan con la
+     misma pregunta. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/group_resuming_trip"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:paddingHorizontal="40dp"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <com.google.android.material.progressindicator.CircularProgressIndicator
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        app:indicatorColor="?attr/colorPrimary"
+        app:indicatorSize="44dp"
+        app:trackThickness="4dp" />
+
+    <TextView
+        android:id="@+id/text_resuming_trip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="center"
+        android:text="@string/resume_trip_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center"
+        android:text="@string/resume_trip_subtitle"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp" />
+</LinearLayout>

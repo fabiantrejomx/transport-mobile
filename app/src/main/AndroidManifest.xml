@@ -14,6 +14,14 @@
          vibra además de sonar — ver RideAlert. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Servicio en primer plano del conductor (DriverOnlineService): es lo que le permite seguir
+         en el radar y seguir mandando su posición con la app fuera de pantalla o cerrada. Los dos
+         son permisos normales; el de tipo "location" lo exige Android 14+ para declarar
+         foregroundServiceType="location", y además hace falta que ACCESS_*_LOCATION esté concedido
+         en tiempo de ejecución (el servicio no arranca si no lo está). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <application
         android:name=".DrivoApplication"
         android:allowBackup="true"
@@ -80,10 +88,15 @@
             android:label="@string/driver_reg_title"
             android:theme="@style/Theme.Drivo" />
 
+        <!-- singleTop: la notificación de una solicitud entrante abre esta misma pantalla. Sin
+             esto se apilaba un segundo inicio del conductor encima del que ya estaba (con su
+             segundo mapa y su segunda bandeja); con esto el aviso llega por onNewIntent a la
+             instancia viva, que es la que sabe en qué estado está. -->
         <activity
             android:name=".ui.driver.DriverHomeActivity"
             android:exported="false"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.Drivo" />
 
         <activity
@@ -162,6 +175,16 @@
             android:exported="false"
             android:label="@string/app_name"
             android:theme="@style/Theme.Drivo" />
+
+        <!-- No lleva android:stopWithTask, y eso es deliberado: el valor por omisión (false) es
+             justo lo que se quiere. Cerrar la app desde recientes no es desconectarse — el
+             conductor sigue en el radar del servidor, así que el teléfono tiene que seguir
+             reportando. El aviso permanente lo dice, y tocarlo abre el inicio, que es donde está
+             el botón de desconectarse. -->
+        <service
+            android:name=".service.DriverOnlineService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <service
             android:name=".service.DrivoFirebaseMessagingService"

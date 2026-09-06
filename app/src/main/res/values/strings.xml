@@ -240,6 +240,7 @@
     <!-- Buscando conductores -->
     <string name="searching_message">Buscando conductores…</string>
     <string name="searching_subtitle">Conductores disponibles cerca de ti</string>
+    <string name="searching_time_left">Quedan %1$s para que respondan</string>
     <string name="searching_offer_label">Oferta del conductor</string>
     <string name="searching_reject_driver">Descartar</string>
     <string name="searching_accept_driver">Elegir</string>
@@ -404,7 +405,6 @@
     <!-- Pastilla de la cabecera del cajón cuando aún no hay estrellas que promediar. Sin estrella
          a propósito: la estrella significa "esto es una calificación", y aquí todavía no la hay. -->
     <string name="nav_rating_new">Nuevo</string>
-    <string name="incoming_request_rating_new_suffix"> (Nuevo)</string>
     <string name="incoming_request_pickup_distance_km_format">A %1$.1f km (%2$d min) del pasajero</string>
     <string name="incoming_request_pickup_distance_no_eta_format">A %1$.1f km del pasajero</string>
     <string name="incoming_request_trip_distance_format">Viaje de %1$d km</string>
@@ -556,4 +556,38 @@
     <string name="searching_offer_gone">Esa oferta ya no está disponible</string>
     <string name="searching_expired_toast">Ningún conductor tomó tu viaje. Vuelve a pedirlo, o sube un poco la tarifa para que más conductores lo vean.</string>
     <string name="searching_no_longer_active_toast">Esa solicitud ya no está activa</string>
+
+    <!-- Salidas del lado conductor cuando no se puede avanzar (ver SessionExit) -->
+    <string name="session_exit_title">Tu cuenta</string>
+    <string name="session_exit_action">Opciones de cuenta</string>
+    <string name="session_exit_to_passenger">Usar Drivo como pasajero</string>
+    <string name="session_exit_to_passenger_hint">Tu registro de conductor se queda guardado; puedes volver cuando quieras</string>
+    <string name="session_exit_logout_hint">Para entrar con otro número o correo</string>
+    <string name="session_exit_logout_confirm_title">¿Cerrar sesión?</string>
+    <string name="session_exit_logout_confirm_message">Tendrás que volver a recibir un código por SMS para entrar. Tu registro de conductor no se pierde: sigue guardado en esta cuenta.</string>
+    <string name="session_exit_description">Opciones de la cuenta</string>
+
+    <!-- Vuelta al modo conductor desde Configuración del pasajero -->
+    <string name="perfil_become_driver">Conducir con Drivo</string>
+
+    <!-- Reanudación de un viaje abierto al arrancar la app (ver TripResumeGate) -->
+    <string name="resume_trip_title">Reanudando viaje en curso</string>
+    <string name="resume_trip_subtitle">Estamos recuperando el estado de tu viaje…</string>
+    <string name="resume_trip_already_open">Ya tenías un viaje en curso. Te llevamos a él.</string>
+
+    <!-- Calificación pendiente del conductor, recuperada al arrancar -->
+    <string name="driver_pending_rating_title">Te faltó calificar tu último viaje</string>
+    <string name="driver_pending_rating_prompt">¿Cómo estuvo tu pasajero?</string>
+    <string name="driver_pending_rating_destination">Viaje a %1$s</string>
+    <string name="driver_pending_rating_submit">Enviar calificación</string>
+    <string name="driver_pending_rating_skip">Ahora no</string>
+    <string name="driver_pending_rating_error">No se pudo enviar la calificación</string>
+
+    <!-- Servicio en primer plano del conductor -->
+    <string name="driver_service_channel_name">Estado del conductor</string>
+    <string name="driver_service_channel_description">Aviso permanente mientras estás en el radar o llevas un viaje. Sin él, Android detiene la app y dejas de recibir solicitudes.</string>
+    <string name="driver_service_online_title">Estás en el radar</string>
+    <string name="driver_service_online_body">Recibiendo solicitudes de viaje</string>
+    <string name="driver_service_trip_title">Viaje en curso</string>
+    <string name="driver_service_trip_body">Compartiendo tu ubicación con el pasajero</string>
 </resources>

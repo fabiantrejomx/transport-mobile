@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- La calificación que quedó sin enviar del último viaje del conductor.
+
+     No es la pantalla de cobro: esa la pinta DriverActiveTripActivity con la comisión que devolvió
+     POST /driver/rides/{id}/complete, y esa respuesta se perdió con la app. Aquí solo queda lo que
+     sí se puede afirmar — a dónde fue el viaje y cuánto se acordó — más las estrellas, que es lo
+     único que de verdad falta enviar. Inventar la comisión sería peor que no mostrarla. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorOutline" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/driver_pending_rating_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/text_rate_passenger_trip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="14sp"
+        tools:text="Viaje a Plaza Valle · $290.00" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="center"
+        android:text="@string/driver_pending_rating_prompt"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <LinearLayout
+        android:id="@+id/container_rate_passenger_stars"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_rate_passenger_submit"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="20dp"
+        android:text="@string/driver_pending_rating_submit" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_rate_passenger_skip"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/driver_pending_rating_skip" />
+</LinearLayout>

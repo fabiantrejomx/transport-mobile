@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
+import com.bng.drivo.util.VisibleScreen;
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.IncomingRequest;
 import com.bng.drivo.data.model.Ride;
@@ -37,6 +38,7 @@ import com.bng.drivo.data.repository.RestDriverRepository;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
+import com.bng.drivo.service.DriverOnlineService;
 import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.ui.map.DriverRoutePainter;
 import com.bng.drivo.ui.map.MapStyler;
@@ -320,6 +322,11 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
+
+        // Mientras dure el viaje la posición se reporta desde el servicio, no desde esta pantalla:
+        // el pasajero está mirando el coche moverse en su mapa y no puede depender de que el
+        // conductor tenga la app delante. Ver DriverOnlineService.
+        DriverOnlineService.startTrip(this);
 
         fetchRequestDetails();
     }
@@ -630,6 +637,20 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                     bindEta();
                 });
         startLocationLoop();
+    }
+
+    /** Ver {@link VisibleScreen}: con esta pantalla delante, el aviso de cambio de estado del
+     * viaje ya llega por el canal en vivo y se pinta aquí; la notificación sobra. */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        VisibleScreen.show(DriverActiveTripActivity.class);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        VisibleScreen.hide(DriverActiveTripActivity.class);
     }
 
     @Override
@@ -1294,17 +1315,9 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                         googleMap.animateCamera(CameraUpdateFactory.newLatLng(lastKnownLocation));
                     }
                 }
-                Double accuracy = location.hasAccuracy() ? (double) location.getAccuracy() : null;
-                driverRepository.reportLocation(location.getLatitude(), location.getLongitude(), heading, accuracy,
-                        new ApiCallback<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                            }
-
-                            @Override
-                            public void onError(ApiException error) {
-                            }
-                        });
+                // El reporte al servidor lo hace DriverOnlineService, no esta pantalla: el
+                // pasajero mira el coche moverse en su mapa y eso no puede depender de que el
+                // conductor tenga la app delante. Aquí el bucle solo mueve el coche y la cámara.
             }
         };
         if (hasLocationPermission()) {

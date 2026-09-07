@@ -1,6 +1,9 @@
 package com.bng.drivo.data.repository;
 
+import androidx.annotation.Nullable;
+
 import com.bng.drivo.data.model.DriverApplication;
+import com.bng.drivo.data.model.EarlyEndReason;
 import com.bng.drivo.data.model.IncomingRequest;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
@@ -59,12 +62,26 @@ public interface DriverRepository {
     /** POST /driver/rides/{id}/start */
     void startRide(String rideId, ApiCallback<Ride> callback);
 
-    /** POST /driver/rides/{id}/complete — dispara la comisión, solo el conductor cierra el viaje. */
     /**
-     * Finalizar. Manda la posición porque el servidor comprueba que el conductor esté cerca del
-     * destino antes de dejar cerrar: cerrar cobra la comisión y da el viaje por cumplido.
+     * POST /driver/rides/{id}/complete — dispara la comisión, y solo el conductor cierra el viaje.
+     *
+     * <p>Manda la posición porque el servidor comprueba que el conductor esté cerca del destino
+     * antes de dejar cerrar: cerrar cobra la comisión y da el viaje por cumplido.
      */
     void completeRide(String rideId, double lat, double lng, ApiCallback<Ride> callback);
+
+    /**
+     * Lo mismo, declarando que el viaje terminó <b>antes de llegar al destino</b> porque las dos
+     * partes lo acordaron.
+     *
+     * <p>Es lo único que releva de la comprobación por GPS. Todo lo demás es idéntico: el viaje se
+     * cierra como {@code COMPLETED}, la tarifa es la acordada y la comisión no cambia — el pago es
+     * en efectivo y lo que los dos se arreglen a medio camino no pasa por aquí.
+     *
+     * @param note lo que el conductor quiera añadir, o null. No se muestra en ninguna pantalla.
+     */
+    void completeRideEarly(String rideId, double lat, double lng,
+                           EarlyEndReason reason, @Nullable String note, ApiCallback<Ride> callback);
 
     /** POST /driver/rides/{id}/cancel */
     void cancelRide(String rideId, ApiCallback<Ride> callback);

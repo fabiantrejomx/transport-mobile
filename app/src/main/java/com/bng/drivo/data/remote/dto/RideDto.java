@@ -36,4 +36,15 @@ public class RideDto {
     public String completed_at;
     /** Solo viene poblado en la respuesta de POST /driver/rides/{id}/complete. */
     public Double commission;
+    /**
+     * El viaje se cerró antes de llegar al destino, por acuerdo de las dos partes.
+     *
+     * <p>No es una cancelación: {@link #status} es {@code COMPLETED} y {@link #agreed_fare} es la
+     * tarifa acordada de siempre. Y {@link #destination} sigue siendo <b>el destino que se pidió</b>,
+     * no donde acabó el viaje: lo que corresponde es anteponer la marca, no cambiar el destino.
+     *
+     * <p>Objeto y no primitivo porque puede venir null de un servidor anterior a este contrato, y
+     * eso significa lo mismo que false.
+     */
+    public Boolean ended_early;
 }

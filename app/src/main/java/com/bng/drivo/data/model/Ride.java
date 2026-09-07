@@ -57,13 +57,22 @@ public class Ride {
      * Es lo que permite retomar una búsqueda a media cuenta sin reiniciarla.
      */
     private final String searchExpiresAt;
+    /**
+     * El viaje se cerró antes de llegar al destino, por acuerdo de las dos partes.
+     *
+     * <p>No es una cancelación: el estado es {@code COMPLETED} y {@link #agreedFare} es la tarifa
+     * acordada de siempre. {@link #destinationText} sigue siendo el destino <b>que se pidió</b>;
+     * quien lo muestre antepone la marca en vez de cambiarlo.
+     */
+    private final boolean endedEarly;
 
     public Ride(String id, String status, Double agreedFare, String driverName, Double driverRating,
                 String vehicleBrand, String vehicleModel, String vehicleColor, String vehiclePlate,
                 String originText, String destinationText, Double originLat, Double originLng,
                 Double destinationLat, Double destinationLng, String polyline, String requestedAt,
                 String driverArrivedAt, Double commission,
-                Double passengerOffer, List<Waypoint> waypoints, String searchExpiresAt) {
+                Double passengerOffer, List<Waypoint> waypoints, String searchExpiresAt,
+                boolean endedEarly) {
         this.id = id;
         this.status = status;
         this.agreedFare = agreedFare;
@@ -86,6 +95,12 @@ public class Ride {
         this.passengerOffer = passengerOffer;
         this.waypoints = waypoints != null ? waypoints : Collections.emptyList();
         this.searchExpiresAt = searchExpiresAt;
+        this.endedEarly = endedEarly;
+    }
+
+    /** Si se cerró antes de llegar al destino. Ver {@link #endedEarly}. */
+    public boolean endedEarly() {
+        return endedEarly;
     }
 
     public String getId() {

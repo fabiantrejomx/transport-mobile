@@ -4,6 +4,7 @@ import com.bng.drivo.data.remote.dto.ApplicationStatusDto;
 import com.bng.drivo.data.remote.dto.CreateRideRequest;
 import com.bng.drivo.data.remote.dto.DeviceRegisterRequest;
 import com.bng.drivo.data.remote.dto.DriverApplicationRequest;
+import com.bng.drivo.data.remote.dto.CompleteRideRequest;
 import com.bng.drivo.data.remote.dto.DriverAtLocationRequest;
 import com.bng.drivo.data.remote.dto.DriverDocumentRequest;
 import com.bng.drivo.data.remote.dto.DriverLocationRequest;
@@ -158,7 +159,7 @@ public interface TransportApiService {
 
     @POST("/driver/rides/{id}/complete")
     Call<RideDto> completeRide(@Path("id") String rideId, @Header("Idempotency-Key") String idempotencyKey,
-                               @Body DriverAtLocationRequest body);
+                               @Body CompleteRideRequest body);
 
     @POST("/driver/rides/{id}/cancel")
     Call<RideDto> cancelRideAsDriver(@Path("id") String rideId);

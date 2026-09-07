@@ -120,6 +120,10 @@
     <string name="viajes_empty">Aún no tienes viajes</string>
     <string name="viajes_load_error">No se pudo cargar tu historial</string>
     <string name="trip_status_cancelled">Cancelado</string>
+    <!-- Un viaje terminado antes de llegar al destino sigue siendo COMPLETED: se dice en el
+         estado, sin tocar el destino, que es el que el pasajero pidió. -->
+    <string name="trip_status_ended_early">Terminado antes</string>
+    <string name="trip_ended_early_note">Terminó antes de llegar al destino</string>
     <string name="trip_status_completed">Completado</string>
     <string name="trip_status_expired">Sin conductores disponibles</string>
     <string name="trip_status_in_progress">En curso</string>
@@ -517,6 +521,20 @@
     <string name="driver_trip_cancel_negative">Seguir con el viaje</string>
     <string name="driver_trip_cancel_error">No se pudo cancelar el viaje. Intenta de nuevo.</string>
     <string name="driver_trip_cancelled_toast">Cancelaste el viaje</string>
+
+    <!-- Terminar el viaje antes de llegar al destino. No es cancelar: el viaje se cierra, cobra
+         comisión y se califica igual. El texto lo dice porque la diferencia no es obvia. -->
+    <string name="driver_trip_action_early_end">Terminar aquí</string>
+    <string name="driver_trip_early_end_title">¿Terminar el viaje aquí?</string>
+    <string name="driver_trip_early_end_message">El viaje se cerrará en tu ubicación actual y se cobra la tarifa acordada: terminar antes no la cambia. Lo que acuerden pagarse queda entre ustedes.\n\nSi no te sientes seguro, usa el botón de S.O.S. en vez de esto.</string>
+    <string name="driver_trip_early_end_continue">Continuar</string>
+    <string name="driver_trip_early_end_negative">Seguir con el viaje</string>
+    <string name="driver_trip_early_end_reason_title">¿Por qué termina aquí?</string>
+    <string name="driver_trip_early_end_positive">Terminar aquí</string>
+    <string name="driver_trip_early_end_reason_passenger">El pasajero pidió bajarse aquí</string>
+    <string name="driver_trip_early_end_reason_safety">No es seguro continuar</string>
+    <string name="driver_trip_early_end_reason_vehicle">Problema con el vehículo</string>
+    <string name="driver_trip_early_end_reason_other">Otro motivo</string>
     <string name="driver_trip_passenger_label">Pasajero</string>
     <string name="driver_trip_call_passenger">Llamar</string>
     <string name="driver_trip_message_passenger">Mensaje</string>

@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -26,6 +27,7 @@ import androidx.fragment.app.Fragment;
 
 import com.bng.drivo.util.VisibleScreen;
 import com.bng.drivo.R;
+import com.bng.drivo.data.model.EarlyEndReason;
 import com.bng.drivo.data.model.IncomingRequest;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.remote.ApiCallback;
@@ -308,7 +310,8 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         btnFrameRoute.setOnClickListener(v -> showFullRoute());
         findViewById(R.id.btn_trip_sos).setOnClickListener(v -> sendSos());
         findViewById(R.id.btn_trip_waze).setOnClickListener(v -> openWaze());
-        btnTripCancel.setOnClickListener(v -> confirmCancelTrip());
+        // El listener no se pone aquí: este botón dice dos cosas distintas según la fase
+        // (cancelar antes de arrancar, terminar aquí ya en curso) y cada una lo ata a la suya.
         btnCobroClose.setOnClickListener(v -> submitRating());
         // Llamada y chat dentro de la app todavía no existen en el contrato; el aviso es honesto
         // en vez de un botón muerto.
@@ -753,6 +756,8 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         showPanel(panelTrip);
         // Antes de arrancar el viaje todavía se puede cancelar (POST /driver/rides/{id}/cancel).
         btnTripCancel.setVisibility(View.VISIBLE);
+        btnTripCancel.setText(R.string.driver_trip_action_cancel);
+        btnTripCancel.setOnClickListener(v -> confirmCancelTrip());
         // Llamar y escribir al pasajero solo sirven mientras no está en el coche.
         btnTripCall.setVisibility(View.VISIBLE);
         btnTripMessage.setVisibility(View.VISIBLE);
@@ -793,8 +798,12 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
 
     private void showInProgressPhase() {
         showPanel(panelTrip);
-        // Ya arrancó: la única salida es finalizarlo, igual que del lado del pasajero.
-        btnTripCancel.setVisibility(View.GONE);
+        // Ya arrancó: nadie cancela, y eso no cambia. Lo que ocupa el hueco del botón de cancelar
+        // es terminar el viaje aquí mismo cuando los dos lo acuerdan — que sigue siendo cerrarlo,
+        // no anularlo: el pasajero viajó y la tarifa acordada es la que es.
+        btnTripCancel.setVisibility(View.VISIBLE);
+        btnTripCancel.setText(R.string.driver_trip_action_early_end);
+        btnTripCancel.setOnClickListener(v -> confirmEarlyEnd());
         // El pasajero ya va a bordo: no hay a quién llamar ni nada que coordinar por escrito.
         btnTripCall.setVisibility(View.GONE);
         btnTripMessage.setVisibility(View.GONE);
@@ -923,6 +932,60 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 .show();
     }
 
+    // ---------------------------------------------------------------------------------------
+    // Terminar el viaje antes de llegar al destino
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Terminar aquí, cuando el pasajero pide bajarse antes o el viaje no puede seguir.
+     *
+     * <p><b>No es cancelar.</b> El viaje se cierra como cualquier otro: cobra la comisión, pasa a
+     * la pantalla de cobro y se califica igual. Lo único que cambia es que el servidor no exige
+     * estar cerca del destino, y solo porque se lo decimos — si bastara con estar lejos, un
+     * abandono a media carrera y un acuerdo entre las dos partes serían el mismo cierre.
+     *
+     * <p>Van dos diálogos y no uno. El primero dice la consecuencia que de verdad importa —que la
+     * tarifa acordada no cambia—, porque es lo que el conductor tiene que haber leído <b>antes</b>
+     * de decidir; el segundo pide el motivo. Un cuadro con lista no muestra mensaje, así que
+     * meterlos juntos habría costado justo la frase que no puede faltar.
+     */
+    private void confirmEarlyEnd() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.driver_trip_early_end_title)
+                .setMessage(R.string.driver_trip_early_end_message)
+                .setPositiveButton(R.string.driver_trip_early_end_continue, (dialog, which) -> askEarlyEndReason())
+                .setNegativeButton(R.string.driver_trip_early_end_negative, null)
+                .show();
+    }
+
+    /**
+     * El motivo, de la lista corta de {@link EarlyEndReason}.
+     *
+     * <p>Arranca sin nada marcado a propósito: preseleccionar el primero convierte "no leí" en una
+     * respuesta válida, y este dato existe justo para poder revisar después qué pasó.
+     */
+    private void askEarlyEndReason() {
+        EarlyEndReason[] motivos = EarlyEndReason.values();
+        CharSequence[] etiquetas = new CharSequence[motivos.length];
+        for (int i = 0; i < motivos.length; i++) {
+            etiquetas[i] = getString(motivos[i].getLabel());
+        }
+
+        final int[] elegido = {-1};
+        AlertDialog dialogo = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.driver_trip_early_end_reason_title)
+                .setSingleChoiceItems(etiquetas, -1, (d, which) -> {
+                    elegido[0] = which;
+                    ((AlertDialog) d).getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                })
+                .setPositiveButton(R.string.driver_trip_early_end_positive,
+                        (d, which) -> attemptComplete(motivos[elegido[0]]))
+                .setNegativeButton(R.string.driver_trip_early_end_negative, null)
+                .show();
+
+        dialogo.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+    }
+
     private void cancelTrip() {
         LoadingButtonHelper.setLoading(btnTripCancel, true);
         driverRepository.cancelRide(rideId, new ApiCallback<Ride>() {
@@ -952,17 +1015,34 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
      * <p>Retomarla ya no es el problema que era —{@code GET /driver/current-ride} la reabre al
      * volver a Inicio—, pero eso arregla el accidente, no lo justifica: irse a medio viaje sigue
      * sin ser una salida.
+     *
+     * <p>La condición mira el estado y no la visibilidad del botón de cancelar, que es lo que
+     * miraba antes: ese botón ahora también se ve en curso, con otro texto y otra consecuencia
+     * —terminar aquí—, y "atrás" habría acabado ofreciendo cancelar un viaje que ya no se puede
+     * cancelar. Terminar antes es una decisión de las dos partes, no algo que se dispare desde una
+     * tecla de salida.
      */
     private void setUpBackHandling() {
         backCallback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (btnTripCancel.getVisibility() == View.VISIBLE) {
+                if (sePuedeCancelar()) {
                     confirmCancelTrip();
                 }
             }
         };
         getOnBackPressedDispatcher().addCallback(this, backCallback);
+    }
+
+    /**
+     * Las dos únicas fases en las que cancelar es una acción real.
+     *
+     * <p>Se nombran las dos en vez de descartar {@code IN_PROGRESS}: por descarte, la pantalla de
+     * cobro —donde el estado ya es {@code COMPLETED}— también habría ofrecido cancelar un viaje
+     * terminado.
+     */
+    private boolean sePuedeCancelar() {
+        return "MATCHED".equals(currentStatus) || "DRIVER_ARRIVED".equals(currentStatus);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -1118,6 +1198,15 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
      * que más pesa —cerrar cobra la comisión y da el trayecto por cumplido—.
      */
     private void attemptComplete() {
+        attemptComplete(null);
+    }
+
+    /**
+     * @param early el motivo cuando el viaje termina antes de llegar al destino, o null en un
+     *              cierre normal. Es lo único que cambia entre los dos: la posición se obtiene
+     *              igual y se manda igual, porque terminar antes <b>es</b> cerrar el viaje.
+     */
+    private void attemptComplete(@Nullable EarlyEndReason early) {
         if (!hasLocationPermission()) {
             Toast.makeText(this, R.string.driver_home_location_permission_toast, Toast.LENGTH_SHORT).show();
             return;
@@ -1128,7 +1217,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
         // la posición que el servidor compara contra el destino para dejar cerrar el viaje.
         LatLng enVivo = liveLocation();
         if (enVivo != null) {
-            sendComplete(enVivo.latitude, enVivo.longitude);
+            sendComplete(enVivo.latitude, enVivo.longitude, early);
             return;
         }
         fusedLocationClient.getLastLocation()
@@ -1138,7 +1227,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                         Toast.makeText(this, R.string.driver_trip_complete_error, Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    sendComplete(location.getLatitude(), location.getLongitude());
+                    sendComplete(location.getLatitude(), location.getLongitude(), early);
                 })
                 .addOnFailureListener(e -> {
                     LoadingButtonHelper.setLoading(btnTripAction, false);
@@ -1146,10 +1235,10 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 });
     }
 
-    private void sendComplete(double lat, double lng) {
+    private void sendComplete(double lat, double lng, @Nullable EarlyEndReason early) {
         completeInFlight = true;
         final LatLng cerradoEn = new LatLng(lat, lng);
-        driverRepository.completeRide(rideId, lat, lng, new ApiCallback<Ride>() {
+        ApiCallback<Ride> respuesta = new ApiCallback<Ride>() {
             @Override
             public void onSuccess(Ride result) {
                 completeInFlight = false;
@@ -1178,7 +1267,15 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 showProximityAwareError(error, ApiErrorCode.TOO_FAR_FROM_DROPOFF,
                         R.string.driver_trip_complete_error);
             }
-        });
+        };
+
+        if (early == null) {
+            driverRepository.completeRide(rideId, lat, lng, respuesta);
+        } else {
+            // Sin nota: el diálogo no la pide. El contrato la admite y queda el hueco para el día
+            // que haga falta, pero teclear con el coche parado a media calle no es realista.
+            driverRepository.completeRideEarly(rideId, lat, lng, early, null, respuesta);
+        }
     }
 
     /**

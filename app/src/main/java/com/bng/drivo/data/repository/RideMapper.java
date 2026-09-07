@@ -38,12 +38,13 @@ final class RideMapper {
                 origin != null ? origin.lat : null, origin != null ? origin.lng : null,
                 destination != null ? destination.lat : null, destination != null ? destination.lng : null,
                 dto.polyline, dto.requested_at, dto.driver_arrived_at, dto.commission,
-                dto.passenger_offer, waypoints(dto.waypoints), dto.search_expires_at);
+                dto.passenger_offer, waypoints(dto.waypoints), dto.search_expires_at,
+                Boolean.TRUE.equals(dto.ended_early));
     }
 
     static RideSummary from(RideSummaryDto dto) {
         return new RideSummary(dto.id, dto.status, dto.agreed_fare, dto.origin_text, dto.dest_text,
-                dto.requested_at, dto.my_rating);
+                dto.requested_at, dto.my_rating, Boolean.TRUE.equals(dto.ended_early));
     }
 
     /**

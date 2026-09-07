@@ -84,7 +84,8 @@ public class TripDetailBottomSheet extends BottomSheetDialogFragment {
         ((TextView) view.findViewById(R.id.text_detail_date)).setText(RelativeDateFormatter.format(ride.getRequestedAt()));
         ((TextView) view.findViewById(R.id.text_detail_origin)).setText(ride.getOriginText());
         ((TextView) view.findViewById(R.id.text_detail_destination)).setText(ride.getDestinationText());
-        ((TextView) view.findViewById(R.id.text_detail_status)).setText(statusLabel(ride.getStatus()));
+        ((TextView) view.findViewById(R.id.text_detail_status))
+                .setText(statusLabel(ride.getStatus(), ride.endedEarly()));
 
         TextView amountView = view.findViewById(R.id.text_detail_amount);
         if (ride.getAgreedFare() != null) {
@@ -106,9 +107,15 @@ public class TripDetailBottomSheet extends BottomSheetDialogFragment {
         }
     }
 
-    private String statusLabel(String status) {
+    /**
+     * @param endedEarly el viaje se cerró antes de llegar al destino. Se dice aquí, y no cambiando
+     *                   el destino de arriba, porque ese destino es el que se pidió: sustituirlo
+     *                   por donde acabó borraría del historial lo que el pasajero pidió.
+     */
+    private String statusLabel(String status, boolean endedEarly) {
         if (STATUS_COMPLETED.equals(status)) {
-            return getString(R.string.trip_status_completed);
+            return getString(endedEarly
+                    ? R.string.trip_status_ended_early : R.string.trip_status_completed);
         }
         if (STATUS_CANCELLED_PASSENGER.equals(status) || STATUS_CANCELLED_DRIVER.equals(status)) {
             return getString(R.string.trip_status_cancelled);

@@ -15,9 +15,14 @@ public class RideSummary {
      * al arrancar, porque la pantalla de recibo no sobrevive a que se cierre la app.
      */
     private final Integer myRating;
+    /**
+     * Si se cerró antes de llegar al destino. Un {@code COMPLETED} marcado así llegó a otro sitio
+     * del que dice el renglón: el destino que se muestra es el que se pidió.
+     */
+    private final boolean endedEarly;
 
     public RideSummary(String id, String status, Double agreedFare, String originText, String destText,
-                        String requestedAt, Integer myRating) {
+                        String requestedAt, Integer myRating, boolean endedEarly) {
         this.id = id;
         this.status = status;
         this.agreedFare = agreedFare;
@@ -25,6 +30,12 @@ public class RideSummary {
         this.destText = destText;
         this.requestedAt = requestedAt;
         this.myRating = myRating;
+        this.endedEarly = endedEarly;
+    }
+
+    /** Si se cerró antes de llegar al destino. Ver {@link #endedEarly}. */
+    public boolean endedEarly() {
+        return endedEarly;
     }
 
     public String getId() {

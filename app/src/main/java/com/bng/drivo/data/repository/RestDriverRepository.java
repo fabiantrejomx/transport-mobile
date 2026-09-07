@@ -2,7 +2,10 @@ package com.bng.drivo.data.repository;
 
 import android.content.Context;
 
+import androidx.annotation.Nullable;
+
 import com.bng.drivo.data.model.DriverApplication;
+import com.bng.drivo.data.model.EarlyEndReason;
 import com.bng.drivo.data.model.IncomingRequest;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.RideSummary;
@@ -14,6 +17,7 @@ import com.bng.drivo.data.remote.ApiClient;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.remote.TransportApiService;
 import com.bng.drivo.data.remote.dto.ApplicationStatusDto;
+import com.bng.drivo.data.remote.dto.CompleteRideRequest;
 import com.bng.drivo.data.remote.dto.DriverApplicationRequest;
 import com.bng.drivo.data.remote.dto.DriverAtLocationRequest;
 import com.bng.drivo.data.remote.dto.DriverDocumentRequest;
@@ -128,9 +132,28 @@ public class RestDriverRepository implements DriverRepository {
 
     @Override
     public void completeRide(String rideId, double lat, double lng, ApiCallback<Ride> callback) {
+        cerrar(rideId, lat, lng, null, callback);
+    }
+
+    @Override
+    public void completeRideEarly(String rideId, double lat, double lng,
+                                  EarlyEndReason reason, @Nullable String note,
+                                  ApiCallback<Ride> callback) {
+        // El nombre de la constante es lo que viaja en el contrato; el servidor lo lee como su
+        // propio enum y un valor que no esté en su lista ni siquiera llega al servicio.
+        cerrar(rideId, lat, lng, new CompleteRideRequest.EarlyEnd(reason.name(), note), callback);
+    }
+
+    /**
+     * El único cierre. Los dos caminos comparten la llave de idempotencia y el mapeo: terminar
+     * antes no es otra forma de cerrar, es el mismo cierre declarando por qué se hace lejos.
+     */
+    private void cerrar(String rideId, double lat, double lng,
+                        @Nullable CompleteRideRequest.EarlyEnd early, ApiCallback<Ride> callback) {
         String idempotencyKey = UUID.randomUUID().toString();
         ApiCallDispatcher.enqueue(
-                service.completeRide(rideId, idempotencyKey, new DriverAtLocationRequest(lat, lng)),
+                service.completeRide(rideId, idempotencyKey,
+                        new CompleteRideRequest(lat, lng, early)),
                 mapRide(callback));
     }
 

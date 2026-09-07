@@ -41,6 +41,12 @@ public final class TripHistoryRowBinder {
             amountView.setTextColor(context.getColor(R.color.drivo_success));
         }
 
+        // El destino que se muestra es el que se pidió, también cuando el viaje se cerró antes de
+        // llegar: cambiarlo por donde acabó borraría del historial lo que el pasajero pidió. Lo
+        // que corresponde es decirlo debajo.
+        row.findViewById(R.id.text_trip_ended_early)
+                .setVisibility(ride.endedEarly() ? View.VISIBLE : View.GONE);
+
         container.addView(row);
         return row;
     }

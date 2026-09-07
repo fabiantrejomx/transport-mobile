@@ -16,4 +16,10 @@ public class RideSummaryDto {
      * de la app.
      */
     public Integer my_rating;
+    /**
+     * Si el viaje se cerró antes de llegar al destino. Va en el historial y no solo en el detalle
+     * porque un renglón {@code COMPLETED} con el destino pedido, sin más, cuenta un viaje que no
+     * ocurrió así. Puede venir null de un servidor anterior: es lo mismo que false.
+     */
+    public Boolean ended_early;
 }

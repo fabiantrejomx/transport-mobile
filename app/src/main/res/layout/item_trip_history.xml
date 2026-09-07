@@ -104,6 +104,21 @@
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp"
                     tools:text="Plaza Valle" />
+
+                <!-- El destino de arriba es el que se pidió. Cuando el viaje se cerró antes de
+                     llegar, esto lo dice: va en su propia línea y no pegado al destino, que se
+                     corta a una línea y se comería la nota. -->
+                <TextView
+                    android:id="@+id/text_trip_ended_early"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/trip_ended_early_note"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp"
+                    android:textStyle="italic"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

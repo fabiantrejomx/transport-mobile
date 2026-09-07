@@ -546,8 +546,10 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 PlaceTextResolver.resolve(DriverActiveTripActivity.this, pickupText, pickupLatLng,
                         resolved -> {
                             pickupText = resolved;
-                            if (!"IN_PROGRESS".equals(currentStatus) && passengerName != null) {
-                                showPickupPhase("DRIVER_ARRIVED".equals(currentStatus));
+                            // Ya en marcha el origen no se enseña, así que no hay nada que
+                            // repintar por haberlo resuelto.
+                            if (!"IN_PROGRESS".equals(currentStatus)) {
+                                repaintCurrentPhase();
                             }
                         });
 
@@ -556,6 +558,13 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
                 textTripPassengerRating.setText(request.getPassengerRating() != null
                         ? getString(R.string.rating_star_format, request.getPassengerRating()) : "");
                 textTripFare.setText(String.format(Locale.getDefault(), "$%.2f", fare));
+
+                // El estado viene por el canal en vivo y estos datos por HTTP, y el canal gana casi
+                // siempre. Al reabrir la app a media viaje, onStatusChanged ya pintó la fase con
+                // todo esto todavía vacío —de ahí "Llevando a null · Viaje de 0 km"— y nadie la
+                // volvía a pintar: el nombre y la tarifa de la cabecera se ven bien porque se
+                // escriben aquí mismo, pero los textos de la fase se quedaban con lo de antes.
+                repaintCurrentPhase();
 
                 tripPolyline = request.getPolyline();
                 drawTripMap();
@@ -665,6 +674,37 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
             locationSubscription = null;
         }
         stopLocationLoop();
+    }
+
+    /**
+     * Vuelve a pintar la fase en la que estamos, ahora que los datos del viaje ya existen.
+     *
+     * <p>Quien decide la fase es {@code onStatusChanged}; esto solo la repite. Se llama al llegar
+     * la respuesta de {@code GET /driver/rides/{id}}, porque esa respuesta es la que trae el
+     * nombre, el destino y la distancia que la fase escribe — y puede llegar después de que la
+     * fase ya se haya pintado sin ellos.
+     *
+     * <p>Sin nombre no se pinta nada: significa que la consulta aún no ha vuelto, y repintar con
+     * lo mismo que había no arregla nada.
+     */
+    private void repaintCurrentPhase() {
+        if (currentStatus == null || passengerName == null) {
+            return;
+        }
+        switch (currentStatus) {
+            case "MATCHED":
+                showPickupPhase(false);
+                break;
+            case "DRIVER_ARRIVED":
+                showPickupPhase(true);
+                break;
+            case "IN_PROGRESS":
+                showInProgressPhase();
+                break;
+            default:
+                // Los terminales los resuelve onStatusChanged cerrando la pantalla.
+                break;
+        }
     }
 
     private void onStatusChanged(String status) {

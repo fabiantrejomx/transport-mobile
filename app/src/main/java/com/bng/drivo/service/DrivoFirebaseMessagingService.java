@@ -17,6 +17,7 @@ import com.bng.drivo.ui.driver.DriverActiveTripActivity;
 import com.bng.drivo.ui.driver.DriverHomeActivity;
 import com.bng.drivo.ui.home.HomeActivity;
 import com.bng.drivo.ui.trip.ActiveTripActivity;
+import com.bng.drivo.util.LiveRadar;
 import com.bng.drivo.util.NotificationChannels;
 import com.bng.drivo.util.PrefsHelper;
 import com.bng.drivo.util.VisibleScreen;
@@ -83,7 +84,7 @@ public class DrivoFirebaseMessagingService extends FirebaseMessagingService {
             return;
         }
 
-        if (loAtiendeLaPantallaQueSeVe(type)) {
+        if (loAtiendeLaPantallaQueSeVe(type, rideId)) {
             return;
         }
 
@@ -133,24 +134,31 @@ public class DrivoFirebaseMessagingService extends FirebaseMessagingService {
      * Si el aviso ya lo está atendiendo, en vivo, la pantalla que el usuario tiene delante.
      *
      * <p>La notificación es para cuando la app <b>no</b> está a la vista. Con el radar del
-     * conductor delante, una solicitud entrante llega por la bandeja de Firestore, se abre sola en
-     * el modal y suena con {@link com.bng.drivo.util.RideAlert} (tono del sistema + vibración, que
-     * es lo que de verdad avisa a alguien que va manejando). Pintar además una notificación no
-     * cuenta nada nuevo y sí añade una salida de la pantalla en la que hay que decidir.
+     * conductor delante, una solicitud entrante se abre sola en el modal y suena con
+     * {@link com.bng.drivo.util.RideAlert} (tono del sistema + vibración, que es lo que de verdad
+     * avisa a alguien que va manejando). Pintar además una notificación no cuenta nada nuevo y sí
+     * añade una salida de la pantalla en la que hay que decidir.
+     *
+     * <p>Los tres avisos del conductor <b>se le entregan</b> al radar en vez de darlo por hecho:
+     * {@link LiveRadar} devuelve si se hizo cargo, y solo entonces se calla la notificación. Antes
+     * bastaba con que la pantalla estuviera visible, lo que daba por buena una entrega que dependía
+     * de la bandeja de Firestore; el día que el canal en vivo tardó en levantar, las solicitudes no
+     * aparecieron ni en el modal ni en la barra. Ver el javadoc de {@code LiveRadar}: no se
+     * silencia un aviso que nadie recibió.
      *
      * <p>{@code application_reviewed} queda fuera a propósito: no hay ninguna pantalla que lo
      * refresque sola —el inicio del conductor solo vuelve a consultar el expediente al volver del
      * segundo plano—, así que si se silenciara con la app abierta el veredicto no aparecería por
      * ningún lado.
      */
-    private boolean loAtiendeLaPantallaQueSeVe(String type) {
+    private boolean loAtiendeLaPantallaQueSeVe(String type, String rideId) {
         switch (type) {
             case TYPE_NEW_RIDE:
+                return LiveRadar.deliverNewRide(rideId);
             case TYPE_RIDE_TAKEN:
+                return LiveRadar.deliverRideTaken(rideId);
             case TYPE_OFFER_ACCEPTED:
-                // Los tres salen de la bandeja del conductor: una solicitud aparece, y desaparece
-                // cuando la gana o la pierde. El inicio del conductor lo pinta todo en vivo.
-                return VisibleScreen.isShowing(DriverHomeActivity.class);
+                return LiveRadar.deliverOfferAccepted();
             case TYPE_RIDE_STATUS:
                 // El estado del viaje lo sigue el listener de rides/{id} en la pantalla del viaje,
                 // la del pasajero o la del conductor según de quién sea este teléfono.

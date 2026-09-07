@@ -6,6 +6,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.os.Bundle;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
@@ -22,10 +23,12 @@ import com.bng.drivo.ui.auth.AuthenticatedActivity;
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.Ride;
 import com.bng.drivo.data.model.Waypoint;
+import com.bng.drivo.data.model.SavedAddress;
 import com.bng.drivo.data.remote.ApiCallback;
 import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.FirestoreRideRealtimeRepository;
 import com.bng.drivo.data.repository.RealtimeSubscription;
+import com.bng.drivo.data.repository.RestAddressRepository;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.RideRealtimeRepository;
 import com.bng.drivo.data.repository.TripRepository;
@@ -341,11 +344,23 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         badge.setVisibility(View.VISIBLE);
     }
 
+    /** Hasta dónde dos coordenadas se consideran el mismo sitio al reconocer una guardada. */
+    private static final float SAVED_ADDRESS_MATCH_METERS = 30f;
+
     private void bindDestination() {
-        TextView destination = findViewById(R.id.text_trip_destination);
-        TextView destinationAddress = findViewById(R.id.text_trip_destination_address);
         String address = getIntent().getStringExtra(EXTRA_DESTINATION);
         String label = getIntent().getStringExtra(EXTRA_DESTINATION_LABEL);
+
+        showDestination(label, address);
+        if (label == null || label.trim().isEmpty()) {
+            recoverSavedAddressLabel(address);
+        }
+    }
+
+    /** Con etiqueta manda ella y la dirección va debajo; sin ella, solo la dirección. */
+    private void showDestination(@Nullable String label, String address) {
+        TextView destination = findViewById(R.id.text_trip_destination);
+        TextView destinationAddress = findViewById(R.id.text_trip_destination_address);
 
         if (label == null || label.trim().isEmpty()) {
             destination.setText(address);
@@ -355,6 +370,70 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         destination.setText(label);
         destinationAddress.setText(address);
         destinationAddress.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * Recupera el nombre de la dirección guardada cuando el Intent no lo trae.
+     *
+     * <p>La etiqueta la elige el pasajero en su teléfono y no viaja en el contrato, así que el
+     * único camino que la tenía era el de pedir el viaje —donde venía en memoria desde la lista de
+     * direcciones—. Al retomar un viaje con la app reabierta no hay tal memoria, y el destino que
+     * el pasajero había elegido como "Casa" volvía convertido en una calle y un código postal: la
+     * referencia con la que decidió, perdida justo cuando está comprobando que el viaje es el suyo.
+     *
+     * <p>No se guarda en ningún lado: se vuelve a deducir. Si el destino cae sobre una de sus
+     * direcciones guardadas, es esa. Deducirlo en vez de recordarlo tiene dos ventajas — sobrevive
+     * a reinstalar la app o cambiar de teléfono, y si mientras tanto renombró la dirección, sale el
+     * nombre nuevo, que es el que ahora significa algo para él.
+     *
+     * <p>Silencioso ante cualquier fallo: la dirección ya está en pantalla desde el primer momento
+     * y es lo que de verdad importa. Esto solo puede añadir.
+     */
+    private void recoverSavedAddressLabel(String address) {
+        LatLng destination = readOptionalLatLng(EXTRA_DESTINATION_LAT, EXTRA_DESTINATION_LNG);
+        if (destination == null) {
+            return;
+        }
+        new RestAddressRepository(this).getAll(new ApiCallback<List<SavedAddress>>() {
+            @Override
+            public void onSuccess(List<SavedAddress> saved) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                SavedAddress match = nearest(saved, destination);
+                if (match != null) {
+                    showDestination(match.getLabel(), address);
+                }
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                // Se queda la dirección, que es la que ya estaba puesta.
+            }
+        });
+    }
+
+    /**
+     * La dirección guardada más cercana al destino, si alguna cae dentro del margen.
+     *
+     * <p>Se compara por distancia y no por igualdad exacta: las coordenadas van y vuelven del
+     * servidor y no tienen por qué conservar el último decimal. Y se toma la más cercana, no la
+     * primera que entre en el margen, por si tuviera dos guardadas en la misma manzana.
+     */
+    @Nullable
+    private SavedAddress nearest(List<SavedAddress> saved, LatLng destination) {
+        SavedAddress best = null;
+        float bestMeters = SAVED_ADDRESS_MATCH_METERS;
+        float[] out = new float[1];
+        for (SavedAddress candidate : saved) {
+            Location.distanceBetween(destination.latitude, destination.longitude,
+                    candidate.getLat(), candidate.getLng(), out);
+            if (out[0] <= bestMeters) {
+                bestMeters = out[0];
+                best = candidate;
+            }
+        }
+        return best;
     }
 
     private LatLng readLatLng(String latExtra, String lngExtra) {

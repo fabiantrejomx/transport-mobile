@@ -31,6 +31,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.bng.drivo.util.LiveRadar;
 import com.bng.drivo.util.VisibleScreen;
 import com.bng.drivo.R;
 import com.bng.drivo.data.model.DriverApplication;
@@ -128,7 +129,8 @@ import java.util.Set;
  * conductor no lo toca, quedaba ocupado en el servidor y fuera del radar sin nada en pantalla
  * que se lo dijera.
  */
-public class DriverHomeActivity extends AuthenticatedActivity implements OnMapReadyCallback {
+public class DriverHomeActivity extends AuthenticatedActivity
+        implements OnMapReadyCallback, LiveRadar.Handler {
 
     /** Estados del modal. GATE y NOT_APPROVED no lo usan: ahí el modal está oculto del todo. */
     private enum Step {
@@ -248,6 +250,19 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      */
     @Nullable
     private String pendingPushRideId;
+
+    /**
+     * El viaje cuya solicitud se está pidiendo al servidor ahora mismo, si alguno. Evita que la
+     * bandeja en vivo y el push abran dos veces la misma — ver fetchIncomingRequest().
+     */
+    @Nullable
+    private String inFlightRideId;
+
+    /**
+     * Armado al volver a esta pantalla: la primera lectura de ubicación real mueve también la
+     * cámara, no solo el coche. Ver recenterMapOnDriver(boolean).
+     */
+    private boolean recenterOnNextFix;
     /** Ya estamos abriendo el viaje ganado: ni volver a abrirlo ni seguir pintando banners. */
     private boolean openingWonRide;
 
@@ -632,6 +647,13 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                     // recordara: es el mismo criterio con el que se pinta el botón. Si quedó
                     // conectado de una sesión anterior, aquí es donde vuelve a reportar.
                     applyOnlineService();
+                    // Antes que nada: si este conductor trae un viaje asignado, la pantalla que
+                    // toca no es el radar. En un arranque en frío este es el ÚNICO sitio donde se
+                    // puede preguntar — onResume() ya pasó de largo, porque corre antes de que la
+                    // respuesta del expediente llegue y ahí approved todavía era false. Sin esto
+                    // el conductor reabría la app "En línea, buscando viajes" con un pasajero
+                    // esperándolo y viéndolo venir en su mapa.
+                    checkCurrentRide(true);
                     loadWallet();
                     checkPendingRating();
                     // Si llegamos aquí desde la notificación de una solicitud, esta es la primera
@@ -1353,14 +1375,24 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
      */
     private void fetchIncomingRequest(String rideId, @Nullable Double myOfferedAmount,
                                        boolean reintentable) {
+        // La bandeja y el push son dos caminos independientes hacia esta misma llamada, y pueden
+        // pedir el mismo viaje con milisegundos de diferencia — antes de que el primero conteste y
+        // ponga el modal en REQUEST, que es lo que frena al segundo. Sin este candado la solicitud
+        // se pinta dos veces y, peor, RideAlert suena dos veces encima de alguien que va manejando.
+        if (rideId.equals(inFlightRideId)) {
+            return;
+        }
+        inFlightRideId = rideId;
         driverRepository.getIncomingRequest(rideId, new ApiCallback<IncomingRequest>() {
             @Override
             public void onSuccess(IncomingRequest request) {
+                inFlightRideId = null;
                 showIncomingRequest(request, myOfferedAmount);
             }
 
             @Override
             public void onError(ApiException error) {
+                inFlightRideId = null;
                 if (reintentable && error.getCode() == ApiErrorCode.RIDE_NOT_FOUND) {
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                         if (!isFinishing() && !isDestroyed() && step != Step.REQUEST) {
@@ -1657,24 +1689,56 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         openPendingPushRequest();
     }
 
-    @SuppressLint("MissingPermission")
+    /** Recentrar fiándose de lo último que sepa esta pantalla. Sirve dentro del propio radar. */
     private void recenterMapOnDriver() {
+        recenterMapOnDriver(false);
+    }
+
+    /**
+     * Lleva la cámara al conductor.
+     *
+     * @param conLecturaFresca true al volver de otra pantalla, donde {@code lastKnownLocation} es
+     *        justo el dato que no sirve.
+     *
+     * <p>El bucle de ubicación se para en {@code onStop}, así que mientras el conductor hacía el
+     * viaje esta pantalla se quedó con la posición de <b>antes de empezarlo</b>. Al terminar y
+     * volver al radar, la cámara se iba a donde recogió al pasajero mientras el coche se pintaba,
+     * correctamente, donde de verdad estaba — el marcador lo mueve cada lectura del bucle, la
+     * cámara no la movía nadie.
+     *
+     * <p>Con lectura fresca se le pregunta al sistema en vez de a este objeto. El dato es bueno
+     * aunque el bucle de la pantalla estuviera parado, porque {@code DriverOnlineService} siguió
+     * pidiendo posición cada 5 s durante todo el viaje. Y por si acaso no lo fuera —conductor
+     * desconectado, permiso recién dado, arranque en frío— queda armado
+     * {@code recenterOnNextFix}: la siguiente lectura real corrige la cámara.
+     */
+    @SuppressLint("MissingPermission")
+    private void recenterMapOnDriver(boolean conLecturaFresca) {
         if (googleMap == null) {
             return;
         }
-        if (lastKnownLocation != null) {
+        if (!conLecturaFresca && lastKnownLocation != null) {
             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
             return;
         }
+        recenterOnNextFix = conLecturaFresca;
         if (!hasLocationPermission()) {
+            if (lastKnownLocation != null) {
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+            }
             return;
         }
         fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
-            if (location == null || googleMap == null) {
+            if (googleMap == null) {
                 return;
             }
-            lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
-            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+            if (location != null) {
+                lastKnownLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                recenterOnNextFix = false;
+            }
+            if (lastKnownLocation != null && step != Step.REQUEST) {
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+            }
         });
     }
 
@@ -2145,6 +2209,14 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
                 } else {
                     updateSelfMarkerPosition(lastKnownLocation, heading);
                 }
+                // La red debajo de recenterMapOnDriver(true): si al volver no hubo lectura del
+                // sistema que valiera, la cámara se corrige con la primera de verdad. Con una
+                // solicitud en pantalla manda su encuadre y esto espera.
+                if (recenterOnNextFix && step != Step.REQUEST && googleMap != null) {
+                    recenterOnNextFix = false;
+                    googleMap.animateCamera(
+                            CameraUpdateFactory.newLatLngZoom(lastKnownLocation, 16f));
+                }
                 // Aquí ya no se reporta nada: de eso se ocupa DriverOnlineService, que sigue
                 // corriendo con la app fuera de pantalla. Este bucle se queda solo para mover el
                 // coche en el mapa que el conductor está viendo.
@@ -2245,6 +2317,7 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     protected void onResume() {
         super.onResume();
         VisibleScreen.show(DriverHomeActivity.class);
+        LiveRadar.attach(this);
         // Volvimos a Inicio, sea por el botón atrás o porque la otra pantalla se cerró sola.
         navView.setCheckedItem(R.id.nav_driver_inicio);
         // Las medidas del modal se reescriben solo cuando cambian, así que una calculada con la
@@ -2252,6 +2325,12 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
         // y se fuerza un pase con la geometría ya asentada.
         lastCollapsedHeightPx = -1;
         findViewById(android.R.id.content).requestLayout();
+        // La cámara se quedó donde estuviera al irnos, y de un viaje se vuelve a otro sitio: sin
+        // esto el radar reaparecía encuadrando el punto donde se recogió al pasajero. Con una
+        // solicitud en pantalla no, que ahí manda el encuadre de las dos rutas.
+        if (step != Step.REQUEST) {
+            recenterMapOnDriver(true);
+        }
         // Cubre volver de un viaje ya cerrado o de Ganancias: el saldo pudo cambiar.
         if (approved) {
             loadWallet();
@@ -2275,6 +2354,79 @@ public class DriverHomeActivity extends AuthenticatedActivity implements OnMapRe
     protected void onPause() {
         super.onPause();
         VisibleScreen.hide(DriverHomeActivity.class);
+        LiveRadar.detach(this);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // LiveRadar: el push entregado a esta pantalla en vez de a la barra de notificaciones
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Una solicitud entrante llegada por push, con el radar delante.
+     *
+     * <p>Entra por el mismo sitio que la del canal en vivo —{@code fetchIncomingRequest}, con su
+     * candado y su reintento— así que da igual cuál de los dos gane la carrera: el que llegue
+     * segundo no hace nada. Y si el modal está ocupado con otra solicitud, se guarda como
+     * pendiente y se abre al volver al radar, que es lo que {@code openPendingPushRequest} ya
+     * hacía para la notificación tocada.
+     *
+     * <p>Devuelve true aunque quede pendiente: pendiente es atendida. Solo devuelve false si esta
+     * pantalla no puede con ella —expediente sin aprobar—, y ahí la notificación es lo correcto.
+     */
+    @Override
+    public boolean onNewRide(String rideId) {
+        if (!approved) {
+            return false;
+        }
+        runOnUiThread(() -> {
+            if (rideId.equals(displayedRideId)) {
+                // Ya está en pantalla, puesta por la bandeja. El push no cuenta nada nuevo.
+                return;
+            }
+            pendingPushRideId = rideId;
+            openPendingPushRequest();
+        });
+        return true;
+    }
+
+    /**
+     * Un viaje que ya no está disponible: lo tomó otro conductor o venció.
+     *
+     * <p>Con la bandeja al día esto ya lo resuelve {@code onInboxChanged}. Importa cuando no lo
+     * está: sin esto, el conductor seguiría leyendo —y podría ofertar sobre— una solicitud que ya
+     * no existe, y se llevaría un error en vez de una explicación.
+     *
+     * <p>Si no es la que está leyendo, no hay nada que enseñarle: una notificación de "ya lo
+     * tomaron" sobre un viaje que ni vio es puro ruido.
+     */
+    @Override
+    public boolean onRideTaken(@Nullable String rideId) {
+        runOnUiThread(() -> {
+            if (rideId == null || !rideId.equals(displayedRideId)) {
+                return;
+            }
+            displayedRideId = null;
+            if (step == Step.REQUEST) {
+                backToRadar();
+            }
+        });
+        return true;
+    }
+
+    /**
+     * Nos eligieron.
+     *
+     * <p>No se fía del push para saber cuál viaje: pregunta al servidor con
+     * {@code checkCurrentRide}, que es el camino que ya usan el arranque y la vuelta del fondo, y
+     * que abre solo el viaje asignado. El push aquí es únicamente el disparador.
+     */
+    @Override
+    public boolean onOfferAccepted() {
+        if (!approved) {
+            return false;
+        }
+        runOnUiThread(() -> checkCurrentRide(false));
+        return true;
     }
 
     @Override

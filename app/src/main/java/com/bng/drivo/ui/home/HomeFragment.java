@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.GradientDrawable;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -73,6 +74,7 @@ import com.bng.drivo.util.ColorUtils;
 import com.bng.drivo.util.PrefsHelper;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -81,6 +83,7 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.tasks.CancellationTokenSource;
 import com.google.android.libraries.places.api.model.AutocompletePrediction;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.snackbar.Snackbar;
@@ -135,6 +138,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private static final double RADAR_INNER_BASE_RADIUS_METERS = 112.5;
 
     private FusedLocationProviderClient fusedLocationClient;
+    @Nullable
+    private CancellationTokenSource locationCancellationSource;
     private GoogleMap googleMap;
     private BottomSheetBehavior<View> sheetBehavior;
     private LatLng originLocation = DEFAULT_POSITION;
@@ -865,6 +870,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         nearbyDriversPresenter.detach();
         searchDebounceHandler.removeCallbacksAndMessages(null);
         reconnectedBannerHandler.removeCallbacksAndMessages(null);
+        if (locationCancellationSource != null) {
+            locationCancellationSource.cancel();
+            locationCancellationSource = null;
+        }
         if (radarAnimator != null) {
             radarAnimator.cancel();
             radarAnimator = null;
@@ -1452,8 +1461,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             showPredictions(root, Collections.emptyList());
             return;
         }
+        // Sin ubicación real todavía, mejor no sesgar que sesgar hacia DEFAULT_POSITION (CDMX):
+        // ver el mismo criterio en refreshNearbyAnchor().
+        LatLng searchBias = realLocationKnown ? originLocation : null;
         pendingSearchRunnable = () -> placesAutocompleteService.findPredictions(
-                requireContext(), query, originLocation, predictions -> {
+                requireContext(), query, searchBias, predictions -> {
                     if (isAdded()) {
                         showPredictions(root, predictions);
                     }
@@ -1479,8 +1491,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         LayoutInflater inflater = LayoutInflater.from(requireContext());
         for (AutocompletePrediction prediction : predictions) {
             View row = inflater.inflate(R.layout.item_place_prediction, container, false);
-            ((TextView) row.findViewById(R.id.text_prediction_primary)).setText(prediction.getPrimaryText(null));
-            ((TextView) row.findViewById(R.id.text_prediction_secondary)).setText(prediction.getSecondaryText(null));
+            ((TextView) row.findViewById(R.id.text_prediction_primary)).setText(prediction.getFullText(null));
             row.setOnClickListener(v -> placesAutocompleteService.resolvePlace(
                     requireContext(), prediction.getPlaceId(), new PlacesAutocompleteService.ResultListener() {
                         @Override
@@ -1882,19 +1893,39 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         // estilo con el de menú — el del SDK se queda apagado a propósito.
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
 
-        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
-            if (location == null || googleMap == null) {
-                return;
-            }
-            originLocation = new LatLng(location.getLatitude(), location.getLongitude());
-            realLocationKnown = true;
-            refreshNearbyAnchor();
-            // Con un viaje en curso la cámara la manda la ruta, no la ubicación: recentrar aquí
-            // desharía el encuadre justo después de haberlo hecho.
-            if (viewModel.getStep() == TripFlowViewModel.Step.IDLE) {
-                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(originLocation, 16f));
-            }
-        });
+        // getLastLocation() se usa solo como adelanto instantáneo (puede llegar antes de que la
+        // vista termine de dibujarse): no hay garantía de qué tan viejo es ese fix ni de que siga
+        // reflejando dónde está el teléfono ahora — puede ser el último que Play Services cacheó,
+        // horas o días atrás, en otra ciudad. Por eso también se pide siempre un fix fresco por
+        // GPS/red: si el cacheado era correcto no cambia nada visible; si era viejo o venía null,
+        // este lo corrige en cuanto resuelve.
+        fusedLocationClient.getLastLocation().addOnSuccessListener(this::applyMyLocation);
+        requestFreshLocation();
+    }
+
+    @SuppressLint("MissingPermission")
+    private void requestFreshLocation() {
+        if (locationCancellationSource != null) {
+            locationCancellationSource.cancel();
+        }
+        locationCancellationSource = new CancellationTokenSource();
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY,
+                        locationCancellationSource.getToken())
+                .addOnSuccessListener(this::applyMyLocation);
+    }
+
+    private void applyMyLocation(@Nullable Location location) {
+        if (location == null || googleMap == null) {
+            return;
+        }
+        originLocation = new LatLng(location.getLatitude(), location.getLongitude());
+        realLocationKnown = true;
+        refreshNearbyAnchor();
+        // Con un viaje en curso la cámara la manda la ruta, no la ubicación: recentrar aquí
+        // desharía el encuadre justo después de haberlo hecho.
+        if (viewModel.getStep() == TripFlowViewModel.Step.IDLE) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(originLocation, 16f));
+        }
     }
 
     private boolean hasLocationPermission() {

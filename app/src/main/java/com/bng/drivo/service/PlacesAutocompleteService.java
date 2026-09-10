@@ -51,8 +51,13 @@ public class PlacesAutocompleteService {
     private static final String TAG = "PlacesAutocomplete";
     private static final List<Place.Field> FIELDS =
             Arrays.asList(Place.Field.FORMATTED_ADDRESS, Place.Field.LOCATION);
-    /** ~0.45° de lado (~50km) alrededor del origen — sesga sin restringir los resultados. */
-    private static final double BIAS_DEGREES = 0.45;
+    /**
+     * ~0.45° de lado (~50km) alrededor del origen. Restringe (no solo sesga) los resultados: para
+     * un viaje en la app nadie necesita una dirección a cientos de km, y un sesgo suave dejaba
+     * pasar resultados lejanos pero "relevantes" para Google (p.ej. un centro comercial muy
+     * conocido en otra ciudad) por delante del más cercano real.
+     */
+    private static final double RESTRICTION_DEGREES = 0.45;
 
     public interface ResultListener {
         void onPlaceSelected(String address, double lat, double lng);
@@ -110,8 +115,8 @@ public class PlacesAutocompleteService {
 
     /**
      * Predicciones de autocompletado para el input propio de HomeFragment (sin overlay).
-     * {@code origin}, si se da, sesga (no restringe) los resultados hacia esa zona — útil
-     * para priorizar direcciones cerca del pasajero.
+     * {@code origin}, si se da, restringe los resultados a esa zona — no solo los sesga — para
+     * que una dirección lejana pero "relevante" para Google nunca le gane a la más cercana real.
      */
     public void findPredictions(Context context, String query, @Nullable LatLng origin, PredictionsListener listener) {
         ensureClient(context);
@@ -124,10 +129,10 @@ public class PlacesAutocompleteService {
                 .setQuery(query);
         if (origin != null) {
             LatLngBounds bounds = new LatLngBounds(
-                    new LatLng(origin.latitude - BIAS_DEGREES, origin.longitude - BIAS_DEGREES),
-                    new LatLng(origin.latitude + BIAS_DEGREES, origin.longitude + BIAS_DEGREES));
+                    new LatLng(origin.latitude - RESTRICTION_DEGREES, origin.longitude - RESTRICTION_DEGREES),
+                    new LatLng(origin.latitude + RESTRICTION_DEGREES, origin.longitude + RESTRICTION_DEGREES));
             requestBuilder.setOrigin(origin)
-                    .setLocationBias(RectangularBounds.newInstance(bounds));
+                    .setLocationRestriction(RectangularBounds.newInstance(bounds));
         }
 
         placesClient.findAutocompletePredictions(requestBuilder.build())

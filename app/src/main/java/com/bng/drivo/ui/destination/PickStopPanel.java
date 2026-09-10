@@ -160,8 +160,8 @@ public class PickStopPanel {
     /**
      * Entrada al paso: no mueve la cámara (la ruta origen-destino se deja tal cual, ver el
      * comentario de PICK_STOP en HomeFragment.applyStep). {@code savedAddresses} ya viene
-     * cargado de Home, para no repetir la llamada a red; {@code originBias} sesga (no restringe)
-     * las predicciones hacia el viaje en curso.
+     * cargado de Home, para no repetir la llamada a red; {@code originBias} restringe las
+     * predicciones a la zona del viaje en curso (ver PlacesAutocompleteService.findPredictions).
      */
     public void show(@NonNull List<SavedAddress> savedAddresses, @Nullable LatLng originBias) {
         active = true;
@@ -375,8 +375,7 @@ public class PickStopPanel {
         LayoutInflater inflater = LayoutInflater.from(panel.getContext());
         for (AutocompletePrediction prediction : predictions) {
             View row = inflater.inflate(R.layout.item_place_prediction, predictionsContainer, false);
-            ((TextView) row.findViewById(R.id.text_prediction_primary)).setText(prediction.getPrimaryText(null));
-            ((TextView) row.findViewById(R.id.text_prediction_secondary)).setText(prediction.getSecondaryText(null));
+            ((TextView) row.findViewById(R.id.text_prediction_primary)).setText(prediction.getFullText(null));
             row.setOnClickListener(v -> placesAutocompleteService.resolvePlace(
                     panel.getContext(), prediction.getPlaceId(), new PlacesAutocompleteService.ResultListener() {
                         @Override

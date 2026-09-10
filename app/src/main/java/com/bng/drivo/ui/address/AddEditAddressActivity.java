@@ -504,8 +504,7 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
         LayoutInflater inflater = LayoutInflater.from(this);
         for (AutocompletePrediction prediction : predictions) {
             View row = inflater.inflate(R.layout.item_place_prediction, containerPredictions, false);
-            ((TextView) row.findViewById(R.id.text_prediction_primary)).setText(prediction.getPrimaryText(null));
-            ((TextView) row.findViewById(R.id.text_prediction_secondary)).setText(prediction.getSecondaryText(null));
+            ((TextView) row.findViewById(R.id.text_prediction_primary)).setText(prediction.getFullText(null));
             row.setOnClickListener(v -> placesAutocompleteService.resolvePlace(this, prediction.getPlaceId(),
                     new PlacesAutocompleteService.ResultListener() {
                         @Override

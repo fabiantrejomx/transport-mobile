@@ -21,31 +21,19 @@
         android:src="@drawable/ic_map_pin"
         app:tint="?attr/colorOnSurfaceVariant" />
 
-    <LinearLayout
+    <!-- Un solo texto (AutocompletePrediction.getFullText) en vez de partirlo en primary/secondary:
+         ese texto de Google no siempre coincide con el formatted_address que Place Details
+         devuelve al seleccionar (ver PlacesAutocompleteService.resolvePlace), así que mostrar dos
+         líneas con jerarquía visual distinta (nombre en negrita + dirección) sugería una precisión
+         que luego no se sostenía al elegir el resultado. -->
+    <TextView
+        android:id="@+id/text_prediction_primary"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/text_prediction_primary"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            tools:text="Torre Reforma" />
-
-        <TextView
-            android:id="@+id/text_prediction_secondary"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="12sp"
-            tools:text="Paseo de la Reforma 483, CDMX" />
-    </LinearLayout>
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="13sp"
+        tools:text="Torre Reforma, Paseo de la Reforma 483, CDMX" />
 </LinearLayout>

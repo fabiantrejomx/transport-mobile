@@ -28,6 +28,9 @@
          (#2E7D5B), ya probado en esta misma paleta, en vez de inventar un verde nuevo. -->
     <color name="drivo_on_success">#2E7D5B</color>
 
+    <color name="drivo_warning">#F0BB55</color>
+    <color name="drivo_on_warning">#4A3300</color>
+
     <!-- Ver el comentario en values/colors.xml: aquí sí puede ser el azul claro de marca, que
          es lo que de verdad se lee sobre el mapa oscuro. -->
     <color name="drivo_map_accent">#A9C7E8</color>

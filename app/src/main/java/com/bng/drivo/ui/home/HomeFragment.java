@@ -849,14 +849,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
      * Cambiar de pestaña (Inicio/Viajes/Ajustes) no pasa por onStart/onStop: HomeActivity alterna
      * los tres Fragment con show/hide sobre las mismas instancias. Sin esto, el mapa de Inicio
      * seguiría consultando unidades cercanas cada 15 s desde una pantalla que nadie está viendo.
+     *
+     * <p>Por el mismo motivo se vuelve a pedir "Últimos viajes" aquí: onViewCreated no corre otra
+     * vez al volver a esta pestaña, así que un viaje recién terminado en Viajes o en otra Activity
+     * no aparecía hasta cerrar y reabrir la app — la sección se queda tan viva como el mapa.
      */
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
         if (hidden) {
             nearbyDriversPresenter.onHostStop();
-        } else {
-            nearbyDriversPresenter.onHostStart();
+            return;
+        }
+        nearbyDriversPresenter.onHostStart();
+        View view = getView();
+        if (view != null) {
+            loadRecentTrips(view);
         }
     }
 
@@ -905,6 +913,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             // aquí sí hay que repetir la carga aunque ya hubiera cargado bien antes, o un borrado
             // o una edición no se ven hasta cerrar y reabrir la app.
             loadSavedAddresses(root);
+            // Mismo motivo: volver de un viaje recién terminado (ActiveTrip -> FinishedTrip) es
+            // justo el caso que más importa refrescar aquí, y pasa por esta Activity sin ocultar
+            // nunca este Fragment (ya estaba activo), así que onHiddenChanged no dispara.
+            loadRecentTrips(root);
         }
     }
 
@@ -1582,13 +1594,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private static final int RECENT_TRIPS_LIMIT = 3;
 
     private void loadRecentTrips(View root) {
-        new RestTripRepository(requireContext()).getRideHistory(RECENT_TRIPS_LIMIT,
+        TripRepository tripRepository = new RestTripRepository(requireContext());
+        tripRepository.getRideHistory(RECENT_TRIPS_LIMIT,
                 new ApiCallback<List<RideSummary>>() {
                     @Override
                     public void onSuccess(List<RideSummary> rides) {
                         recentTripsLoaded = true;
                         if (isAdded()) {
-                            bindRecentTrips(root, rides);
+                            bindRecentTrips(root, rides, tripRepository);
                         }
                     }
 
@@ -1601,13 +1614,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 });
     }
 
-    private void bindRecentTrips(View root, List<RideSummary> rides) {
+    private void bindRecentTrips(View root, List<RideSummary> rides, TripRepository tripRepository) {
         LinearLayout container = root.findViewById(R.id.container_recent_trips);
         container.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(requireContext());
         for (RideSummary ride : rides) {
-            View row = TripHistoryRowBinder.addTrip(inflater, container, ride);
-            row.setOnClickListener(v -> TripDetailBottomSheet.present(getChildFragmentManager(), ride.getId()));
+            View row = TripHistoryRowBinder.addTrip(inflater, container, ride, tripRepository);
+            row.setOnClickListener(v -> TripDetailBottomSheet.present(
+                    getChildFragmentManager(), ride.getId(), ride.getMyRating()));
         }
     }
 

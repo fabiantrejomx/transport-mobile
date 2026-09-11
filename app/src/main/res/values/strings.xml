@@ -120,16 +120,24 @@
     <string name="viajes_empty">Aún no tienes viajes</string>
     <string name="viajes_load_error">No se pudo cargar tu historial</string>
     <string name="trip_status_cancelled">Cancelado</string>
-    <!-- Un viaje terminado antes de llegar al destino sigue siendo COMPLETED: se dice en el
-         estado, sin tocar el destino, que es el que el pasajero pidió. -->
-    <string name="trip_status_ended_early">Terminado antes</string>
+    <!-- Solo para el badge del detalle (ver TripDetailBottomSheet) — la nota bajo el destino usa
+         trip_ended_early_note; los dos existen porque dicen cosas distintas: uno es el estado del
+         viaje, el otro explica qué significa el destino de arriba. -->
+    <string name="trip_status_ended_early">Terminó antes</string>
     <string name="trip_ended_early_note">Terminó antes de llegar al destino</string>
     <string name="trip_status_completed">Completado</string>
     <string name="trip_status_expired">Sin conductores disponibles</string>
     <string name="trip_status_in_progress">En curso</string>
-    <string name="trip_detail_driver_format">%1$s (%2$s)</string>
     <string name="trip_detail_no_driver">Sin conductor asignado</string>
     <string name="trip_detail_load_error">No se pudo cargar el detalle del viaje</string>
+    <!-- Cuando el origen/destino guardado es el placeholder de "ubicación actual" o viene vacío y
+         tampoco se pudo geocodificar la coordenada real. -->
+    <string name="trip_place_unknown">Dirección no disponible</string>
+    <string name="trip_detail_cost_section_title">Costo del viaje</string>
+    <string name="trip_detail_offer_label">Tu oferta inicial</string>
+    <string name="trip_detail_final_price_label">Precio final</string>
+    <string name="trip_detail_plate_format">Placas: %1$s</string>
+    <string name="trip_detail_rating_section_title">Calificación del viaje</string>
 
     <!-- Perfil -->
     <string name="perfil_title">Configuración</string>

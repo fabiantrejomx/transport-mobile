@@ -6,12 +6,15 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Locale;
 
 /** "Hoy, 14:30" / "Ayer, 09:15" / "Lun, 09:02" a partir de un timestamp ISO-8601 del servidor. */
 public final class RelativeDateFormatter {
 
     private static final String[] DAY_ABBREVIATIONS = {"Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"};
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter DONE_AT_FORMAT = DateTimeFormatter.ofPattern(
+            "'Realizado el' d 'de' MMMM 'de' yyyy 'a las' HH:mm 'hrs.'", new Locale("es", "MX"));
 
     private RelativeDateFormatter() {
     }
@@ -33,6 +36,19 @@ public final class RelativeDateFormatter {
             } else {
                 return DAY_ABBREVIATIONS[dateTime.getDayOfWeek().getValue() % 7] + ", " + time;
             }
+        } catch (DateTimeParseException e) {
+            return "";
+        }
+    }
+
+    /** "Realizado el 11 de septiembre de 2026 a las 14:30 hrs." — pie del detalle del historial,
+     * donde la fecha relativa ("Hoy"/"Ayer") no dice nada si el viaje se ve días o meses después. */
+    public static String formatDoneAt(String isoTimestamp) {
+        if (isoTimestamp == null) {
+            return "";
+        }
+        try {
+            return DONE_AT_FORMAT.format(Instant.parse(isoTimestamp).atZone(ZoneId.systemDefault()));
         } catch (DateTimeParseException e) {
             return "";
         }

@@ -33,13 +33,17 @@
         tools:visibility="visible">
 
         <TextView
-            android:id="@+id/text_detail_date"
+            android:id="@+id/text_detail_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp"
-            tools:text="Hoy, 14:30" />
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="3dp"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            tools:background="@drawable/bg_pill_success"
+            tools:text="Completado"
+            tools:textColor="@color/drivo_on_success" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -49,6 +53,7 @@
             android:paddingBottom="8dp">
 
             <View
+                android:id="@+id/dot_detail_origin"
                 android:layout_width="8dp"
                 android:layout_height="8dp"
                 android:layout_marginEnd="10dp"
@@ -71,10 +76,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingBottom="16dp">
+            android:orientation="horizontal">
 
             <View
+                android:id="@+id/dot_detail_destination"
                 android:layout_width="8dp"
                 android:layout_height="8dp"
                 android:layout_marginEnd="10dp"
@@ -93,61 +98,171 @@
                 tools:text="Plaza Valle, Orizaba" />
         </LinearLayout>
 
+        <!-- Alineada con el texto del destino (mismo arranque que el punto de arriba, sin el
+             punto propio): es la nota del punto amarillo, igual que en el listado. -->
+        <TextView
+            android:id="@+id/text_detail_ended_early"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:layout_marginTop="2dp"
+            android:text="@string/trip_ended_early_note"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            android:textStyle="italic"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
+            android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
             android:background="?attr/colorOutline" />
 
         <TextView
-            android:id="@+id/text_detail_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
+            android:layout_marginBottom="10dp"
+            android:text="@string/trip_detail_cost_section_title"
             android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="12sp"
-            tools:text="Completado" />
+            android:textSize="12sp" />
 
-        <TextView
-            android:id="@+id/text_detail_amount"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/row_detail_offer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/trip_detail_offer_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/text_detail_offer_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp"
+                tools:text="$278.00" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/row_detail_final_price"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            tools:text="$120.00" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/trip_detail_final_price_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/text_detail_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                tools:text="$120.00" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/group_detail_driver"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorSurfaceVariant"
+            android:background="@drawable/bg_stat_tile"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="12dp">
+            android:padding="14dp">
 
-            <TextView
-                android:id="@+id/text_detail_driver_avatar"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/bg_dot"
-                android:backgroundTint="?attr/colorPrimaryContainer"
-                android:gravity="center"
-                android:textColor="?attr/colorOnPrimaryContainer"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                tools:text="JP" />
+            <include layout="@layout/part_nav_avatar_rating" />
 
-            <TextView
-                android:id="@+id/text_detail_driver"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="13sp"
-                tools:text="Juan P. (Nissan Versa)" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/text_detail_driver_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="Juan P." />
+
+                <TextView
+                    android:id="@+id/text_detail_driver_vehicle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="13sp"
+                    tools:text="Nissan Versa Blanco" />
+
+                <TextView
+                    android:id="@+id/text_detail_driver_plate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="13sp"
+                    tools:text="Placas: YKV-889" />
+            </LinearLayout>
         </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/group_detail_my_rating"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/trip_detail_rating_section_title"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/text_detail_my_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="18sp"
+                tools:text="★★★★☆" />
+        </LinearLayout>
+
+        <!-- Separada de todo lo demás a propósito: ya no es un dato de la tarjeta, es el pie del
+             recibo completo — sin etiqueta, centrada, se lee sola. -->
+        <TextView
+            android:id="@+id/text_detail_done_at"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            tools:text="Realizado el 11 de septiembre de 2026 a las 13:56 hrs." />
     </LinearLayout>
 </LinearLayout>

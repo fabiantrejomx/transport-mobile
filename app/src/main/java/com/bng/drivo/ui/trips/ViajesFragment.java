@@ -53,6 +53,22 @@ public class ViajesFragment extends Fragment {
         loadHistory(view);
     }
 
+    /**
+     * Cambiar de pestaña (Inicio/Viajes/Configuración) no pasa por onStart/onStop: HomeActivity
+     * alterna los tres Fragment con show/hide sobre las mismas instancias, así que este Fragment
+     * se crea una sola vez y onViewCreated no vuelve a correr. Sin esto, un viaje recién terminado
+     * no aparecía hasta cerrar y reabrir la app: la lista que se veía era la de la última vez que
+     * se entró a Viajes, de antes de que ese viaje existiera.
+     */
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        View view = getView();
+        if (!hidden && view != null) {
+            loadHistory(view);
+        }
+    }
+
     private void loadHistory(View view) {
         tripRepository.getRideHistory(HISTORY_LIMIT, new ApiCallback<List<RideSummary>>() {
             @Override
@@ -80,8 +96,9 @@ public class ViajesFragment extends Fragment {
 
         LayoutInflater inflater = LayoutInflater.from(requireContext());
         for (RideSummary ride : rides) {
-            View row = TripHistoryRowBinder.addTrip(inflater, container, ride);
-            row.setOnClickListener(v -> TripDetailBottomSheet.present(getParentFragmentManager(), ride.getId()));
+            View row = TripHistoryRowBinder.addTrip(inflater, container, ride, tripRepository);
+            row.setOnClickListener(v -> TripDetailBottomSheet.present(
+                    getParentFragmentManager(), ride.getId(), ride.getMyRating()));
         }
     }
 }

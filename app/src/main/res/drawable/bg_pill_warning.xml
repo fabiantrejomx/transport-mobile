@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mismo patrón que bg_pill_success.xml, para el badge de "Terminó antes" del detalle del
+     historial (ver TripDetailBottomSheet). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/drivo_warning" />
+    <corners android:radius="20dp" />
+</shape>

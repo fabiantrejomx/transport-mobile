@@ -30,6 +30,12 @@
     <color name="drivo_success">#2E7D5B</color>
     <color name="drivo_on_success">#FFFFFF</color>
 
+    <!-- Aviso — viaje del historial que terminó antes de llegar al destino pedido (endedEarly).
+         Deliberadamente distinto del dorado de marca (drivo_secondary), que ya significa
+         "confirmar/negociar" en el resto de la app. -->
+    <color name="drivo_warning">#B36B00</color>
+    <color name="drivo_on_warning">#FFFFFF</color>
+
     <!-- Azul de mapa: tramo conductor→pasajero, marcador del coche y paradas intermedias.
          Tiene variante propia en values-night en vez de usar drivo_primary directo porque sobre
          el mapa oscuro el azul marino de marca (#0F2C4C) queda casi invisible — el mapa no es una

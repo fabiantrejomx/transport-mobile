@@ -71,6 +71,7 @@
                     android:background="?attr/colorOutline" />
 
                 <View
+                    android:id="@+id/dot_trip_destination"
                     android:layout_width="8dp"
                     android:layout_height="8dp"
                     android:background="@drawable/bg_dot"

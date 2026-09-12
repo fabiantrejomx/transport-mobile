@@ -68,10 +68,9 @@ import com.bng.drivo.ui.map.NearbyDriversPresenter;
 import com.bng.drivo.ui.price.ConfirmPricePanel;
 import com.bng.drivo.ui.search.SearchingPanel;
 import com.bng.drivo.ui.trip.ActiveTripActivity;
-import com.bng.drivo.ui.trips.TripDetailBottomSheet;
-import com.bng.drivo.ui.trips.TripHistoryRowBinder;
 import com.bng.drivo.util.ColorUtils;
 import com.bng.drivo.util.PrefsHelper;
+import com.bng.drivo.util.RelativeDateFormatter;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
@@ -1569,6 +1568,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         LinearLayout container = root.findViewById(R.id.container_saved_addresses);
         container.removeAllViews();
 
+        // Sin direcciones guardadas no tiene sentido dejar el título "Direcciones guardadas"
+        // flotando sobre una lista vacía; se oculta la sección entera junto con su separador.
+        int sectionVisibility = addresses.isEmpty() ? View.GONE : View.VISIBLE;
+        root.findViewById(R.id.group_saved_addresses).setVisibility(sectionVisibility);
+        root.findViewById(R.id.divider_saved_addresses).setVisibility(sectionVisibility);
+
         LayoutInflater inflater = LayoutInflater.from(requireContext());
         for (int i = 0; i < addresses.size(); i++) {
             SavedAddress address = addresses.get(i);
@@ -1614,15 +1619,41 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                 });
     }
 
+    // Ya no es un recibo del viaje (origen/tarifa/calificación): es solo el destino al que fue y
+    // cuándo, para volver a pedirlo con un toque, igual que una dirección guardada.
     private void bindRecentTrips(View root, List<RideSummary> rides, TripRepository tripRepository) {
         LinearLayout container = root.findViewById(R.id.container_recent_trips);
         container.removeAllViews();
         LayoutInflater inflater = LayoutInflater.from(requireContext());
         for (RideSummary ride : rides) {
-            View row = TripHistoryRowBinder.addTrip(inflater, container, ride, tripRepository);
-            row.setOnClickListener(v -> TripDetailBottomSheet.present(
-                    getChildFragmentManager(), ride.getId(), ride.getMyRating()));
+            View row = inflater.inflate(R.layout.item_recent_destination, container, false);
+            ((TextView) row.findViewById(R.id.text_recent_destination_date))
+                    .setText(RelativeDateFormatter.format(ride.getRequestedAt()));
+            ((TextView) row.findViewById(R.id.text_recent_destination_address)).setText(ride.getDestText());
+            row.setOnClickListener(v -> startTripToRecentDestination(ride, tripRepository));
+            container.addView(row);
         }
+    }
+
+    // GET /rides (RideSummary) solo trae el texto del destino, no sus coordenadas; hay que pedir
+    // el detalle del viaje para recuperar el punto exacto antes de arrancar uno nuevo hacia él.
+    private void startTripToRecentDestination(RideSummary ride, TripRepository tripRepository) {
+        tripRepository.getRideDetail(ride.getId(), new ApiCallback<Ride>() {
+            @Override
+            public void onSuccess(Ride detail) {
+                if (!isAdded() || detail.getDestinationLat() == null || detail.getDestinationLng() == null) {
+                    return;
+                }
+                startTripFlow(ride.getDestText(), detail.getDestinationLat(), detail.getDestinationLng());
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                if (isAdded()) {
+                    Toast.makeText(requireContext(), R.string.trip_detail_load_error, Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
     }
 
     private View buildDivider() {

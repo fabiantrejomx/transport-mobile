@@ -23,6 +23,7 @@ import com.bng.drivo.ui.settings.EditProfileBottomSheet;
 import com.bng.drivo.ui.settings.SimpleMessageBottomSheet;
 import com.bng.drivo.util.NavHeaderRating;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
 import java.util.Locale;
@@ -226,6 +227,11 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
     /** Ver {@link SessionExit}: cerrar sesión también limpia el modo y la copia local del
      * expediente, que no están atados a ningún uid. */
     private void logout() {
-        SessionExit.logout(this);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.session_exit_logout_confirm_title)
+                .setMessage(R.string.session_exit_logout_confirm_message)
+                .setPositiveButton(R.string.perfil_logout, (dialog, which) -> SessionExit.logout(this))
+                .setNegativeButton(R.string.action_cancel, null)
+                .show();
     }
 }

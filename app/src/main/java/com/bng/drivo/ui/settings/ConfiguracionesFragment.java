@@ -29,6 +29,7 @@ import com.bng.drivo.ui.auth.SessionExit;
 import com.bng.drivo.ui.security.SeguridadActivity;
 import com.bng.drivo.util.NavHeaderRating;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
 
@@ -208,6 +209,11 @@ public class ConfiguracionesFragment extends Fragment {
     /** Centralizado en {@link SessionExit}: además de la sesión hay que limpiar lo que este
      * teléfono guardó de la cuenta (el modo y la copia local del expediente de conductor). */
     private void logout() {
-        SessionExit.logout(requireActivity());
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.session_exit_logout_confirm_title)
+                .setMessage(R.string.session_exit_logout_confirm_message)
+                .setPositiveButton(R.string.perfil_logout, (dialog, which) -> SessionExit.logout(requireActivity()))
+                .setNegativeButton(R.string.action_cancel, null)
+                .show();
     }
 }

@@ -13,6 +13,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -955,6 +956,12 @@ public class DriverHomeActivity extends AuthenticatedActivity
 
     /** Copy y color del panel de conexión. El punto de color es lo que se lee de un vistazo. */
     private void updateConnectionUi() {
+        // Mientras está en línea recibiendo solicitudes, la pantalla no debe apagarse sola.
+        if (online) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
         if (online) {
             btnConnectToggle.setText(R.string.driver_home_disconnect_button);
             textConnectionStatus.setText(R.string.driver_home_status_online);

@@ -12,6 +12,7 @@ import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -256,6 +257,8 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_driver_active_trip);
+        // El viaje completo (desde asignado hasta cobro/calificación) no debe apagar la pantalla.
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         rideId = getIntent().getStringExtra(EXTRA_RIDE_ID);
         if (rideId == null) {
@@ -1324,7 +1327,9 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
 
     private void submitRating() {
         if (cobroRating == 0) {
-            Toast.makeText(this, R.string.driver_cobro_rating_required_error, Toast.LENGTH_SHORT).show();
+            // LENGTH_LONG como paliativo: es un Toast de sistema, pendiente de reemplazar por
+            // una alerta propia junto con el resto de los Toast de la app.
+            Toast.makeText(this, R.string.driver_cobro_rating_required_error, Toast.LENGTH_LONG).show();
             return;
         }
         LoadingButtonHelper.setLoading(btnCobroClose, true);

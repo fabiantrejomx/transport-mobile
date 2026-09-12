@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fila de "Últimos viajes" en el modal de Inicio: ya no es un recibo del viaje (origen/tarifa),
+     solo el destino al que se fue y cuándo, para volver a pedirlo con un toque. Ver
+     HomeFragment.bindRecentTrips(). Mismo lenguaje visual que item_saved_address.xml. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/row_recent_destination"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+
+    <ImageView
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="?attr/colorSurfaceVariant"
+        android:contentDescription="@null"
+        android:padding="8dp"
+        android:src="@drawable/ic_map_pin"
+        app:tint="?attr/colorOnSurfaceVariant" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/text_recent_destination_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            tools:text="Ayer, 19:32" />
+
+        <TextView
+            android:id="@+id/text_recent_destination_address"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            tools:text="Calle Reforma 22" />
+    </LinearLayout>
+</LinearLayout>

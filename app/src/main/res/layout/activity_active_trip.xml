@@ -391,7 +391,9 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:gravity="center"
                             android:letterSpacing="0.08"
+                            android:minLines="2"
                             android:text="@string/active_trip_price_label"
                             android:textAllCaps="true"
                             android:textColor="?attr/colorOnSurfaceVariant"
@@ -422,7 +424,9 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:gravity="center"
                             android:letterSpacing="0.08"
+                            android:minLines="2"
                             android:text="@string/active_trip_eta_label"
                             android:textAllCaps="true"
                             android:textColor="?attr/colorOnSurfaceVariant"

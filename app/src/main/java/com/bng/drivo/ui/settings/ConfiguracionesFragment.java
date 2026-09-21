@@ -28,6 +28,7 @@ import com.bng.drivo.ui.home.HomeActivity;
 import com.bng.drivo.ui.auth.SessionExit;
 import com.bng.drivo.ui.security.SeguridadActivity;
 import com.bng.drivo.util.NavHeaderRating;
+import com.bng.drivo.util.ToolbarInsets;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -62,6 +63,8 @@ public class ConfiguracionesFragment extends Fragment {
 
         MaterialToolbar toolbar = view.findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> ((HomeActivity) requireActivity()).openDrawer());
+        ToolbarInsets.applyTop(toolbar);
+        ToolbarInsets.applyBottom(view.findViewById(R.id.scroll_content));
 
         loadProfile(view);
         loadAddressCount(view);

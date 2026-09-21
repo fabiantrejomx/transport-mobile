@@ -218,7 +218,7 @@
                 android:textAllCaps="true"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="10sp"
-                tools:text="Llegada en" />
+                tools:text="Llegada aprox." />
 
             <TextView
                 android:id="@+id/text_trip_secondary_stat_value"

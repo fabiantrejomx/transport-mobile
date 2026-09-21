@@ -24,8 +24,13 @@
         <item name="colorOnError">@color/drivo_on_error</item>
     </style>
 
+    <!-- 44dp, no 48: seis de estas más sus separadores (Widget.Drivo.OtpDigit + los
+         android:layout_marginEnd de activity_login.xml) miden 318dp de punta a punta, y con los
+         24dp de padding de cada lado de la pantalla de login eso ya no cabe en una pantalla de
+         360dp de ancho (312dp disponibles) — se salía unos px por cada lado en un Moto G7 Play.
+         A 44dp + 4dp de separador quedan 284dp, con margen incluso en pantallas más angostas. -->
     <style name="Widget.Drivo.OtpDigit" parent="android:Widget.EditText">
-        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_width">44dp</item>
         <item name="android:layout_height">56dp</item>
         <item name="android:background">@drawable/bg_otp_digit</item>
         <item name="android:gravity">center</item>

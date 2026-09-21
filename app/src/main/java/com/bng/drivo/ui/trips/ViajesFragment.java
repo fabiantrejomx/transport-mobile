@@ -18,6 +18,7 @@ import com.bng.drivo.data.remote.ApiException;
 import com.bng.drivo.data.repository.RestTripRepository;
 import com.bng.drivo.data.repository.TripRepository;
 import com.bng.drivo.ui.home.HomeActivity;
+import com.bng.drivo.util.ToolbarInsets;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.Collections;
@@ -49,6 +50,8 @@ public class ViajesFragment extends Fragment {
 
         MaterialToolbar toolbar = view.findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> ((HomeActivity) requireActivity()).openDrawer());
+        ToolbarInsets.applyTop(toolbar);
+        ToolbarInsets.applyBottom(view.findViewById(R.id.scroll_content));
 
         loadHistory(view);
     }

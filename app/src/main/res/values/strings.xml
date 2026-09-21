@@ -283,12 +283,15 @@
     <string name="active_trip_cancelled_by_driver_toast">El conductor canceló el viaje</string>
 
     <!-- Fases previas al viaje activo: conductor en camino / esperando -->
-    <!-- La tilde no es adorno: el ETA sale de la línea recta por un factor de calle, no de una
-         consulta de tráfico. Es una referencia, y el texto no debe sonar a compromiso de llegada. -->
-    <string name="eta_approx_min">~%1$d min</string>
+    <!-- El ETA sale de la línea recta por un factor de calle, no de una consulta de tráfico: es una
+         referencia, no un compromiso de llegada. Antes lo decía una tilde junto al número; ahora lo
+         dice la etiqueta que acompaña a cada valor (ver driver_trip_eta_stat_label,
+         active_trip_eta_label, driver_trip_dropoff_eta_stat_label), así que este string por sí solo
+         ya no necesita marcar nada. -->
+    <string name="eta_approx_min">%1$d min</string>
     <string name="active_trip_eta_label">Llegada estimada</string>
     <string name="active_trip_locate_driver">Localizar al conductor</string>
-    <string name="active_trip_status_en_route_eta">Llega en ~%1$d min</string>
+    <string name="active_trip_status_en_route_eta">Llega en %1$d min (aprox.)</string>
     <string name="active_trip_status_en_route_title">Tu conductor va en camino</string>
     <string name="active_trip_status_en_route_subtitle">Sigue su ubicación en el mapa</string>
     <string name="active_trip_status_waiting_title">Tu conductor te está esperando</string>
@@ -432,7 +435,10 @@
     <string name="driver_trip_follow_me">Centrar en mi ubicación</string>
     <string name="driver_trip_navigation_view">Vista de navegación</string>
     <string name="driver_trip_frame_route">Ver la ruta completa</string>
-    <string name="driver_trip_eta_stat_label">Llegada en</string>
+    <!-- Sin la tilde que antes llevaba el valor de abajo, esta etiqueta es la que ahora dice que
+         el tiempo es aproximado. Abreviado ("aprox.") para no romper la tarjeta: comparte fila con
+         la de la tarifa a ancho igual. -->
+    <string name="driver_trip_eta_stat_label">Llegada aprox.</string>
     <!-- Ya no es la etiqueta del tile secundario (ver panel_driver_trip.xml) — el estado "En
          curso" se pinta en el badge junto al nombre del pasajero. El tile queda listo para
          mostrar el ETA real del tramo en curso cuando exista ese dato (ver

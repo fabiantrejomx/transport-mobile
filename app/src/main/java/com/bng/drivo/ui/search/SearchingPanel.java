@@ -145,6 +145,13 @@ public class SearchingPanel {
     private boolean cancelling;
     /** Ya salimos por un estado terminal; evita repetir el aviso si llegan más eventos. */
     private boolean leaving;
+    /**
+     * Ya se está abriendo el viaje por un MATCHED que no produjo esta pantalla — ver
+     * {@link #openMatchedRide()}. El listener de Firestore y el sondeo HTTP pueden entregar el
+     * mismo MATCHED por separado mientras la consulta a GET /rides/{id} sigue en vuelo; sin este
+     * candado, las dos resoluciones navegarían por su cuenta.
+     */
+    private boolean openingMatchedRide;
 
     public SearchingPanel(@NonNull View panel,
                           @NonNull TripFlowViewModel viewModel, @NonNull TripRepository tripRepository,
@@ -176,6 +183,7 @@ public class SearchingPanel {
         actionInFlight = false;
         cancelling = false;
         leaving = false;
+        openingMatchedRide = false;
         paintedSignature = null;
         LoadingButtonHelper.setLoading(btnCancelSearch, false);
         bindYourOffer();
@@ -318,8 +326,14 @@ public class SearchingPanel {
     }
 
     /**
-     * Estados terminales de la búsqueda. MATCHED no se atiende aquí: ese lo produce nuestra propia
-     * aceptación, que ya navega por su cuenta (ver {@link #acceptOffer}).
+     * Estados terminales de la búsqueda.
+     *
+     * <p>MATCHED solía no atenderse aquí: hasta el camino rápido del conductor (2026-09-21) lo
+     * único que producía este estado era nuestra propia aceptación, que ya navegaba por su cuenta
+     * (ver {@link #acceptOffer}). Ahora un conductor puede ganar el viaje ofertando el precio
+     * exacto del pasajero sin que nadie elija nada — ese MATCHED llega igual por este mismo canal
+     * y por el sondeo, y si no se atiende aquí el pasajero se queda viendo "Buscando
+     * conductores…" sobre un viaje que ya tiene conductor asignado.
      */
     private void onRideStatusChanged(String status) {
         // cancelling: el propio pasajero está cancelando y ya tiene su aviso en camino; si el
@@ -329,6 +343,9 @@ public class SearchingPanel {
             return;
         }
         switch (status) {
+            case "MATCHED":
+                openMatchedRide();
+                break;
             case "EXPIRED_NO_DRIVERS":
                 leaveSearch(R.string.searching_expired_toast);
                 break;
@@ -340,6 +357,37 @@ public class SearchingPanel {
             default:
                 break;
         }
+    }
+
+    /**
+     * Abre el viaje activo para un MATCHED que esta pantalla no produjo — el camino rápido del
+     * conductor. El estado por sí solo no alcanza (falta el conductor, la tarifa acordada, la
+     * ruta…), así que se relee el viaje completo antes de navegar.
+     */
+    private void openMatchedRide() {
+        if (openingMatchedRide) {
+            return;
+        }
+        String rideId = viewModel.getRideId();
+        if (rideId == null) {
+            return;
+        }
+        openingMatchedRide = true;
+        tripRepository.getRideDetail(rideId, new ApiCallback<Ride>() {
+            @Override
+            public void onSuccess(Ride ride) {
+                openingMatchedRide = false;
+                if (active && !leaving && !cancelling) {
+                    callbacks.onOfferAccepted(ride);
+                }
+            }
+
+            @Override
+            public void onError(ApiException error) {
+                openingMatchedRide = false;
+                // El siguiente evento (listener o sondeo) lo vuelve a intentar.
+            }
+        });
     }
 
     /** Salida por una razón ajena al pasajero: se avisa y se vuelve a Home. */

@@ -439,7 +439,7 @@
                             android:textColor="?attr/colorOnSurface"
                             android:textSize="20sp"
                             android:textStyle="bold"
-                            tools:text="~18 min" />
+                            tools:text="18 min" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

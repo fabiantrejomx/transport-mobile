@@ -5,9 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground"
-    android:fitsSystemWindows="true"
     android:orientation="vertical">
 
+    <!-- Sin fitsSystemWindows: no es fiable aquí (ver ToolbarInsets). El propio Java aplica
+         los insets a mano. -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
@@ -20,6 +21,7 @@
         app:titleTextColor="?attr/colorOnSurface" />
 
     <ScrollView
+        android:id="@+id/scroll_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 

@@ -889,8 +889,9 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     }
 
     /**
-     * El tiempo que falta, en el tile de abajo. La etiqueta la pone cada fase —"Llegada en" yendo
-     * por el pasajero, "Llegada estimada" ya en el viaje—; aquí solo va el número.
+     * El tiempo que falta, en el tile de abajo. La etiqueta la pone cada fase —"Llegada aprox."
+     * yendo por el pasajero, "Llegada estimada" ya en el viaje—; aquí solo va el número. Antes esa
+     * aproximación la marcaba una tilde junto al número; ahora la dice la etiqueta.
      *
      * <p>Mientras el canal en vivo no ha dado el primero se usa el de la solicitud, que es la misma
      * cuenta hecha en el servidor cuando el viaje se ofreció: así el tile no arranca vacío. Sin

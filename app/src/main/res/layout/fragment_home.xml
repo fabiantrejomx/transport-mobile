@@ -13,6 +13,38 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Cubre el mapa mientras onMapReady no dispara (getMapAsync es async y con señal débil
+         puede tardar): sin esto se veía la cuadrícula gris del SDK sin explicación, como si la
+         pantalla se hubiera trabado. HomeFragment.onMapReady lo desvanece con el mismo fundido
+         que los banners de conectividad; si la causa es falta de señal, banner_offline queda
+         encima explicándolo apenas monte onStart. -->
+    <LinearLayout
+        android:id="@+id/map_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/colorSurface"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            app:indicatorColor="@color/drivo_secondary"
+            app:trackColor="@android:color/transparent" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/home_map_loading"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+    </LinearLayout>
+
     <!-- Único botón para las dos funciones: abre el menú en el paso IDLE y hace de "atrás" en
          los demás, cambiando solo su ícono con un fundido en el sitio. Un segundo botón que
          apareciera en otra posición al cambiar de paso rompería la continuidad que busca todo

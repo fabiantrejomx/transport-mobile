@@ -8,6 +8,13 @@ public interface UserRepository {
     /** GET /me */
     void getCurrentUser(ApiCallback<UserProfile> callback);
 
+    /**
+     * GET /me con un límite de espera propio en vez del genérico de la app.
+     *
+     * @param timeoutSeconds tiempo máximo antes de que se reporte como error de red.
+     */
+    void getCurrentUser(long timeoutSeconds, ApiCallback<UserProfile> callback);
+
     /** POST /me — idempotente, crea o sincroniza el perfil tras el login. Sin body. */
     void syncProfile(ApiCallback<UserProfile> callback);
 

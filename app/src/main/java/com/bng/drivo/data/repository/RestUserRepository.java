@@ -10,6 +10,10 @@ import com.bng.drivo.data.remote.TransportApiService;
 import com.bng.drivo.data.remote.dto.MeDto;
 import com.bng.drivo.data.remote.dto.UpdateMeRequest;
 
+import java.util.concurrent.TimeUnit;
+
+import retrofit2.Call;
+
 public class RestUserRepository implements UserRepository {
 
     private final TransportApiService service;
@@ -21,6 +25,13 @@ public class RestUserRepository implements UserRepository {
     @Override
     public void getCurrentUser(ApiCallback<UserProfile> callback) {
         ApiCallDispatcher.enqueue(service.getMe(), mapping(callback));
+    }
+
+    @Override
+    public void getCurrentUser(long timeoutSeconds, ApiCallback<UserProfile> callback) {
+        Call<MeDto> call = service.getMe();
+        call.timeout().timeout(timeoutSeconds, TimeUnit.SECONDS);
+        ApiCallDispatcher.enqueue(call, mapping(callback));
     }
 
     @Override

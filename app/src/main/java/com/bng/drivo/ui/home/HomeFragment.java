@@ -140,6 +140,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     @Nullable
     private CancellationTokenSource locationCancellationSource;
     private GoogleMap googleMap;
+    /** Visible hasta el primer onMapReady — ver hideMapPlaceholder(). */
+    private View mapPlaceholder;
     private BottomSheetBehavior<View> sheetBehavior;
     private LatLng originLocation = DEFAULT_POSITION;
     /** Del último OnCameraMoveStartedListener: distingue un arrastre real de un reencuadre nuestro. */
@@ -185,6 +187,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private RealtimeSubscription connectivitySubscription;
     private View offlineBanner;
     private View onlineBanner;
+    private View groupIdleContent;
+    private View groupDefaultLists;
+    private View groupOfflineState;
+    /**
+     * True solo entre el arranque sin conexión y la primera vez que vuelve la señal: mientras
+     * dura, el modal reemplaza saludo+buscador+listas por un único aviso (ver
+     * showColdStartOfflineState()) y banner_offline se omite porque duplicaría el mismo mensaje.
+     * Una vez se resuelve queda en false para siempre — una caída de señal a mitad de sesión ya
+     * tiene contenido real que conservar, así que vuelve a avisarse con el banner de siempre.
+     */
+    private boolean coldStartOffline;
     private final Handler reconnectedBannerHandler = new Handler(Looper.getMainLooper());
     // true solo entre un evento offline real y el siguiente online — así el banner verde de
     // reconexión no aparece en el primer estado "online" al abrir la app con señal, que nunca
@@ -252,6 +265,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         connectivityRepository = new SystemConnectivityRepository(requireContext());
         offlineBanner = view.findViewById(R.id.banner_offline);
         onlineBanner = view.findViewById(R.id.banner_online);
+        groupIdleContent = view.findViewById(R.id.group_idle_content);
+        groupDefaultLists = view.findViewById(R.id.group_default_lists);
+        groupOfflineState = view.findViewById(R.id.group_offline_state);
 
         viewModel = new ViewModelProvider(requireActivity()).get(TripFlowViewModel.class);
         mapPresenter = new MapPresenter(requireContext());
@@ -269,6 +285,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         pickStopPin = view.findViewById(R.id.img_pick_stop_pin);
         frameRouteButton = view.findViewById(R.id.btn_frame_route);
 
+        mapPlaceholder = view.findViewById(R.id.map_placeholder);
+
         SupportMapFragment mapFragment =
                 (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
         if (mapFragment != null) {
@@ -280,9 +298,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         setUpBackHandling(view);
         setUpBottomSheet(view);
         setUpDestinationSearch(view);
-        loadGreeting(view);
-        loadSavedAddresses(view);
-        loadRecentTrips(view);
+        if (connectivityRepository.isOnline()) {
+            loadGreeting(view);
+            loadSavedAddresses(view);
+            loadRecentTrips(view);
+        } else {
+            // Arranque sin señal: pedir estas tres solo fallaría de inmediato dejando el
+            // saludo por defecto y las listas vacías sin explicación. onConnectivityChanged las
+            // dispara solo en cuanto detecte que ya hay conexión.
+            coldStartOffline = true;
+            showColdStartOfflineState(true);
+        }
 
         view.findViewById(R.id.btn_open_drawer).setOnClickListener(v -> onNavButtonClicked());
         frameRouteButton.setOnClickListener(v -> mapPresenter.frameRoute());
@@ -929,6 +955,20 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (root == null) {
             return;
         }
+
+        if (coldStartOffline) {
+            if (!online) {
+                return;
+            }
+            coldStartOffline = false;
+            showColdStartOfflineState(false);
+            showReconnectedBanner();
+            loadGreeting(root);
+            loadSavedAddresses(root);
+            loadRecentTrips(root);
+            return;
+        }
+
         showOfflineBanner(!online);
         if (!online) {
             wasOffline = true;
@@ -947,6 +987,32 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         if (!recentTripsLoaded) {
             loadRecentTrips(root);
         }
+    }
+
+    /**
+     * Único aviso de "sin conexión" para el arranque en frío, en vez del saludo vacío + buscador
+     * inútil + listas vacías que se verían sin esto. No lleva fundido: es el primer contenido
+     * del modal y el usuario nunca vio la versión normal a la que "volver".
+     */
+    private void showColdStartOfflineState(boolean offline) {
+        if (groupIdleContent == null || groupDefaultLists == null || groupOfflineState == null) {
+            return;
+        }
+        groupIdleContent.setVisibility(offline ? View.GONE : View.VISIBLE);
+        groupDefaultLists.setVisibility(offline ? View.GONE : View.VISIBLE);
+        groupOfflineState.setVisibility(offline ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * onMapReady puede tardar con señal débil (Play Services resolviendo tiles); sin este
+     * fundido de salida el mapa pasaba del gris de carga al contenido real de golpe.
+     */
+    private void hideMapPlaceholder() {
+        if (mapPlaceholder == null || mapPlaceholder.getVisibility() == View.GONE) {
+            return;
+        }
+        mapPlaceholder.animate().alpha(0f).setDuration(BANNER_FADE_MS)
+                .withEndAction(() -> mapPlaceholder.setVisibility(View.GONE)).start();
     }
 
     private void showOfflineBanner(boolean show) {
@@ -1671,6 +1737,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     @Override
     public void onMapReady(GoogleMap map) {
         googleMap = map;
+        hideMapPlaceholder();
         MapStyler.apply(requireContext(), googleMap);
 
         // Arrancar en la última posición vista (si existe) en vez de CDMX por defecto: evita

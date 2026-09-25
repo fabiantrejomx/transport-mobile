@@ -86,6 +86,8 @@
     <string name="home_search_icon_description">Buscar destino</string>
     <string name="connectivity_offline">Sin conexión a internet</string>
     <string name="connectivity_restored">Se restableció la conexión</string>
+    <string name="home_map_loading">Cargando mapa…</string>
+    <string name="home_offline_hint">Se cargará todo automáticamente en cuanto vuelva la conexión.</string>
     <string name="home_search_clear_description">Borrar búsqueda</string>
 
     <!-- Drawer -->

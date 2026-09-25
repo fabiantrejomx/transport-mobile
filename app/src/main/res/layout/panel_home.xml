@@ -34,6 +34,15 @@
             android:background="@drawable/bg_dot"
             android:backgroundTint="?attr/colorOutline" />
 
+        <!-- Saludo + buscador + "elegir en el mapa" + estado de unidades cercanas, agrupados
+             para poder ocultarlos de una sola vez cuando la app arranca sin conexión — ver
+             group_offline_state más abajo y HomeFragment.showColdStartOfflineState(). -->
+        <LinearLayout
+            android:id="@+id/group_idle_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
         <TextView
             android:id="@+id/text_greeting"
             android:layout_width="wrap_content"
@@ -147,6 +156,50 @@
             android:textSize="12sp"
             android:visibility="gone"
             tools:visibility="visible" />
+        </LinearLayout>
+
+        <!-- Arranque sin conexión: reemplaza a group_idle_content y group_default_lists en vez de
+             dejar un saludo vacío y un buscador que no puede hacer nada — ver
+             HomeFragment.showColdStartOfflineState(). Solo se usa para este caso puntual (sin
+             señal desde el inicio); una pérdida de conexión a mitad de sesión sigue avisándose
+             con banner_offline sobre el contenido ya cargado. -->
+        <LinearLayout
+            android:id="@+id/group_offline_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingTop="28dp"
+            android:paddingBottom="12dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginBottom="12dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_wifi_off"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/connectivity_offline"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="@string/home_offline_hint"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Reemplaza a group_default_lists mientras se escribe en input_destination —

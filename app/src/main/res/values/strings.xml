@@ -414,7 +414,10 @@
          leyéndose como "el viaje es mío", el sitio donde arreglarlo es el banner de oferta
          enviada que sigue a este paso, que es el que dice en qué quedó. -->
     <string name="incoming_request_accept_button">Aceptar</string>
-    <string name="incoming_request_counter_button_format">+ $%1$.0f</string>
+    <!-- Mismo botón, cuando el selector ya subió el precio por encima del del pasajero. -->
+    <string name="incoming_request_counter_offer_button">Contraofertar</string>
+    <string name="incoming_request_counter_minus_description">Bajar contraoferta</string>
+    <string name="incoming_request_counter_plus_description">Subir contraoferta</string>
     <!-- Único formato de calificación de la app: la estrella dice que el número son estrellas, y
          un decimal porque lo que manda el backend es un promedio (4.9), no las estrellas de un
          viaje suelto (que son enteros del 1 al 5). Lo usan las tres pantallas del conductor. -->
@@ -624,4 +627,13 @@
     <string name="driver_service_online_body">Recibiendo solicitudes de viaje</string>
     <string name="driver_service_trip_title">Viaje en curso</string>
     <string name="driver_service_trip_body">Compartiendo tu ubicación con el pasajero</string>
+    <!-- %1$s: el texto de arriba; %2$s: datos gastados por la app desde que se conectó ("3.4 MB"). -->
+    <string name="driver_service_data_usage_format">%1$s · %2$s de datos</string>
+    <string name="driver_service_go_offline_action">Desconectarme</string>
+    <!-- Diálogo al conectarse si la batería de Drivo sigue optimizada (BatteryOptimization). -->
+    <string name="driver_battery_dialog_title">Mantente en el radar</string>
+    <string name="driver_battery_dialog_message">Para seguir recibiendo viajes con la app en segundo plano, permite que Drivo funcione sin restricciones de batería. Si no, tu teléfono puede cerrarla y desconectarte sin avisar.</string>
+    <string name="driver_battery_dialog_allow">Permitir</string>
+    <string name="driver_battery_dialog_later">Ahora no</string>
+    <string name="driver_service_went_offline_toast">Te desconectaste. Ya no recibirás solicitudes.</string>
 </resources>

@@ -21,6 +21,12 @@ public class IncomingRequestDto {
     /** Ya recortados al techo del viaje por el servidor; puede venir vacío. Nunca fijarlos en la UI. */
     public List<Double> counter_increments;
     /**
+     * Techo del viaje: la oferta más alta que acepta POST /driver/rides/{id}/offer (contrato
+     * 1.13.0). Null si el servidor es anterior; entonces el selector cae al mayor de
+     * counter_increments.
+     */
+    public Double max_offer;
+    /**
      * Trazo del viaje del pasajero por calles, codificado (contrato 1.7.0). Es el mismo de la
      * cotización, leído de la fila del viaje, así que servirlo no le cuesta al servidor otra
      * llamada a Google. Puede venir null —el servidor puede no haberlo recibido, o estar aún en

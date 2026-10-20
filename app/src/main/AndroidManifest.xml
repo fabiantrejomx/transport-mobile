@@ -21,6 +21,11 @@
          en tiempo de ejecución (el servicio no arranca si no lo está). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Permiso normal: deja abrir el diálogo del sistema "Permitir en segundo plano" en un toque
+         (BatteryOptimization). Sin él solo se podría mandar al conductor a buscar la app en la
+         lista de ajustes. Google Play lo revisa: la justificación es que el conductor en línea
+         depende de seguir reportando posición con la app fuera de pantalla. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".DrivoApplication"
@@ -179,12 +184,16 @@
         <!-- No lleva android:stopWithTask, y eso es deliberado: el valor por omisión (false) es
              justo lo que se quiere. Cerrar la app desde recientes no es desconectarse — el
              conductor sigue en el radar del servidor, así que el teléfono tiene que seguir
-             reportando. El aviso permanente lo dice, y tocarlo abre el inicio, que es donde está
-             el botón de desconectarse. -->
+             reportando. El aviso permanente lo dice y trae su propio "Desconectarme"
+             (DriverGoOfflineReceiver); tocarlo abre el inicio. -->
         <service
             android:name=".service.DriverOnlineService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <receiver
+            android:name=".service.DriverGoOfflineReceiver"
+            android:exported="false" />
 
         <service
             android:name=".service.DrivoFirebaseMessagingService"

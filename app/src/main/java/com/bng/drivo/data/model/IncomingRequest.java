@@ -23,6 +23,8 @@ public class IncomingRequest {
     private final Integer pickupEtaMin;
     private final Integer tripDistanceM;
     private final List<Double> counterIncrements;
+    /** Techo del viaje (la oferta más alta que acepta el servidor). Null con un servidor < 1.13.0. */
+    private final Double maxOffer;
     /** Trazo del viaje por calles, codificado. Null si el servidor no lo mandó: guía recta. */
     private final String polyline;
     private final String expiresAt;
@@ -31,8 +33,8 @@ public class IncomingRequest {
                             double offer, String pickupText, String dropoffText, Double pickupLat, Double pickupLng,
                             Double dropoffLat, Double dropoffLng, List<Waypoint> stops,
                             Integer pickupDistanceM, Integer pickupEtaMin,
-                            Integer tripDistanceM, List<Double> counterIncrements, String polyline,
-                            String expiresAt) {
+                            Integer tripDistanceM, List<Double> counterIncrements, Double maxOffer,
+                            String polyline, String expiresAt) {
         this.rideId = rideId;
         this.passengerName = passengerName;
         this.passengerRating = passengerRating;
@@ -49,6 +51,7 @@ public class IncomingRequest {
         this.pickupEtaMin = pickupEtaMin;
         this.tripDistanceM = tripDistanceM;
         this.counterIncrements = counterIncrements;
+        this.maxOffer = maxOffer;
         this.polyline = polyline;
         this.expiresAt = expiresAt;
     }
@@ -117,6 +120,11 @@ public class IncomingRequest {
     /** Ya recortados al techo del viaje por el servidor; puede venir vacío. Nunca fijarlos en la UI. */
     public List<Double> getCounterIncrements() {
         return counterIncrements;
+    }
+
+    /** Ver {@link #maxOffer}. */
+    public Double getMaxOffer() {
+        return maxOffer;
     }
 
     /** Ver {@link #polyline}: null cuando no hay trazo y toca la guía recta. */

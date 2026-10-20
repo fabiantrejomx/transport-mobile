@@ -1,8 +1,11 @@
 package com.bng.drivo.service;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
@@ -10,6 +13,9 @@ import androidx.activity.result.ActivityResultCaller;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+
+import com.google.android.gms.location.LocationServices;
 
 import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.model.AutocompletePrediction;
@@ -25,8 +31,10 @@ import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -58,6 +66,12 @@ public class PlacesAutocompleteService {
      * conocido en otra ciudad) por delante del más cercano real.
      */
     private static final double RESTRICTION_DEGREES = 0.45;
+    /**
+     * Red de seguridad cuando no hay ningún origen (sin permiso, o sin fix ni cacheado): sin esto
+     * la búsqueda sale sin zona y para nombres ambiguos ("BBVA", "OXXO") gana la sucursal más
+     * "relevante" del mundo, típicamente una de CDMX.
+     */
+    private static final String FALLBACK_COUNTRY = "MX";
 
     public interface ResultListener {
         void onPlaceSelected(String address, double lat, double lng);
@@ -117,8 +131,38 @@ public class PlacesAutocompleteService {
      * Predicciones de autocompletado para el input propio de HomeFragment (sin overlay).
      * {@code origin}, si se da, restringe los resultados a esa zona — no solo los sesga — para
      * que una dirección lejana pero "relevante" para Google nunca le gane a la más cercana real.
+     * Si no se da, se intenta con la última ubicación cacheada del teléfono (aunque sea vieja,
+     * casi siempre está en la ciudad correcta) antes de buscar solo a nivel país.
      */
     public void findPredictions(Context context, String query, @Nullable LatLng origin, PredictionsListener listener) {
+        if (origin != null || !hasLocationPermission(context)) {
+            requestPredictions(context, query, origin, listener);
+            return;
+        }
+        fetchLastKnownLocation(context, lastKnown -> requestPredictions(context, query, lastKnown, listener));
+    }
+
+    private interface LocationCallback {
+        void onLocation(@Nullable LatLng location);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void fetchLastKnownLocation(Context context, LocationCallback callback) {
+        LocationServices.getFusedLocationProviderClient(context.getApplicationContext())
+                .getLastLocation()
+                .addOnSuccessListener(location -> callback.onLocation(location != null
+                        ? new LatLng(location.getLatitude(), location.getLongitude()) : null))
+                .addOnFailureListener(e -> callback.onLocation(null));
+    }
+
+    private static boolean hasLocationPermission(Context context) {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestPredictions(Context context, String query, @Nullable LatLng origin, PredictionsListener listener) {
         ensureClient(context);
         if (sessionToken == null) {
             sessionToken = AutocompleteSessionToken.newInstance();
@@ -126,7 +170,8 @@ public class PlacesAutocompleteService {
 
         FindAutocompletePredictionsRequest.Builder requestBuilder = FindAutocompletePredictionsRequest.builder()
                 .setSessionToken(sessionToken)
-                .setQuery(query);
+                .setQuery(query)
+                .setCountries(FALLBACK_COUNTRY);
         if (origin != null) {
             LatLngBounds bounds = new LatLngBounds(
                     new LatLng(origin.latitude - RESTRICTION_DEGREES, origin.longitude - RESTRICTION_DEGREES),
@@ -136,11 +181,25 @@ public class PlacesAutocompleteService {
         }
 
         placesClient.findAutocompletePredictions(requestBuilder.build())
-                .addOnSuccessListener(response -> listener.onPredictions(response.getAutocompletePredictions()))
+                .addOnSuccessListener(response -> listener.onPredictions(
+                        sortByDistance(response.getAutocompletePredictions())))
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error buscando predicciones: " + e.getMessage());
                     listener.onPredictions(Collections.emptyList());
                 });
+    }
+
+    /**
+     * Google ordena por relevancia, no por cercanía: dentro de la zona restringida, una sucursal
+     * de una cadena en el pueblo de al lado puede quedar arriba de la que está a dos cuadras.
+     * getDistanceMeters() solo viene cuando se mandó origen; sin él (null) se respeta el orden de
+     * Google, al final y en el mismo orden relativo (el sort es estable).
+     */
+    private static List<AutocompletePrediction> sortByDistance(List<AutocompletePrediction> predictions) {
+        List<AutocompletePrediction> sorted = new ArrayList<>(predictions);
+        Collections.sort(sorted, Comparator.comparing(AutocompletePrediction::getDistanceMeters,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        return sorted;
     }
 
     /** Resuelve un placeId de {@link #findPredictions} a dirección + lat/lng y cierra la sesión. */

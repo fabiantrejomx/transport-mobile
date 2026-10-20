@@ -3,6 +3,7 @@ package com.bng.drivo.service;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
@@ -12,6 +13,7 @@ import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.os.Build;
 import android.os.IBinder;
+import android.text.format.Formatter;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -53,9 +55,11 @@ import com.google.android.gms.location.Priority;
  *
  * <p><b>Sobrevive a que se cierre la app desde recientes</b> ({@code stopWithTask} por omisión es
  * false), que es exactamente el punto: cerrar la pantalla no es desconectarse. Para desconectarse
- * se toca el aviso, que abre el inicio del conductor donde vive el botón — y no una acción propia
- * en la notificación, porque arrancar un servicio desde segundo plano está restringido en Android
- * 12+ y ese camino falla justo cuando más se necesita.
+ * se toca "Desconectarme" en el aviso (ver {@link DriverGoOfflineReceiver}), o se abre el inicio
+ * del conductor donde vive el botón. Solo en el radar: con un viaje encima no se ofrece.
+ *
+ * <p>El aviso también dice cuántos datos lleva gastados la app desde que se conectó
+ * ({@link DriverDataUsage}), que es la duda con la que un conductor apaga la app para ahorrar.
  *
  * <p>El ritmo de envío es el mismo de siempre ({@code POST /driver/location} cada 12 s): esto
  * cambia <b>cuándo</b> se reporta, no cuánto.
@@ -80,6 +84,9 @@ public class DriverOnlineService extends Service {
     @Nullable
     private LocationCallback locationCallback;
     private long lastReportAt;
+    /** Último texto de datos pintado: el aviso solo se repinta cuando cambia. */
+    @Nullable
+    private String lastUsageText;
     @Nullable
     private String mode;
 
@@ -97,8 +104,10 @@ public class DriverOnlineService extends Service {
         start(context, ACTION_TRIP);
     }
 
+    /** Fin de la sesión: el contador de datos vuelve a cero para la siguiente conexión. */
     public static void stop(@NonNull Context context) {
         context.stopService(new Intent(context, DriverOnlineService.class));
+        DriverDataUsage.endSession(context);
     }
 
     private static void start(Context context, String action) {
@@ -126,7 +135,10 @@ public class DriverOnlineService extends Service {
         // Un reinicio del sistema tras matar el proceso llega con intent null: se cae al radar,
         // que es el estado que de verdad depende de seguir reportando.
         mode = intent != null && intent.getAction() != null ? intent.getAction() : ACTION_ONLINE;
-        startForegroundWithNotification();
+        lastUsageText = usageText();
+        ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(),
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                        ? ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION : 0);
         startLocationLoop();
         // START_STICKY y no START_NOT_STICKY: si Android mata el proceso por memoria mientras el
         // conductor sigue conectado en el servidor, lo correcto es volver, no quedarse fuera del
@@ -147,29 +159,64 @@ public class DriverOnlineService extends Service {
         super.onDestroy();
     }
 
-    private void startForegroundWithNotification() {
+    private Notification buildNotification() {
         boolean enViaje = ACTION_TRIP.equals(mode);
 
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0, abrirLaApp(),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Notification notification = new NotificationCompat.Builder(this, NotificationChannels.DRIVER_SERVICE)
+        String body = getString(enViaje
+                ? R.string.driver_service_trip_body : R.string.driver_service_online_body);
+        if (lastUsageText != null) {
+            body = getString(R.string.driver_service_data_usage_format, body, lastUsageText);
+        }
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannels.DRIVER_SERVICE)
                 .setSmallIcon(R.drawable.ic_map_pin)
                 .setContentTitle(getString(enViaje
                         ? R.string.driver_service_trip_title : R.string.driver_service_online_title))
-                .setContentText(getString(enViaje
-                        ? R.string.driver_service_trip_body : R.string.driver_service_online_body))
+                .setContentText(body)
                 .setContentIntent(contentIntent)
                 // No se descarta ni se agrupa como "reciente": describe un estado, no un evento.
                 .setOngoing(true)
                 .setShowWhen(false)
+                // Se repinta con cada cambio del contador de datos: que no vuelva a sonar ni vibrar.
+                .setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .build();
+                .setCategory(NotificationCompat.CATEGORY_SERVICE);
 
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification,
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                        ? ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION : 0);
+        // Desconectarse con un viaje encima no aplica: el viaje sigue y hay que cerrarlo.
+        if (!enViaje) {
+            PendingIntent goOffline = PendingIntent.getBroadcast(this, 0,
+                    new Intent(this, DriverGoOfflineReceiver.class),
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(R.drawable.ic_close, getString(R.string.driver_service_go_offline_action),
+                    goOffline);
+        }
+        return builder.build();
+    }
+
+    /** Null si el teléfono no expone los contadores: el aviso queda como antes. */
+    @Nullable
+    private String usageText() {
+        long bytes = DriverDataUsage.sample(this);
+        return bytes == DriverDataUsage.UNSUPPORTED ? null : Formatter.formatShortFileSize(this, bytes);
+    }
+
+    /**
+     * Repinta el aviso si el contador cambió. Va al ritmo del reporte (12 s) y no con un
+     * temporizador propio: no hace falta despertar el teléfono solo para esto.
+     */
+    private void refreshUsage() {
+        String text = usageText();
+        if (text == null || text.equals(lastUsageText)) {
+            return;
+        }
+        lastUsageText = text;
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) {
+            manager.notify(NOTIFICATION_ID, buildNotification());
+        }
     }
 
     /**
@@ -225,6 +272,7 @@ public class DriverOnlineService extends Service {
             return;
         }
         lastReportAt = now;
+        refreshUsage();
         driverRepository.reportLocation(location.getLatitude(), location.getLongitude(),
                 location.hasBearing() ? (double) location.getBearing() : null,
                 location.hasAccuracy() ? (double) location.getAccuracy() : null,

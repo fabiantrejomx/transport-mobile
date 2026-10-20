@@ -485,9 +485,25 @@ public class AddEditAddressActivity extends AuthenticatedActivity implements OnM
             showPredictions(Collections.emptyList());
             return;
         }
-        LatLng bias = googleMap != null ? googleMap.getCameraPosition().target : null;
+        LatLng bias = currentSearchBias();
         searchDebounceHandler.postDelayed(() -> placesAutocompleteService.findPredictions(
                 this, query, bias, this::showPredictions), SEARCH_DEBOUNCE_MS);
+    }
+
+    /**
+     * El centro de la cámara, salvo que siga en {@link #DEFAULT_POSITION} (CDMX) porque todavía
+     * no llegó la ubicación: sesgar ahí mandaría a buscar en otra ciudad. Con null el servicio
+     * cae a la última ubicación conocida del teléfono.
+     */
+    @Nullable
+    private LatLng currentSearchBias() {
+        if (googleMap == null) {
+            return null;
+        }
+        LatLng target = googleMap.getCameraPosition().target;
+        boolean stillDefault = Math.abs(target.latitude - DEFAULT_POSITION.latitude) < 1e-4
+                && Math.abs(target.longitude - DEFAULT_POSITION.longitude) < 1e-4;
+        return stillDefault ? null : target;
     }
 
     private void showPredictions(List<AutocompletePrediction> predictions) {

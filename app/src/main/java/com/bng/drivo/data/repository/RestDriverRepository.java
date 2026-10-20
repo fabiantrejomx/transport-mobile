@@ -266,6 +266,6 @@ public class RestDriverRepository implements DriverRepository {
                 dto.pickup != null ? dto.pickup.lat : null, dto.pickup != null ? dto.pickup.lng : null,
                 dto.dropoff != null ? dto.dropoff.lat : null, dto.dropoff != null ? dto.dropoff.lng : null,
                 stops, dto.pickup_distance_m, dto.pickup_eta_min, dto.trip_distance_m,
-                dto.counter_increments, dto.polyline, dto.expires_at);
+                dto.counter_increments, dto.max_offer, dto.polyline, dto.expires_at);
     }
 }

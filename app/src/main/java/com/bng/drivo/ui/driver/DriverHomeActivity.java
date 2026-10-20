@@ -3,7 +3,10 @@ package com.bng.drivo.ui.driver;
 import android.Manifest;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.CountDownTimer;
@@ -15,6 +18,7 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -62,7 +66,10 @@ import com.bng.drivo.ui.auth.SessionExitBottomSheet;
 import com.bng.drivo.ui.map.DriverRoutePainter;
 import com.bng.drivo.ui.map.MapStyler;
 import com.bng.drivo.ui.map.MarkerIconFactory;
+import com.bng.drivo.service.DriverDataUsage;
+import com.bng.drivo.service.DriverGoOfflineReceiver;
 import com.bng.drivo.service.DriverOnlineService;
+import com.bng.drivo.util.BatteryOptimization;
 import com.bng.drivo.service.DrivoFirebaseMessagingService;
 import com.bng.drivo.util.DrawerInsets;
 import com.bng.drivo.util.LoadingButtonHelper;
@@ -87,11 +94,13 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.navigation.NavigationView;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -165,6 +174,8 @@ public class DriverHomeActivity extends AuthenticatedActivity
      */
     private static final long LOCATION_INTERVAL_IDLE_MS = 5000L;
     private static final long BANNER_FADE_MS = 200;
+    /** Salto de cada toque en el selector de contraoferta (−/+), en pesos. */
+    private static final double COUNTER_STEP = 3.0;
     private static final long RECONNECTED_BANNER_VISIBLE_MS = 2500;
     /** Fundido del contenido del modal al cambiar de paso (mitad de salida, mitad de entrada). */
     private static final long PANEL_FADE_OUT_MS = 110;
@@ -282,6 +293,18 @@ public class DriverHomeActivity extends AuthenticatedActivity
      * sin que la app se entere. Ver {@code onResume}.
      */
     private boolean gateStale;
+    /**
+     * "Desconectarme" desde el aviso con esta pantalla abierta debajo de la cortina: bajar la
+     * cortina no pasa por onPause, así que sin esto seguiría diciendo "en línea" hasta volver.
+     */
+    private final BroadcastReceiver wentOfflineReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (online) {
+                applyWentOffline();
+            }
+        }
+    };
     /** Si ya se resolvió el permiso y el registro del token en esta apertura. */
     private boolean pushChecked;
     private Step step = Step.GATE;
@@ -337,6 +360,11 @@ public class DriverHomeActivity extends AuthenticatedActivity
     private TextView textIncomingExpiry;
     private TextView textIncomingCounterLabel;
     private LinearLayout containerIncomingCounters;
+    private ImageButton btnCounterMinus;
+    private ImageButton btnCounterPlus;
+    private TextView textCounterAmount;
+    /** Monto que marca el selector para la solicitud en pantalla; arranca en la oferta del pasajero. */
+    private double counterAmount;
     private MaterialButton btnIncomingIgnore;
     private MaterialButton btnIncomingAccept;
     private ProgressBar progressIncomingExpiry;
@@ -445,6 +473,9 @@ public class DriverHomeActivity extends AuthenticatedActivity
         textIncomingExpiry = findViewById(R.id.text_incoming_expiry);
         textIncomingCounterLabel = findViewById(R.id.text_incoming_counter_label);
         containerIncomingCounters = findViewById(R.id.container_incoming_counters);
+        btnCounterMinus = findViewById(R.id.btn_counter_minus);
+        btnCounterPlus = findViewById(R.id.btn_counter_plus);
+        textCounterAmount = findViewById(R.id.text_counter_amount);
         btnIncomingIgnore = findViewById(R.id.btn_incoming_ignore);
         btnIncomingAccept = findViewById(R.id.btn_incoming_accept);
         progressIncomingExpiry = findViewById(R.id.progress_incoming_expiry);
@@ -898,7 +929,11 @@ public class DriverHomeActivity extends AuthenticatedActivity
                 goTo(Step.ONLINE);
                 updateConnectionUi();
                 startInboxListener();
+                // Aquí y no en el servicio: este arranca en cada onResume, y el contador de datos
+                // del aviso tiene que ir de conectarse a desconectarse.
+                DriverDataUsage.startNewSession(DriverHomeActivity.this);
                 applyOnlineService();
+                maybeAskBatteryExemption();
             }
 
             @Override
@@ -929,20 +964,7 @@ public class DriverHomeActivity extends AuthenticatedActivity
             @Override
             public void onSuccess(Void result) {
                 LoadingButtonHelper.setLoading(btnConnectToggle, false);
-                online = false;
-                displayedRideId = null;
-                ignoredRideIds.clear();
-                // Al desconectarse el servidor deja de ofrecerle viajes, pero sus ofertas siguen
-                // vivas hasta que vencen o alguien las elige. Los banners se van de la pantalla
-                // porque ya no hay bandeja que los mantenga al día; si un pasajero lo elige,
-                // /driver/current-ride lo trae de vuelta al volver.
-                clearOfferBanners();
-                cancelIncomingExpiryTimer();
-                goTo(Step.OFFLINE);
-                updateConnectionUi();
-                stopInboxListener();
-                applyOnlineService();
-                loadWallet();
+                applyWentOffline();
             }
 
             @Override
@@ -952,6 +974,46 @@ public class DriverHomeActivity extends AuthenticatedActivity
                         .show();
             }
         });
+    }
+
+    /**
+     * Justo después de conectarse, que es cuando importa: desde aquí el teléfono tiene que seguir
+     * reportando aunque la app quede en segundo plano. Ver {@link BatteryOptimization}.
+     */
+    private void maybeAskBatteryExemption() {
+        if (isFinishing() || !BatteryOptimization.shouldAsk(this)) {
+            return;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.driver_battery_dialog_title)
+                .setMessage(R.string.driver_battery_dialog_message)
+                .setPositiveButton(R.string.driver_battery_dialog_allow,
+                        (dialog, which) -> BatteryOptimization.requestExemption(this))
+                .setNegativeButton(R.string.driver_battery_dialog_later,
+                        (dialog, which) -> BatteryOptimization.snooze(this))
+                .setOnCancelListener(dialog -> BatteryOptimization.snooze(this))
+                .show();
+    }
+
+    /**
+     * El servidor ya lo desconectó: desde el botón de aquí o desde "Desconectarme" en el aviso
+     * permanente (ver {@link #wentOfflineReceiver}).
+     */
+    private void applyWentOffline() {
+        online = false;
+        displayedRideId = null;
+        ignoredRideIds.clear();
+        // Al desconectarse el servidor deja de ofrecerle viajes, pero sus ofertas siguen
+        // vivas hasta que vencen o alguien las elige. Los banners se van de la pantalla
+        // porque ya no hay bandeja que los mantenga al día; si un pasajero lo elige,
+        // /driver/current-ride lo trae de vuelta al volver.
+        clearOfferBanners();
+        cancelIncomingExpiryTimer();
+        goTo(Step.OFFLINE);
+        updateConnectionUi();
+        stopInboxListener();
+        applyOnlineService();
+        loadWallet();
     }
 
     /** Copy y color del panel de conexión. El punto de color es lo que se lee de un vistazo. */
@@ -1487,9 +1549,10 @@ public class DriverHomeActivity extends AuthenticatedActivity
             btnIncomingIgnore.setText(R.string.incoming_request_close_button);
             btnIncomingIgnore.setOnClickListener(v -> closeDisplayedRequest());
         } else {
-            btnIncomingAccept.setText(R.string.incoming_request_accept_button);
-            btnIncomingAccept.setOnClickListener(v ->
-                    submitOffer(request.getRideId(), request.getOffer(), request.getPassengerName(), true));
+            // El monto sale del selector (bindCounterOffers): igual a la oferta del pasajero es
+            // aceptarla, por encima es contraofertar. Para la API es el mismo POST.
+            btnIncomingAccept.setOnClickListener(v -> submitOffer(request.getRideId(), counterAmount,
+                    request.getPassengerName(), counterAmount <= request.getOffer()));
             btnIncomingIgnore.setText(R.string.incoming_request_ignore_button);
             btnIncomingIgnore.setOnClickListener(v -> ignoreIncomingRequest());
         }
@@ -1586,40 +1649,59 @@ public class DriverHomeActivity extends AuthenticatedActivity
                 .addOnFailureListener(e -> consumer.accept(lastKnownLocation));
     }
 
+    /**
+     * Selector [−] precio [+] de $3 en $3 (COUNTER_STEP). Nunca baja de la oferta del pasajero ni
+     * pasa del techo del viaje ({@code max_offer}, el mismo que valida el servidor).
+     *
+     * <p>Con un servidor anterior a 1.13.0 no llega {@code max_offer}: el techo se deduce del
+     * mayor de {@code counter_increments}, que ya vienen recortados a él — un máximo que se queda
+     * corto pero nunca rebota con OFFER_OUT_OF_RANGE. Si no cabe ni un paso, el selector no se
+     * muestra y queda solo aceptar al precio del pasajero.
+     */
     private void bindCounterOffers(IncomingRequest request, boolean readOnly) {
-        containerIncomingCounters.removeAllViews();
-        if (readOnly) {
-            // Ya no hay nada que contraofertar sobre una oferta ya enviada.
-            textIncomingCounterLabel.setVisibility(View.GONE);
+        double offer = request.getOffer();
+        counterAmount = offer;
+        double maxAmount = counterCeiling(request);
+        boolean canCounter = !readOnly && offer + COUNTER_STEP <= maxAmount;
+        // Ya no hay nada que contraofertar sobre una oferta ya enviada.
+        textIncomingCounterLabel.setVisibility(canCounter ? View.VISIBLE : View.GONE);
+        containerIncomingCounters.setVisibility(canCounter ? View.VISIBLE : View.GONE);
+        if (!canCounter) {
+            refreshCounterSelector(offer, offer);
             return;
         }
-        List<Double> increments = request.getCounterIncrements();
-        boolean hasIncrements = increments != null && !increments.isEmpty();
-        textIncomingCounterLabel.setVisibility(hasIncrements ? View.VISIBLE : View.GONE);
-        if (!hasIncrements) {
-            return;
-        }
-        for (Double increment : increments) {
-            MaterialButton button = new MaterialButton(this,
-                    null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-            button.setText(String.format(Locale.getDefault(),
-                    getString(R.string.incoming_request_counter_button_format), increment));
-            button.setTextSize(13f);
-            button.setAllCaps(false);
-            button.setCornerRadius(dpToPx(20));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            params.setMarginEnd(dpToPx(6));
-            button.setLayoutParams(params);
-            double amount = request.getOffer() + increment;
-            button.setOnClickListener(v ->
-                    submitOffer(request.getRideId(), amount, request.getPassengerName(), false));
-            containerIncomingCounters.addView(button);
-        }
+        btnCounterMinus.setOnClickListener(v -> {
+            counterAmount = Math.max(offer, counterAmount - COUNTER_STEP);
+            refreshCounterSelector(offer, maxAmount);
+        });
+        btnCounterPlus.setOnClickListener(v -> {
+            counterAmount += COUNTER_STEP;
+            refreshCounterSelector(offer, maxAmount);
+        });
+        refreshCounterSelector(offer, maxAmount);
     }
 
-    private int dpToPx(int dp) {
-        return Math.round(dp * getResources().getDisplayMetrics().density);
+    private double counterCeiling(IncomingRequest request) {
+        double offer = request.getOffer();
+        if (request.getMaxOffer() != null) {
+            return request.getMaxOffer();
+        }
+        List<Double> increments = request.getCounterIncrements();
+        return increments == null || increments.isEmpty() ? offer : offer + Collections.max(increments);
+    }
+
+    private void refreshCounterSelector(double offer, double maxAmount) {
+        textCounterAmount.setText(String.format(Locale.getDefault(), "$ %.2f", counterAmount));
+        setCounterButtonEnabled(btnCounterMinus, counterAmount > offer);
+        setCounterButtonEnabled(btnCounterPlus, counterAmount + COUNTER_STEP <= maxAmount);
+        btnIncomingAccept.setText(counterAmount > offer
+                ? R.string.incoming_request_counter_offer_button
+                : R.string.incoming_request_accept_button);
+    }
+
+    private void setCounterButtonEnabled(ImageButton button, boolean enabled) {
+        button.setEnabled(enabled);
+        button.setAlpha(enabled ? 1f : 0.38f);
     }
 
     /**
@@ -2312,6 +2394,9 @@ public class DriverHomeActivity extends AuthenticatedActivity
     protected void onStart() {
         super.onStart();
         connectivitySubscription = connectivityRepository.observe(this::onConnectivityChanged);
+        ContextCompat.registerReceiver(this, wentOfflineReceiver,
+                new IntentFilter(DriverGoOfflineReceiver.ACTION_WENT_OFFLINE),
+                ContextCompat.RECEIVER_NOT_EXPORTED);
         // El coche propio se sigue moviendo online u offline (ver el javadoc de
         // startLocationLoop()); la bandeja de solicitudes sí es exclusiva de online.
         startLocationLoop();
@@ -2439,6 +2524,7 @@ public class DriverHomeActivity extends AuthenticatedActivity
     @Override
     protected void onStop() {
         super.onStop();
+        unregisterReceiver(wentOfflineReceiver);
         // Se marca al irse a segundo plano y no en cada onResume: en el arranque en frío el
         // expediente ya lo pide onCreate, y sin esta marca se pediría dos veces seguidas.
         gateStale = true;

@@ -46,6 +46,7 @@ public class HomeActivity extends AuthenticatedActivity {
     private static final String TAG_HOME = "tab_home";
     private static final String TAG_VIAJES = "tab_viajes";
     private static final String TAG_CONFIGURACIONES = "tab_configuraciones";
+    private static final String STATE_ACTIVE_TAB = "active_tab";
 
     private View resumingOverlay;
     private Fragment homeFragment;
@@ -88,13 +89,28 @@ public class HomeActivity extends AuthenticatedActivity {
             configuracionesFragment = new ConfiguracionesFragment();
         }
 
+        // Al recrear la Activity (cambio de tema desde Configuración, rotación, proceso
+        // restaurado) se vuelve a la sección en la que estaba el usuario, no siempre a Inicio:
+        // cambiar el tema y aparecer de golpe en el mapa se siente como si la app se reiniciara.
+        activeFragment = homeFragment;
+        if (savedInstanceState != null) {
+            String activeTag = savedInstanceState.getString(STATE_ACTIVE_TAB, TAG_HOME);
+            if (TAG_VIAJES.equals(activeTag)) {
+                activeFragment = viajesFragment;
+            } else if (TAG_CONFIGURACIONES.equals(activeTag)) {
+                activeFragment = configuracionesFragment;
+            }
+        }
+
         FragmentTransaction transaction = fragmentManager.beginTransaction();
         addIfNeeded(transaction, fragmentManager, homeFragment, TAG_HOME);
         addIfNeeded(transaction, fragmentManager, viajesFragment, TAG_VIAJES);
         addIfNeeded(transaction, fragmentManager, configuracionesFragment, TAG_CONFIGURACIONES);
-        transaction.show(homeFragment).hide(viajesFragment).hide(configuracionesFragment);
+        transaction.hide(homeFragment).hide(viajesFragment).hide(configuracionesFragment)
+                .show(activeFragment);
         transaction.commitNow();
-        activeFragment = homeFragment;
+        navView.setCheckedItem(idForActiveFragment());
+        backToHomeCallback.setEnabled(activeFragment != homeFragment);
 
         resumingOverlay = findViewById(R.id.group_resuming_trip);
         // Solo en una creación de verdad. Si el sistema está restaurando la pila (savedInstanceState
@@ -261,6 +277,12 @@ public class HomeActivity extends AuthenticatedActivity {
                 // sigue sirviendo igual.
             }
         });
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_ACTIVE_TAB, activeFragment == null ? TAG_HOME : activeFragment.getTag());
     }
 
     @Override

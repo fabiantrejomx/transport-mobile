@@ -167,6 +167,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private View panelConfirmPrice;
     private View panelSearching;
     private View sheetContent;
+    /** Ver setUpBottomSheet(); se quita en onDestroyView. */
+    @Nullable
+    private ViewTreeObserver.OnGlobalLayoutListener sheetLayoutListener;
     private View routeCard;
     private View pickLocationPin;
     private View pickStopPin;
@@ -878,24 +881,34 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
      * <p>Por el mismo motivo se vuelve a pedir "Últimos viajes" aquí: onViewCreated no corre otra
      * vez al volver a esta pestaña, así que un viaje recién terminado en Viajes o en otra Activity
      * no aparecía hasta cerrar y reabrir la app — la sección se queda tan viva como el mapa.
+     *
+     * <p>Sin vista no hay nada que hacer: al recrear la Activity (p. ej. al cambiar el tema desde
+     * Configuración) el FragmentManager restaura este Fragment oculto y lo vuelve a mostrar
+     * antes de onViewCreated, cuando el presenter todavía no existe. onStart se encarga de
+     * arrancarlo en ese caso.
      */
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
+        View view = getView();
+        if (view == null) {
+            return;
+        }
         if (hidden) {
             nearbyDriversPresenter.onHostStop();
             return;
         }
         nearbyDriversPresenter.onHostStart();
-        View view = getView();
-        if (view != null) {
-            loadRecentTrips(view);
-        }
+        loadRecentTrips(view);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (sheetLayoutListener != null) {
+            sheetContent.getViewTreeObserver().removeOnGlobalLayoutListener(sheetLayoutListener);
+            sheetLayoutListener = null;
+        }
         // El listener referencia vistas de esta vista, y el ViewModel sobrevive a ella.
         viewModel.setStepListener(null);
         searchingPanel.hide();
@@ -1086,6 +1099,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
      *
      * <p>Basta con registrarlo en una vista: el ViewTreeObserver es de la ventana entera, así que
      * un cambio en cualquier descendiente lo dispara igual.
+     *
+     * <p>Justo por ser de la ventana entera hay que quitarlo en onDestroyView: si no, sobrevive a
+     * esta vista y al recrear la Activity (cambio de tema) se dispara en un Fragment ya
+     * desconectado, que truena en getResources(). El chequeo de getView() cubre el pase de layout
+     * que pueda colarse entre que la vista se destruye y el listener sale.
      */
     private void setUpBottomSheet(View root) {
         View sheet = root.findViewById(R.id.sheet_container);
@@ -1094,8 +1112,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         sheetBehavior.setSkipCollapsed(false);
         sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
-        ViewTreeObserver.OnGlobalLayoutListener layoutListener = () -> updateSheetStops(root);
-        sheetContent.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
+        sheetLayoutListener = () -> {
+            if (getView() == null) {
+                return;
+            }
+            updateSheetStops(root);
+        };
+        sheetContent.getViewTreeObserver().addOnGlobalLayoutListener(sheetLayoutListener);
 
         statusBarScrim = root.findViewById(R.id.scrim_status_bar);
         sheetCornerRadiusPx = SHEET_CORNER_RADIUS_DP * getResources().getDisplayMetrics().density;

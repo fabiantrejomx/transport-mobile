@@ -653,7 +653,7 @@ public class ActiveTripActivity extends AuthenticatedActivity implements OnMapRe
         if (stopLatLng != null) {
             addRouteMarker(stopLatLng, R.color.drivo_map_accent);
         }
-        addRouteMarker(destinationLatLng, R.color.drivo_secondary);
+        addRouteMarker(destinationLatLng, R.color.drivo_map_destination);
 
         if (routePoints.size() >= 2) {
             routePolyline = googleMap.addPolyline(new PolylineOptions()

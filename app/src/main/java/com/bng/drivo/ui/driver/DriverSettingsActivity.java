@@ -139,10 +139,10 @@ public class DriverSettingsActivity extends DriverSubScreenActivity {
                     textStatus.setTextColor(getColor(R.color.drivo_error));
                 } else if ("draft".equals(application.getStatus())) {
                     textStatus.setText(R.string.driver_settings_account_status_draft);
-                    textStatus.setTextColor(getColor(R.color.drivo_secondary));
+                    textStatus.setTextColor(getColor(R.color.drivo_secondary_fg));
                 } else {
                     textStatus.setText(R.string.driver_settings_account_status_pending_review);
-                    textStatus.setTextColor(getColor(R.color.drivo_secondary));
+                    textStatus.setTextColor(getColor(R.color.drivo_secondary_fg));
                 }
             }
 

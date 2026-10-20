@@ -188,11 +188,11 @@ public class MapPresenter {
 
         addMarker(points.get(0), R.color.drivo_success);
         for (int i = 1; i < points.size() - 1; i++) {
-            // drivo_map_accent y no drivo_primary: el azul marino de marca desaparece sobre el
-            // mapa en tema oscuro (ver values/colors.xml).
+            // drivo_map_accent y no un rol del tema: el mapa no es una superficie del tema
+            // (ver values/colors.xml).
             addMarker(points.get(i), R.color.drivo_map_accent);
         }
-        addMarker(points.get(points.size() - 1), R.color.drivo_secondary);
+        addMarker(points.get(points.size() - 1), R.color.drivo_map_destination);
 
         List<LatLng> realRoute = PolylineDecoder.decode(encodedPolyline);
         boolean hasRealRoute = realRoute.size() >= 2;

@@ -1593,7 +1593,7 @@ public class DriverHomeActivity extends AuthenticatedActivity
     }
 
     /**
-     * Los dos tramos del viaje sobre el mapa: azul del conductor al pasajero, verde del origen al
+     * Los dos tramos del viaje sobre el mapa: ámbar del conductor al pasajero, verde del origen al
      * destino del pasajero. Son las dos cosas que hay que ver para decidir si conviene el viaje —
      * antes el mapa se quedaba en la vista del radar, sin ninguna referencia de dónde caía nada.
      */

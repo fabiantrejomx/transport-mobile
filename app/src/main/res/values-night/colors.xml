@@ -1,60 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Paleta de marca Drivo (modo oscuro) — ver CLAUDE.md -->
-    <color name="drivo_primary">#A9C7E8</color>
-    <color name="drivo_on_primary">#0F2C4C</color>
-    <color name="drivo_primary_container">#16324F</color>
-    <color name="drivo_on_primary_container">#D5E3F7</color>
+    <!-- Paleta de marca Drivo (modo oscuro) — tokens v1.1 de los mockups, ver CLAUDE.md.
+         Oscuro tintado en verde, nunca negro puro. -->
+    <color name="drivo_primary">#95CEA1</color>
+    <color name="drivo_on_primary">#10251A</color>
+    <color name="drivo_primary_container">#0E552C</color>
+    <color name="drivo_on_primary_container">#DFF0E2</color>
 
-    <color name="drivo_secondary">#E0BE63</color>
-    <color name="drivo_on_secondary">#3B2E05</color>
-    <color name="drivo_secondary_container">#4A3900</color>
-    <color name="drivo_on_secondary_container">#E0BE63</color>
+    <color name="drivo_secondary">#FFC21A</color>
+    <color name="drivo_on_secondary">#10251A</color>
+    <color name="drivo_secondary_container">#614502</color>
+    <color name="drivo_on_secondary_container">#FFF5DF</color>
 
-    <color name="drivo_background">#0D1620</color>
-    <color name="drivo_on_background">#E7EDF3</color>
-    <color name="drivo_surface">#142130</color>
-    <color name="drivo_on_surface">#E7EDF3</color>
-    <color name="drivo_surface_variant">#1C2C3D</color>
-    <color name="drivo_on_surface_variant">#9FB0C0</color>
-    <color name="drivo_outline">#33455A</color>
-    <color name="drivo_on_surface_border">#66E7EDF3</color>
+    <!-- Ver el comentario en values/colors.xml: sobre la superficie oscura el amarillo de marca
+         se lee perfecto (10:1), así que aquí no hace falta oscurecerlo. -->
+    <color name="drivo_secondary_fg">#FFC21A</color>
 
-    <color name="drivo_error">#FFB4AB</color>
-    <color name="drivo_on_error">#601410</color>
+    <color name="drivo_background">#0A1711</color>
+    <color name="drivo_on_background">#F2FAF5</color>
+    <color name="drivo_surface">#10251A</color>
+    <color name="drivo_on_surface">#F2FAF5</color>
+    <color name="drivo_surface_variant">#173326</color>
+    <color name="drivo_on_surface_variant">#B4BAB7</color>
+    <color name="drivo_outline">#354B3E</color>
+    <color name="drivo_outline_variant">#354B3E</color>
+    <color name="drivo_on_surface_border">#66F2FAF5</color>
 
-    <color name="drivo_success">#6FD3A6</color>
-    <!-- Texto oscuro sobre el verde claro de arriba — reutiliza el tono "success" del tema claro
-         (#2E7D5B), ya probado en esta misma paleta, en vez de inventar un verde nuevo. -->
-    <color name="drivo_on_success">#2E7D5B</color>
+    <color name="drivo_error">#EA7162</color>
+    <color name="drivo_on_error">#10251A</color>
 
-    <color name="drivo_warning">#F0BB55</color>
-    <color name="drivo_on_warning">#4A3300</color>
+    <!-- El verde claro de la escala (green-300), el mismo de la ruta en los mockups oscuros;
+         con texto oscuro encima, como el resto de los rellenos claros de este tema. -->
+    <color name="drivo_success">#95CEA1</color>
+    <color name="drivo_on_success">#10251A</color>
 
-    <!-- Ver el comentario en values/colors.xml: aquí sí puede ser el azul claro de marca, que
-         es lo que de verdad se lee sobre el mapa oscuro. -->
-    <color name="drivo_map_accent">#A9C7E8</color>
+    <color name="drivo_warning">#E8A200</color>
+    <color name="drivo_on_warning">#10251A</color>
+
+    <!-- Ver el comentario en values/colors.xml: aquí sí puede ser el amarillo de marca, que es
+         lo que de verdad se lee sobre el mapa oscuro. -->
+    <color name="drivo_map_accent">#FFC21A</color>
+
+    <!-- Ver el comentario en values/colors.xml: blanco sobre el mapa oscuro, como en los mockups. -->
+    <color name="drivo_map_destination">#FFFFFF</color>
 
     <!-- Ver el comentario en values/colors.xml. Aquí todo se invierte: carrocería clara (un blanco
-         roto, no puro, para que los realces del techo no se pierdan) y detalles en gris azulado,
+         roto, no puro, para que los realces del techo no se pierdan) y detalles en gris verdoso,
          que es lo que le devuelve al coche las ventanas y las llantas sobre el mapa oscuro. -->
-    <color name="drivo_vehicle_body">#E9EEF4</color>
-    <color name="drivo_vehicle_outline">#FF44586D</color>
-    <color name="drivo_vehicle_roof">#241B2836</color>
-    <color name="drivo_vehicle_glass">#8C33455A</color>
-    <color name="drivo_vehicle_glass_soft">#7333455A</color>
-    <color name="drivo_vehicle_wheel">#B31B2836</color>
-    <color name="drivo_vehicle_mirror">#8C1B2836</color>
+    <color name="drivo_vehicle_body">#F2FAF5</color>
+    <color name="drivo_vehicle_outline">#FF4C5B52</color>
+    <color name="drivo_vehicle_roof">#2410251A</color>
+    <color name="drivo_vehicle_glass">#8C33433A</color>
+    <color name="drivo_vehicle_glass_soft">#7333433A</color>
+    <color name="drivo_vehicle_wheel">#B310251A</color>
+    <color name="drivo_vehicle_mirror">#8C10251A</color>
 
     <!-- Ver el comentario en values/colors.xml. Mismos tres, invertidos: faros oscuros sobre la
          carrocería clara, calavera un poco más quemada para que no se pierda. -->
-    <color name="drivo_vehicle_headlight">#731B2836</color>
+    <color name="drivo_vehicle_headlight">#7310251A</color>
     <color name="drivo_vehicle_taillight">#FF8A4E22</color>
-    <color name="drivo_vehicle_highlight">#291B2836</color>
+    <color name="drivo_vehicle_highlight">#2910251A</color>
 
-    <color name="drivo_scrim">#E6142130</color>
+    <color name="drivo_scrim">#E610251A</color>
 
     <!-- Ver el comentario en values/colors.xml: aquí es el par surface/on_surface del tema claro. -->
     <color name="drivo_inverse_surface">#FFFFFF</color>
-    <color name="drivo_inverse_on_surface">#14212E</color>
+    <color name="drivo_inverse_on_surface">#10251A</color>
 </resources>

@@ -1368,7 +1368,7 @@ public class DriverActiveTripActivity extends AuthenticatedActivity implements O
     }
 
     private void updateCobroStars() {
-        int selectedColor = ColorUtils.resolveThemeColor(this, com.google.android.material.R.attr.colorSecondary);
+        int selectedColor = getColor(R.color.drivo_secondary_fg);
         int unselectedColor = ColorUtils.resolveThemeColor(this, com.google.android.material.R.attr.colorOutline);
         for (int i = 0; i < cobroStarViews.size(); i++) {
             cobroStarViews.get(i).setTextColor(i < cobroRating ? selectedColor : unselectedColor);

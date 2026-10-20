@@ -209,7 +209,7 @@ public class ConfirmPricePanel {
         Waypoint stop = viewModel.getStop();
         if (stop != null) {
             textAddStop.setText(stop.getText());
-            textAddStop.setTextColor(context().getColor(R.color.drivo_secondary));
+            textAddStop.setTextColor(context().getColor(R.color.drivo_secondary_fg));
             btnRemoveStop.setVisibility(View.VISIBLE);
         } else {
             textAddStop.setText(R.string.confirm_price_add_stop);

@@ -161,11 +161,10 @@ public class TripDetailBottomSheet extends BottomSheetDialogFragment {
     }
 
     /** Mismo par de colores con el que se le puso la calificación al conductor (ver
-     * RatePassengerBottomSheet/FinishedTripActivity): rellenas en colorSecondary, huecas en
+     * RatePassengerBottomSheet/FinishedTripActivity): rellenas en drivo_secondary_fg, huecas en
      * colorOutline — y huecas de verdad, con el carácter de contorno y no solo atenuadas. */
     private CharSequence starsFor(int rating) {
-        int filledColor = ColorUtils.resolveThemeColor(requireContext(),
-                com.google.android.material.R.attr.colorSecondary);
+        int filledColor = requireContext().getColor(R.color.drivo_secondary_fg);
         int emptyColor = ColorUtils.resolveThemeColor(requireContext(),
                 com.google.android.material.R.attr.colorOutline);
         SpannableStringBuilder stars = new SpannableStringBuilder();

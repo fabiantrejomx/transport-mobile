@@ -70,6 +70,6 @@
         android:layout_marginTop="10dp"
         android:max="1000"
         android:progressBackgroundTint="?attr/colorSurfaceVariant"
-        android:progressTint="@color/drivo_secondary"
+        android:progressTint="@color/drivo_secondary_fg"
         tools:progress="600" />
 </LinearLayout>

@@ -42,7 +42,7 @@
             android:layout_marginTop="2dp"
             android:letterSpacing="0.08"
             android:textAllCaps="true"
-            android:textColor="?attr/colorSecondary"
+            android:textColor="@color/drivo_secondary_fg"
             android:textSize="13sp"
             android:textStyle="bold"
             tools:text="@string/auth_login_role_driver" />

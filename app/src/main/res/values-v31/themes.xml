@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Android 12+ siempre pinta su propio splash antes de la primera Activity. Sin esto sería
+         el ícono del launcher sobre el fondo del tema (claro u oscuro) y luego el salto a
+         activity_splash: dos splash distintos seguidos. Aquí el del sistema ya es el de marca —
+         mismo fondo y el logo al mismo tamaño y centro (drawable/splash_logo.xml) — y
+         activity_splash solo le suma los círculos de las esquinas y el pie. -->
+    <style name="Theme.Drivo.Splash">
+        <item name="android:windowBackground">@color/drivo_brand_night</item>
+        <item name="android:statusBarColor">@color/drivo_brand_night</item>
+        <item name="android:navigationBarColor">@color/drivo_brand_night</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowSplashScreenBackground">@color/drivo_brand_night</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+    </style>
+</resources>

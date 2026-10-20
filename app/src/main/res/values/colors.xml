@@ -97,4 +97,13 @@
          trae su propio borde blanco (ic_car_marker_detail.xml) para no perderse contra el mapa. -->
     <color name="drivo_inverse_surface">#10251A</color>
     <color name="drivo_inverse_on_surface">#F2FAF5</color>
+
+    <!-- Colores fijos de marca (tokens "brand.*"): el ícono de la app y el splash se ven igual en
+         los dos temas, así que no tienen variante en values-night. No usarlos para la UI normal,
+         que va con los roles del tema. -->
+    <color name="drivo_brand_night">#10251A</color>
+    <color name="drivo_brand_green">#12A150</color>
+    <color name="drivo_brand_yellow">#FFC21A</color>
+    <color name="drivo_brand_mint">#CFE9DA</color>
+    <color name="drivo_brand_white">#FFFFFF</color>
 </resources>

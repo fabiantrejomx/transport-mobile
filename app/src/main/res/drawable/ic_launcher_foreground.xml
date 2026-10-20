@@ -1,30 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primer plano del ícono adaptativo: el logo centrado, 52dp de ancho dentro del lienzo de
+     108dp — cabe en la zona segura de 66dp con cualquier máscara del launcher. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+    <group
+        android:scaleX="0.018432"
+        android:scaleY="0.018432"
+        android:translateX="26.9678"
+        android:translateY="61.4465">
+        <path
+            android:fillColor="@color/drivo_brand_white"
+            android:pathData="M703 -353Q703 -251 657.5 -171.0Q612 -91 528.5 -45.5Q445 0 335 0H56V-705H335Q446 -705 529.5 -660.5Q613 -616 658.0 -536.0Q703 -456 703 -353ZM504 -353Q504 -440 455.0 -487.5Q406 -535 320 -535H252V-173H320Q406 -173 455.0 -220.0Q504 -267 504 -353Z M1136.75 -566V-357H1081.75Q1017.75 -357 986.75 -332.0Q955.75 -307 955.75 -245V0H759.75V-561H955.75V-462Q988.75 -510 1035.75 -538.0Q1082.75 -566 1136.75 -566Z M1159.5 -713Q1159.5 -757 1191.0 -786.0Q1222.5 -815 1274.5 -815Q1325.5 -815 1357.0 -786.0Q1388.5 -757 1388.5 -713Q1388.5 -670 1357.0 -641.5Q1325.5 -613 1274.5 -613Q1222.5 -613 1191.0 -641.5Q1159.5 -670 1159.5 -713ZM1371.5 -561V0H1175.5V-561Z M1721.25 -185L1826.25 -561H2035.25L1842.25 0H1598.25L1405.25 -561H1614.25Z M2038.0 -281Q2038.0 -368 2076.5 -433.0Q2115.0 -498 2181.5 -533.0Q2248.0 -568 2332.0 -568Q2416.0 -568 2482.5 -533.0Q2549.0 -498 2587.5 -433.0Q2626.0 -368 2626.0 -281Q2626.0 -194 2587.5 -128.5Q2549.0 -63 2482.0 -28.0Q2415.0 7 2331.0 7Q2247.0 7 2180.5 -28.0Q2114.0 -63 2076.0 -128.0Q2038.0 -193 2038.0 -281ZM2427.0 -281Q2427.0 -338 2399.5 -368.0Q2372.0 -398 2332.0 -398Q2292.0 -398 2265.0 -368.0Q2238.0 -338 2238.0 -281Q2238.0 -223 2264.0 -193.0Q2290.0 -163 2331.0 -163Q2372.0 -163 2399.5 -193.5Q2427.0 -224 2427.0 -281Z" />
+        <path
+            android:fillColor="@color/drivo_brand_yellow"
+            android:pathData="M2661.2 -100.0a108 108 0 1 0 216 0a108 108 0 1 0 -216 0Z" />
+    </group>
 </vector>

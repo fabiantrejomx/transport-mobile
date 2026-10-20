@@ -4,7 +4,6 @@
     <string name="action_back">Atrás</string>
 
     <!-- Splash -->
-    <string name="splash_tagline">Tu viaje, a tu manera</string>
 
     <!-- Selección de rol -->
     <string name="role_selection_subtitle">¿Cómo quieres continuar?</string>

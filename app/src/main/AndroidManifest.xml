@@ -62,7 +62,7 @@
             android:name=".ui.auth.SplashActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Drivo">
+            android:theme="@style/Theme.Drivo.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

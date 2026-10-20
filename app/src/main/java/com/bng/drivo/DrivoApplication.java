@@ -5,6 +5,7 @@ import android.app.Application;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -26,7 +27,15 @@ public class DrivoApplication extends Application {
         super.onCreate();
         ThemePreferences.applyStoredMode(this);
         initPlaces();
-        initMapsRenderer();
+        // Fuera del arranque crítico: todo lo que corre aquí alarga el splash del sistema (que en
+        // Android 12+ solo lleva el logo, sin los círculos de activity_splash), y cargar el motor
+        // de Maps es lo más pesado. Corre en cuanto el hilo principal queda libre — ya pintado el
+        // splash, mucho antes de que se abra cualquier mapa; y si una pantalla de mapa llegara
+        // antes, el SDK usa LATEST por omisión desde la 18.2.0, así que nada cambia.
+        Looper.myQueue().addIdleHandler(() -> {
+            initMapsRenderer();
+            return false;
+        });
         NotificationChannels.createAll(this);
         registerActivityLifecycleCallbacks(new StatusBarLifecycleCallbacks());
     }

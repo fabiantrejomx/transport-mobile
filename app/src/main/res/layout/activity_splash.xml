@@ -1,32 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<!-- Splash de marca (mockups v1.1, "0. Bienvenida"): siempre en verde noche, en los dos temas,
+     con los dos círculos asomando por las esquinas y el logo al centro, sin más texto.
+
+     En Android 12+ antes de esto el sistema pinta su propio splash, que solo admite un ícono
+     centrado: no puede llevar los círculos. Por eso el logo mide lo mismo y está en el mismo
+     centro que el de ese splash (drawable/splash_logo.xml) — al relevarse, lo único que cambia
+     es que entran los círculos (animados desde sus esquinas, ver SplashActivity), y cuanto menos
+     tarde el arranque, menos dura ese tramo (ver DrivoApplication). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorPrimary"
-    android:gravity="center"
-    android:orientation="vertical">
+    android:background="@color/drivo_brand_night">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textColor="?attr/colorOnPrimary"
-        android:textSize="36sp"
-        android:textStyle="bold" />
+    <View
+        android:id="@+id/circle_splash_green"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="-120dp"
+        android:layout_marginEnd="-130dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="@color/drivo_brand_green"
+        android:importantForAccessibility="no" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/splash_tagline"
-        android:textColor="?attr/colorOnPrimary"
-        android:textSize="14sp" />
+    <View
+        android:id="@+id/circle_splash_yellow"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="-75dp"
+        android:layout_marginBottom="-85dp"
+        android:background="@drawable/bg_dot"
+        android:backgroundTint="@color/drivo_brand_yellow"
+        android:importantForAccessibility="no" />
 
-    <com.google.android.material.progressindicator.CircularProgressIndicator
-        android:layout_width="wrap_content"
+    <ImageView
+        android:layout_width="176dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        app:indicatorColor="@color/drivo_secondary_fg"
-        app:trackColor="@android:color/transparent" />
-</LinearLayout>
+        android:layout_gravity="center"
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/app_name"
+        android:src="@drawable/ic_drivo_logo" />
+</FrameLayout>

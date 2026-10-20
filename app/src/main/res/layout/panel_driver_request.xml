@@ -74,7 +74,7 @@
                 android:id="@+id/text_incoming_rating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/drivo_secondary"
+                android:textColor="@color/drivo_secondary_fg"
                 android:textSize="13sp"
                 tools:text="★ 5.0" />
         </LinearLayout>
@@ -117,7 +117,7 @@
         <!-- "Origen" / "Destino" en vez de dejar dos direcciones sueltas: sin etiqueta, la
              primera línea (que el pasajero manda como "Tu ubicación actual") se leía como si
              fuera la ubicación del conductor. El punto de color repite el mismo código que los
-             marcadores del mapa — verde origen, dorado destino. -->
+             marcadores del mapa — verde origen, tinta destino (drivo_map_destination). -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -180,7 +180,7 @@
                 android:layout_height="8dp"
                 android:layout_marginEnd="8dp"
                 android:background="@drawable/bg_dot"
-                android:backgroundTint="@color/drivo_secondary" />
+                android:backgroundTint="@color/drivo_map_destination" />
 
             <TextView
                 android:layout_width="wrap_content"

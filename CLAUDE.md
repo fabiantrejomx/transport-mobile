@@ -32,13 +32,14 @@ Esto es intencional: permite migrar a Spring Boot más adelante sustituyendo sol
 ## Sistema de diseño
 
 - **Lenguaje de diseño:** Material Design 3 (Material You), con soporte nativo de tema claro/oscuro (`lightColorScheme` / `darkColorScheme`).
-- **Paleta de marca:**
-  - Primario (claro): `#0F2C4C` — azul marino profundo. Primario (oscuro): `#A9C7E8`.
-  - Secundario/acento (claro): `#B08D2B` — dorado discreto, usado en CTAs de negociación/confirmación. Secundario (oscuro): `#E0BE63`.
-  - Superficie clara: `#FFFFFF` / fondo `#F6F8FA`. Superficie oscura: `#142130` / fondo `#0D1620` (evitar negro puro).
-  - Éxito: `#2E7D5B` (claro) / `#6FD3A6` (oscuro), usado para confirmaciones y el punto de origen en el mapa.
-- **Tipografía:** Roboto, siguiendo la escala tipográfica de Material 3 (Display/Headline/Title/Body/Label).
-- El detalle completo de tokens está en `docs/prototipo-navegable.html` (los mismos valores hex están embebidos ahí).
+- **Paleta de marca (tokens v1.1, adoptada el 2026-10-20):** viene de los mockups `https://estebangrguez92.github.io/drivo-mockups/mockups.html` (tokens en `brand/drivo-tokens.css`). De esos mockups **solo se adopta el color**: su flujo, su copy, su tipografía y sus funciones nuevas (saldo/comisión, cupones, contactos de emergencia) no aplican.
+  - Primario: `#107038` verde (claro) / `#95CEA1` (oscuro). Verde de marca `#12A150` como referencia, no como rol.
+  - Secundario: `#FFC21A` amarillo en los dos temas, **solo como relleno** con texto oscuro `#10251A` encima. Como texto o trazo sobre la superficie se usa `drivo_secondary_fg` (`#A67C0A` claro / `#FFC21A` oscuro): estrellas, indicadores de progreso, acentos.
+  - Superficie/fondo claro: `#FFFFFF` / `#F6F7F6`. Oscuro tintado de verde: `#10251A` / `#0A1711` (evitar negro puro).
+  - Éxito: `#0B7D3C` (claro) / `#95CEA1` (oscuro), para confirmaciones, el origen y la ruta en el mapa. Destino en el mapa: `drivo_map_destination` (tinta `#10251A` / blanco).
+  - La fuente de verdad son `res/values/colors.xml` y `res/values-night/colors.xml`.
+- **Tema claro/oscuro:** la app sigue el tema que elija el usuario en los dos roles. Que los mockups muestren al chofer en oscuro es solo para distinguir el flujo.
+- **Tipografía:** la del sistema (Roboto), siguiendo la escala tipográfica de Material 3 (Display/Headline/Title/Body/Label). Los mockups proponen Poppins + Inter; no se adopta por ahora.
 
 ## Notificaciones — comportamiento esperado por plataforma
 

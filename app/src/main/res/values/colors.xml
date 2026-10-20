@@ -1,47 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Paleta de marca Drivo (modo claro) — ver CLAUDE.md -->
-    <color name="drivo_primary">#0F2C4C</color>
+    <!-- Paleta de marca Drivo (modo claro) — tokens v1.1 de los mockups, ver CLAUDE.md -->
+    <color name="drivo_primary">#107038</color>
     <color name="drivo_on_primary">#FFFFFF</color>
-    <color name="drivo_primary_container">#D5E3F7</color>
-    <color name="drivo_on_primary_container">#0F2C4C</color>
+    <color name="drivo_primary_container">#DFF0E2</color>
+    <color name="drivo_on_primary_container">#0B3C20</color>
 
-    <color name="drivo_secondary">#B08D2B</color>
-    <color name="drivo_on_secondary">#FFFFFF</color>
-    <color name="drivo_secondary_container">#F3E4C0</color>
-    <color name="drivo_on_secondary_container">#4A3900</color>
+    <!-- El amarillo de marca es de RELLENO: siempre con texto oscuro encima (on_secondary), nunca
+         como color de texto o trazo sobre blanco — ahí da 1.6:1 y no se lee. Para eso está
+         drivo_secondary_fg, más abajo. -->
+    <color name="drivo_secondary">#FFC21A</color>
+    <color name="drivo_on_secondary">#10251A</color>
+    <color name="drivo_secondary_container">#FFF5DF</color>
+    <color name="drivo_on_secondary_container">#614502</color>
 
-    <color name="drivo_background">#F6F8FA</color>
-    <color name="drivo_on_background">#14212E</color>
+    <!-- El amarillo de marca cuando tiene que ir SOBRE la superficie y no debajo del texto:
+         estrellas y calificaciones, indicadores de progreso, textos de acento. En claro es el
+         ámbar oscuro de la escala (yellow-700, el mismo de las estrellas de los mockups); en
+         oscuro sí puede ser el amarillo de marca tal cual (ver values-night). -->
+    <color name="drivo_secondary_fg">#A67C0A</color>
+
+    <color name="drivo_background">#F6F7F6</color>
+    <color name="drivo_on_background">#10251A</color>
     <color name="drivo_surface">#FFFFFF</color>
-    <color name="drivo_on_surface">#14212E</color>
-    <color name="drivo_surface_variant">#EEF2F6</color>
-    <color name="drivo_on_surface_variant">#55677A</color>
-    <color name="drivo_outline">#D6DEE6</color>
+    <color name="drivo_on_surface">#10251A</color>
+    <color name="drivo_surface_variant">#EBECEB</color>
+    <color name="drivo_on_surface_variant">#4C5B52</color>
+    <!-- La app usa colorOutline para divisores y bordes de tarjeta, no para el borde de inputs,
+         así que lleva el tono "outline-variant" de los tokens (#D7DAD8) y no su "outline"
+         (#6B7770), que convertiría cada divisor en una línea oscura. -->
+    <color name="drivo_outline">#D7DAD8</color>
+    <color name="drivo_outline_variant">#D7DAD8</color>
     <!-- drivo_on_surface al 40% de opacidad — borde de los botones flotantes sobre el mapa
          (bg_dot_outlined.xml): perceptible sin ser tan marcado como el color sólido. -->
-    <color name="drivo_on_surface_border">#6614212E</color>
+    <color name="drivo_on_surface_border">#6610251A</color>
 
-    <color name="drivo_error">#B3261E</color>
+    <color name="drivo_error">#C82B21</color>
     <color name="drivo_on_error">#FFFFFF</color>
 
     <!-- Color de confirmaciones / punto de origen en el mapa (fuera de los roles estándar de M3,
-         no hay colorSuccess en el theme — se referencia siempre como @color, nunca como ?attr) -->
-    <color name="drivo_success">#2E7D5B</color>
+         no hay colorSuccess en el theme — se referencia siempre como @color, nunca como ?attr).
+         Es el "success.fg" de los tokens y no su base (#12A150): se usa también como color de
+         texto y como fondo con texto blanco, y la base solo da 3.4:1 contra blanco. -->
+    <color name="drivo_success">#0B7D3C</color>
     <color name="drivo_on_success">#FFFFFF</color>
 
     <!-- Aviso — viaje del historial que terminó antes de llegar al destino pedido (endedEarly).
-         Deliberadamente distinto del dorado de marca (drivo_secondary), que ya significa
-         "confirmar/negociar" en el resto de la app. -->
-    <color name="drivo_warning">#B36B00</color>
+         Es el "warning.fg" de los tokens: va como texto y como fondo de píldora con texto
+         blanco, y se mantiene distinto del ámbar de acento (drivo_secondary_fg). -->
+    <color name="drivo_warning">#926500</color>
     <color name="drivo_on_warning">#FFFFFF</color>
 
-    <!-- Azul de mapa: tramo conductor→pasajero, marcador del coche y paradas intermedias.
-         Tiene variante propia en values-night en vez de usar drivo_primary directo porque sobre
-         el mapa oscuro el azul marino de marca (#0F2C4C) queda casi invisible — el mapa no es una
-         superficie del tema, así que un color pensado para contrastar contra colorSurface no
-         sirve aquí. Se referencia siempre como @color, nunca como ?attr. -->
-    <color name="drivo_map_accent">#0F2C4C</color>
+    <!-- Acento de mapa: tramo conductor→pasajero y paradas intermedias. Tiene variante propia en
+         values-night en vez de usar un rol del tema directo porque el mapa no es una superficie
+         del tema: un color pensado para contrastar contra colorSurface no sirve aquí. Ámbar, para
+         no confundirse con la ruta y el origen (verde) ni con el destino (drivo_map_destination).
+         Se referencia siempre como @color, nunca como ?attr. -->
+    <color name="drivo_map_accent">#A67C0A</color>
+
+    <!-- Punto de destino, en el mapa y en las tarjetas que lo resumen (mismo código de color en
+         los dos sitios). Tinta oscura sobre el mapa claro, como en los mockups; el amarillo de
+         marca que se usaba antes desaparece contra el mapa verdoso. Ver values-night. -->
+    <color name="drivo_map_destination">#10251A</color>
 
     <!-- Marcador de vehículo (MarkerIconFactory.carMarker) — el coche del conductor, tanto el
          suyo propio como el que ve el pasajero. Se invierte con el tema para destacar sobre el
@@ -51,7 +71,7 @@
          encima de la carrocería, así que tienen que contrastar contra ella y por tanto invertirse
          con el tema igual que ella. Con blanco fijo, en tema oscuro quedaban blanco sobre blanco
          y el coche se veía como una mancha sin detalle. -->
-    <color name="drivo_vehicle_body">#142130</color>
+    <color name="drivo_vehicle_body">#10251A</color>
     <color name="drivo_vehicle_outline">#FFFFFFFF</color>
     <color name="drivo_vehicle_roof">#2EFFFFFF</color>
     <color name="drivo_vehicle_glass">#A6FFFFFF</color>
@@ -61,8 +81,8 @@
 
     <!-- Faros, calaveras y brillo de cofre — el detalle que hace que el sprite se lea como un
          auto y no solo como una silueta. Mismo criterio de contraste que el resto: se invierten
-         con el tema (ver values-night). La calavera es un ámbar quemado y no el dorado de marca
-         a propósito: ese dorado ya significa "confirmar/negociar" en el resto de la app. -->
+         con el tema (ver values-night). La calavera es un ámbar quemado y no el amarillo de
+         marca a propósito: ese amarillo ya tiene su propio significado en el resto de la app. -->
     <color name="drivo_vehicle_headlight">#D9FFFFFF</color>
     <color name="drivo_vehicle_taillight">#FFC77B3D</color>
     <color name="drivo_vehicle_highlight">#33FFFFFF</color>
@@ -75,6 +95,6 @@
          a propósito contra el tema activo en vez de mezclarse con él: "Navegar con Waze"
          (bg_pill_inverse.xml) y la carrocería de MarkerIconFactory.carMarker(), que además ya
          trae su propio borde blanco (ic_car_marker_detail.xml) para no perderse contra el mapa. -->
-    <color name="drivo_inverse_surface">#142130</color>
-    <color name="drivo_inverse_on_surface">#E7EDF3</color>
+    <color name="drivo_inverse_surface">#10251A</color>
+    <color name="drivo_inverse_on_surface">#F2FAF5</color>
 </resources>

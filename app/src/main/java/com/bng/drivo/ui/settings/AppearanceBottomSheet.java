@@ -1,5 +1,6 @@
 package com.bng.drivo.ui.settings;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -48,8 +49,14 @@ public class AppearanceBottomSheet extends BottomSheetDialogFragment {
             RadioButton radio = row.findViewById(R.id.radio_option);
             radio.setChecked(mode == current);
             row.setOnClickListener(v -> {
-                ThemePreferences.setMode(requireContext(), mode);
+                // Primero se cierra y luego se aplica: setMode() recrea la Activity, y si la hoja
+                // sigue abierta en ese momento el FragmentManager la restaura y reaparece encima
+                // de la pantalla ya con el tema nuevo.
+                Context appContext = requireContext().getApplicationContext();
                 dismiss();
+                if (mode != current) {
+                    ThemePreferences.setMode(appContext, mode);
+                }
             });
             container.addView(row);
         }

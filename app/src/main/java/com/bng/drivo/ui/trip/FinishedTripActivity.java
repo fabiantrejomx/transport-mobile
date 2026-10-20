@@ -141,7 +141,7 @@ public class FinishedTripActivity extends AuthenticatedActivity {
     }
 
     private void updateStars() {
-        int selectedColor = ColorUtils.resolveThemeColor(this, com.google.android.material.R.attr.colorSecondary);
+        int selectedColor = getColor(R.color.drivo_secondary_fg);
         int unselectedColor = ColorUtils.resolveThemeColor(this, com.google.android.material.R.attr.colorOutline);
         for (int i = 0; i < starViews.size(); i++) {
             starViews.get(i).setTextColor(i < rating ? selectedColor : unselectedColor);

@@ -32,7 +32,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:indeterminate="true"
-            app:indicatorColor="@color/drivo_secondary"
+            app:indicatorColor="@color/drivo_secondary_fg"
             app:trackColor="@android:color/transparent" />
 
         <TextView
@@ -104,7 +104,7 @@
         android:src="@drawable/ic_map_pin"
         android:translationY="-18dp"
         android:visibility="gone"
-        app:tint="@color/drivo_secondary" />
+        app:tint="@color/drivo_map_destination" />
 
     <!-- Pin fijo del paso PICK_STOP: mismo patrón que img_pick_location_pin, pero teñido del
          color que MapPresenter usa para los puntos intermedios de la ruta (drivo_primary), para

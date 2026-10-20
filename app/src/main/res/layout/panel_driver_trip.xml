@@ -89,7 +89,7 @@
                 android:id="@+id/text_trip_passenger_rating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/drivo_secondary"
+                android:textColor="@color/drivo_secondary_fg"
                 android:textSize="13sp"
                 tools:text="★ 5.0" />
         </LinearLayout>

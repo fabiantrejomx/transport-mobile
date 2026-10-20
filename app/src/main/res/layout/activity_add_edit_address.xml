@@ -31,7 +31,7 @@
         android:contentDescription="@string/pick_location_pin_description"
         android:src="@drawable/ic_map_pin"
         android:translationY="-18dp"
-        app:tint="@color/drivo_secondary" />
+        app:tint="@color/drivo_map_destination" />
 
     <!-- Mismos dos flotantes que Inicio, en la misma fila y con el mismo estilo redondo: volver
          a la izquierda y centrar en mi ubicación a la derecha (el botón nativo del SDK queda
@@ -187,7 +187,7 @@
                     android:layout_marginTop="1dp"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_map_pin"
-                    app:tint="@color/drivo_secondary" />
+                    app:tint="@color/drivo_secondary_fg" />
 
                 <TextView
                     android:id="@+id/text_address"

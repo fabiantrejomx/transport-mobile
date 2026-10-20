@@ -19,6 +19,7 @@
         <item name="colorSurfaceVariant">@color/drivo_surface_variant</item>
         <item name="colorOnSurfaceVariant">@color/drivo_on_surface_variant</item>
         <item name="colorOutline">@color/drivo_outline</item>
+        <item name="colorOutlineVariant">@color/drivo_outline_variant</item>
 
         <item name="colorError">@color/drivo_error</item>
         <item name="colorOnError">@color/drivo_on_error</item>

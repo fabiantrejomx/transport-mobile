@@ -29,16 +29,16 @@ import java.util.List;
  * Dibuja sobre el mapa del conductor los dos tramos que tiene un viaje desde su punto de vista:
  *
  * <ol>
- *   <li><b>Tramo de recogida</b> (azul, del conductor al pasajero): es el trayecto que le toca
+ *   <li><b>Tramo de recogida</b> (ámbar, del conductor al pasajero): es el trayecto que le toca
  *       manejar antes de empezar a cobrar.</li>
  *   <li><b>Tramo del viaje</b> (verde, del origen al destino del pasajero, pasando por sus
  *       paradas intermedias si las pidió): es el viaje que el pasajero pidió, en el mismo color
  *       que el pasajero ve en su propia app.</li>
  * </ol>
  *
- * <p>El azul sale de {@code drivo_map_accent} y no de {@code drivo_primary}: el mapa no es una
+ * <p>El ámbar sale de {@code drivo_map_accent} y no de {@code drivo_primary}: el mapa no es una
  * superficie del tema, así que un color pensado para contrastar contra {@code colorSurface} no
- * sirve ahí — el azul marino de marca desaparecía sobre el mapa en tema oscuro.
+ * sirve ahí (ver values/colors.xml).
  *
  * <p>Al llegar una solicitud se muestran los dos a la vez, que es lo que el conductor necesita
  * para decidir (qué tan lejos está el pasajero y qué tan largo es el viaje). Ya aceptado, se
@@ -271,7 +271,7 @@ public class DriverRoutePainter {
 
     /**
      * Origen → paradas → destino: la línea pasa por cada parada en orden, no salta directo al
-     * destino, y cada parada lleva su propio punto azul (mismo código de color que en la app del
+     * destino, y cada parada lleva su propio punto ámbar (mismo código de color que en la app del
      * pasajero, donde los puntos intermedios ya se pintan así).
      */
     private void addTripLeg(@NonNull LatLng pickup, @NonNull List<LatLng> stops,
@@ -285,7 +285,7 @@ public class DriverRoutePainter {
             addMarker(stop, R.color.drivo_map_accent);
         }
         line.add(dropoff);
-        addMarker(dropoff, R.color.drivo_secondary);
+        addMarker(dropoff, R.color.drivo_map_destination);
 
         // Los marcadores se quedan en los puntos que eligió el pasajero: Google pega los extremos
         // de su trazo a la calle más cercana y el punto de encuentro se vería corrido.
